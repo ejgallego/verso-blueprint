@@ -1,0 +1,64 @@
+/-
+Copyright (c) 2026 Lean FRO LLC. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Author: OpenAI Codex
+-/
+
+import Lean
+import Verso
+import VersoManual
+import VersoBlueprint.Data
+import VersoBlueprint.Informal.LeanDeclPreviewKey
+import VersoBlueprint.Lib.HoverRender
+
+namespace Informal.LeanCodeLink
+
+open Lean
+open Verso.Output.Html
+
+/--
+`LeanCodeLink` is the narrow HTML helper for links that target Lean
+declarations/definitions and should carry a manifest-backed hover preview.
+
+It intentionally does not compute blueprint/code-status summaries; that remains
+the responsibility of `Informal.CodeSummary`.
+-/
+private def previewLookupKey (decl : Name) : String :=
+  Informal.LeanDeclPreviewKey.lookupKey decl
+
+private def previewId (decl : Name) : String :=
+  Informal.LeanDeclPreviewKey.previewId decl
+
+private def renderLinkNode
+    (node : Verso.Output.Html) (href? : Option String)
+    (className : String) (title? : Option String) : Verso.Output.Html :=
+  let attrs :=
+    if className.isEmpty then
+      #[]
+    else
+      #[("class", className)]
+  let attrs :=
+    match title? with
+    | some title => attrs.push ("title", title)
+    | none => attrs
+  match href? with
+  | some href => .tag "a" (attrs.push ("href", href)) node
+  | none => .tag "span" attrs node
+
+def renderResolved
+    (decl : Name)
+    (node : Verso.Output.Html)
+    (className : String := "")
+    (href? : Option String := none)
+    (linkTitle? : Option String := none)
+    (previewTitle : String := s!"Lean declaration {decl}")
+    (previewDetail? : Option String := none) : Verso.Output.Html :=
+  let linkNode := renderLinkNode node href? className linkTitle?
+  Informal.HoverRender.inlinePreviewNode
+    false linkNode .empty
+    (previewId decl)
+    previewTitle
+    (previewLookupKey? := some (previewLookupKey decl))
+    (previewFallbackDetail? := previewDetail?)
+
+end Informal.LeanCodeLink
