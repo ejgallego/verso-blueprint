@@ -36,3 +36,10 @@ Items to upstream to `verso` once the blueprint split is stabilized.
     - canonical base URL in `deploy/overlay.py`
     - Netlify site id / hosting secrets in `upload-snapshots.yml`
     - artifact naming assumptions in `deploy/generate.sh`
+
+- [ ] Consider upstreaming the bibliography formatting cleanup from `VersoManual/Bibliography.lean`:
+  - article punctuation cleanup
+  - issue-number rendering as `(number)` only when present
+  - page formatting cleanup
+  - `et al.` punctuation fix
+  - not needed for blueprint extraction, so root `verso` was restored to base
