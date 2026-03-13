@@ -7,9 +7,11 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
 ### `bp` (root checkout)
 
 - Status: `active`
-- Summary: extracted `VersoBlueprint` package on Lean `v4.29.0-rc6`; split-path and toolchain repair work completed in-place.
+- Summary: extracted `VersoBlueprint` package on Lean `v4.29.0-rc6`; the extracted layout, toolchain repair, and migration bookkeeping baseline are now committed on `bp`.
 - Path: `/home/egallego/lean/verso-blueprint`
 - Branch: `bp`
+- Tip commit:
+  - `9f77cd9` `refactor(blueprint): consolidate extracted package baseline`
 - Validation status:
   - `script/lean-low-priority ./generate-example-blueprints.sh`
 - Resume commands/notes:
@@ -40,7 +42,7 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
   - no independent validation beyond the shared extracted-layout baseline yet
 - Migration notes:
   - the live worktree was recreated from `bp`, then overlaid with the surviving legacy snapshot content
-  - because the extracted-layout base is still an uncommitted working-tree migration, this worktree currently carries the same rename-heavy base delta as `bp`
+  - the branch has now been re-anchored onto committed `bp` baseline `9f77cd9`, so its current diff reflects the surviving legacy overlay rather than the package extraction itself
 - Resume commands/notes:
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/blueprint-data-review-20260312`
   - `git status --short`
@@ -58,7 +60,7 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
   - no independent validation beyond the shared extracted-layout baseline yet
 - Migration notes:
   - the live worktree was recreated from `bp`, then overlaid with the surviving legacy snapshot content
-  - because the extracted-layout base is still an uncommitted working-tree migration, this worktree currently carries the same rename-heavy base delta as `bp`
+  - the branch has now been re-anchored onto committed `bp` baseline `9f77cd9`, so its current diff reflects the surviving legacy overlay rather than the package extraction itself
 - Resume commands/notes:
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/lean-lean-interactive-latency-20260310`
   - `git status --short`
@@ -111,5 +113,6 @@ not against the old monorepo bookkeeping.
 
 - The old dashboard at `/home/egallego/lean/verso-blueprint-old/WORKTREE_DASHBOARD.md` is now archival.
 - The migrated snapshot directories `blueprint-data-review-20260312` and `lean-lean-interactive-latency-20260310` have been removed from `/home/egallego/lean/verso-blueprint-old/.worktrees/` after reconstruction here.
+- The extracted package baseline is committed on `bp` at `9f77cd9`, and the two reconstructed snapshot worktrees have been re-anchored onto that committed base.
 - Legacy branches were imported into this repo for preservation, and the two surviving snapshot-only worktrees have now been reconstructed here as live extracted-repo worktrees.
 - When reviving legacy work, prefer fresh branches from `bp` and targeted ports over direct rebases of the pre-extraction history.
