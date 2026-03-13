@@ -3,16 +3,11 @@ open Lake DSL
 
 -- While the split is in progress, the extracted blueprint package depends on
 -- the parent repo root, which remains a checkout of Verso.
-require verso from ".."
+-- require verso from "../verso"
+require verso from git "https://github.com/leanprover/verso"@"main"
 
 -- Blueprints depend directly on Mathlib.
-require mathlib from git "https://github.com/leanprover-community/mathlib4"@"v4.29.0-rc3"
-
--- These are needed as transitive dependencies of Verso and for docs/tooling
--- that are part of the blueprint build.
-require subverso from git "https://github.com/leanprover/subverso"@"main"
-require MD4Lean from git "https://github.com/acmepjz/md4lean"@"main"
-require proofwidgets from git "https://github.com/leanprover-community/ProofWidgets4"@"v0.0.86"
+require mathlib from git "https://github.com/leanprover-community/mathlib4"@"v4.29.0-rc6"
 
 package VersoBlueprint where
   precompileModules := false
@@ -21,7 +16,7 @@ package VersoBlueprint where
 -- Blueprint core library.
 @[default_target]
 lean_lib VersoBlueprint where
-  srcDir := "src/verso-blueprint"
+  srcDir := "src"
   roots := #[`VersoBlueprint]
 
 -- An example of a "math blueprint" project built in Verso.
@@ -48,11 +43,11 @@ lean_exe spherepackingblueprint where
 
 @[default_target]
 lean_lib VersoBlueprintTests where
-  srcDir := "src/tests"
+  srcDir := "tests"
   roots := #[`VersoBlueprintTests]
 
 @[test_driver]
-lean_exe «verso-tests» where
+lean_exe «verso-blueprint-tests» where
   root := `BlueprintTestMain
-  srcDir := "src/tests"
+  srcDir := "tests"
   supportInterpreter := true

@@ -41,7 +41,6 @@ lemma spanning_neg {P : Triangle} {θ φ ε : ℝ} (e : ℤ) (h : P.Spanning θ 
     rw [←zpow_add₀ (show (-1:ℝ) ≠ 0 by norm_num), ←mul_two, mul_comm]
     rw [zpow_mul]
     norm_num
-    exact one_zpow e
   rw [h₁, one_mul]
   exact lt
 

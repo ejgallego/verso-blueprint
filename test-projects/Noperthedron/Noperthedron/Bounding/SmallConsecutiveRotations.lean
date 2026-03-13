@@ -179,8 +179,6 @@ theorem norm_rot3_comp_rot3_sq {d d' : Fin 3} {α β : ℝ} (h : d ≠ d') :
       have := @Bounding.dist_rot3 2 γ 0; aesop
     rw [h_norm, mul_pow, sq_abs, Real.sin_sq, Real.cos_sq]
     ring_nf
-    have hcast : (Nat.rawCast 2 : ℝ) - cos (γ * Nat.rawCast 1) * 2 = 2 - cos γ * 2 := by norm_num
-    exact hcast
   have h_trace : tr (rot3 d α ∘L rot3 d' β) = 1 + 2 * Real.cos γ := by
     convert tr_RzL using 1
     convert LinearMap.trace_conj' _ _ using 2; aesop
@@ -193,8 +191,6 @@ lemma two_mul_one_sub_cos_le (x : ℝ) : 2 * (1 - Real.cos x) ≤ x^2 := by
   have h_trig (x : ℝ) : 2 * (1 - Real.cos x) = 4 * Real.sin (x / 2) ^ 2 := by
     rw [Real.sin_sq, Real.cos_sq]
     ring_nf
-    have hcast : (2 : ℝ) - cos x * 2 = Nat.rawCast 2 - cos (x * Nat.rawCast 1) * 2 := by norm_num
-    exact hcast
   rw [h_trig x, ←sq_abs]
   grw [abs_sin_le_abs]
   rw [sq_abs]
@@ -205,8 +201,6 @@ lemma two_mul_one_sub_cos_eq_imp {x : ℝ} (hx : 2 * (1 - Real.cos x) = x^2) : x
   have h_cos_sq : 1 - Real.cos x = 2 * Real.sin (x / 2) ^ 2 := by
     rw [Real.sin_sq, Real.cos_sq]
     ring_nf
-    have hcast : (1 : ℝ) - cos x = Nat.rawCast 1 - cos (x * Nat.rawCast 1) := by norm_num
-    exact hcast
   linarith [sin_sq_lt_sq (div_ne_zero hx_zero two_ne_zero)]
 
 theorem lemma12_equality_iff {d d' : Fin 3} {α β : ℝ} (d_ne_d' : d ≠ d') :

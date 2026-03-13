@@ -1,7 +1,7 @@
 # Project Notes
 
 - Primary work areas:
-  - `src/verso-blueprint`
+  - `src/VersoBlueprint`
   - `test-projects/Noperthedron` (core example project)
 - Primary work branch at the repository root: `bp`
 - This harness applies to the extracted blueprint subproject rooted at `verso-blueprint/`
@@ -17,7 +17,8 @@
 
 - Treat `verso-blueprint/` as the package root for blueprint work.
 - For extraction work that still touches the enclosing repository, keep changes tightly scoped and do not drift into unrelated root `verso` files.
-- If `WORKTREE_DASHBOARD.md` needs an update, edit the repository-root file at `/home/egallego/lean/verso-blueprint-old/WORKTREE_DASHBOARD.md` and commit that dashboard edit.
+- `WORKTREE_DASHBOARD.md` now lives at the package root in `/home/egallego/lean/verso-blueprint/WORKTREE_DASHBOARD.md`.
+- The legacy file at `/home/egallego/lean/verso-blueprint-old/WORKTREE_DASHBOARD.md` is historical source material only; do not update it unless a separate archival task explicitly asks for that.
 
 ## General recommendations
 

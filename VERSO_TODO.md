@@ -11,7 +11,7 @@ Items to upstream to `verso` once the blueprint split is stabilized.
   - target: land this in `verso` soon, then remove the blueprint-local workaround in `VersoBlueprint/PreviewManifest.lean`
 
 - [ ] Consider upstreaming a generic page-level KaTeX prelude registry / renderer hook to `verso`:
-  - current blueprint workaround restores root `static-web/math.js` to base and uses `verso-blueprint/static-web/math.js`
+  - current blueprint workaround restores root `static-web/math.js` to base and uses the package-local `static-web/math.js`
   - blueprint pages inject one `bpTexPreludeTable` entry once per page and math nodes carry `data-bp-tex-prelude-id`
   - if `verso` wants local math preludes generally, this should become a generic core mechanism rather than a blueprint-owned fork
 

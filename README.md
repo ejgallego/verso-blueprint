@@ -5,16 +5,16 @@ from the parent Verso checkout is in progress.
 
 The package lives here:
 
-- `src/verso-blueprint`
+- `src/VersoBlueprint`
 - `test-projects/Noperthedron`
 - `test-projects/Sphere-Packing-Lean`
-- `src/tests`
+- `tests`
 
-During this transition, the local dependency on `verso` points at the parent
-repository root:
+During this transition, the package depends on `verso` via the Git dependency
+declared in `lakefile.lean`:
 
 ```bash
-require verso from ".."
+require verso from git "https://github.com/leanprover/verso"@"main"
 ```
 
 Useful commands:

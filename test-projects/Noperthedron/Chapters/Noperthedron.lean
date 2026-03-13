@@ -133,7 +133,6 @@ theorem c1_norm_one : ‖C1R‖ = 1 := by
   unfold C1R C1
   simp only [Fin.sum_univ_three, Pi.mul_apply, Matrix.cons_val]
   norm_num
-  grind
 
 theorem c2_norm_bound : ‖C2R‖ ∈ Set.Ioo (98/100) (99/100) := by
   rw [EuclideanSpace.norm_eq]

@@ -47,12 +47,12 @@ set_option verso.blueprint.foldProofs true
   - Used in: `Chapters/Noperthedron.lean`.
 - `set_option verso.blueprint.foldProofs true`
   - Purpose: fold proof bodies in Blueprint lean blocks.
-  - Definition: `src/verso-blueprint/VersoBlueprint.lean`.
+  - Definition: `src/VersoBlueprint/Informal/CodeCommon.lean`.
   - Default: `true`.
   - Used in: `Chapters/Noperthedron.lean` (explicit but currently same as default).
 - `set_option verso.blueprint.trimTeXLabelPrefix true`
   - Purpose: trim TeX-style prefixes in informal-label-derived Lean names (`thm:foo` -> `foo`) for inline code-block labels.
-  - Definition: `src/verso-blueprint/VersoBlueprint/LabelNameParsing.lean`.
+  - Definition: `src/VersoBlueprint/LabelNameParsing.lean`.
   - Default: `false`.
   - Used in: all chapter files and `Contents.lean` to normalize prefixed inline code labels.
 
@@ -97,13 +97,13 @@ These already exist in the codebase and can be enabled via `set_option`.
 These options are now implemented and can be configured with `set_option`.
 
 - `verso.blueprint.profile : Bool` (default `false`)
-  - File: `src/verso-blueprint/VersoBlueprint/Profiling.lean`.
+  - File: `src/VersoBlueprint/Profiling.lean`.
   - Effect: enables timing logs for Blueprint directive/code-block elaboration.
   - Example:
     - `set_option verso.blueprint.profile true`
 
 - `verso.blueprint.externalCode.strictResolve : Bool` (default `false`)
-  - File: `src/verso-blueprint/VersoBlueprint.lean`.
+  - File: `src/VersoBlueprint/Informal/ExternalCode.lean`.
   - Effect: unresolved/ambiguous names in `(lean := "...")` become hard errors (instead of warnings + fallback).
   - Current limitation: `(lean := "...")` still uses comma-separated strings as a temporary list workaround.
   - Planned follow-up: remove comma-splitting once Verso supports list arguments for directives.
@@ -111,7 +111,7 @@ These options are now implemented and can be configured with `set_option`.
     - `set_option verso.blueprint.externalCode.strictResolve true`
 
 - `verso.blueprint.trimTeXLabelPrefix : Bool` (default `false`)
-  - File: `src/verso-blueprint/VersoBlueprint/LabelNameParsing.lean`.
+  - File: `src/VersoBlueprint/LabelNameParsing.lean`.
   - Effect: trims TeX-style prefixes from informal-label-derived Lean names (`thm:foo` -> `foo`) for inline code labels.
   - Non-effect: does not rewrite `(lean := "...")` external declaration names.
   - Example:
@@ -120,7 +120,7 @@ These options are now implemented and can be configured with `set_option`.
 - `verso.blueprint.externalCode.previewLimit.type : Nat` (default `1200`)
 - `verso.blueprint.externalCode.previewLimit.value : Nat` (default `1200`)
 - `verso.blueprint.externalCode.previewLimit.decl : Nat` (default `1600`)
-  - File: `src/verso-blueprint/VersoBlueprint.lean`.
+  - File: `src/VersoBlueprint.lean`.
   - Effect: controls truncation limits for external declaration previews.
   - Convention: `0` disables truncation.
   - Example:
@@ -128,7 +128,7 @@ These options are now implemented and can be configured with `set_option`.
     - `set_option verso.blueprint.externalCode.previewLimit.decl 0`
 
 - `verso.blueprint.externalCode.sourceLinkTemplate : String` (default `""`)
-  - File: `src/verso-blueprint/VersoBlueprint.lean`.
+  - File: `src/VersoBlueprint/ExternalRefSnapshot.lean`.
   - Effect: enables optional source links for external declarations.
   - Placeholders: `{path}`, `{relpath}`, `{module}`, `{line}`, `{column}`.
   - Convention: empty string disables source-link generation.
@@ -136,7 +136,7 @@ These options are now implemented and can be configured with `set_option`.
     - `set_option verso.blueprint.externalCode.sourceLinkTemplate "https://github.com/<org>/<repo>/blob/main/{relpath}#L{line}"`
 
 - `verso.blueprint.graph.defaultDirection : String` (default `"TB"`)
-  - File: `src/verso-blueprint/VersoBlueprint/Commands.lean`.
+  - File: `src/VersoBlueprint/Commands/Graph.lean`.
   - Effect: default graph direction for `blueprint_graph` when no `(direction := ...)` is passed.
   - Accepted values: `LR`, `RL`, `TB`, `BT` (case-insensitive, plus aliases like `left-right`).
   - Example:

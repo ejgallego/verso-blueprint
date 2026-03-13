@@ -59,7 +59,7 @@ def texPreludeTableJs (prelude : String) : String :=
     Json.compress payload ++
     ");"
 
-def blueprintMathJs : String := include_str "../../../static-web/math.js"
+def blueprintMathJs : String := include_str "../../static-web/math.js"
 
 syntax (name := texPreludeTableJsTerm) "tex_prelude_table_js%" : term
 
