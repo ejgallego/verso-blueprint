@@ -1,5 +1,6 @@
 import Std.Data.HashMap
 import VersoManual
+import VersoBlueprint.Macros
 import VersoBlueprint.PreviewManifest
 import SpherePackingBlueprint.Contents
 
@@ -10,7 +11,7 @@ open Std (HashMap)
 def htmlAssets : HtmlAssets where
   features := .all
   extraCss := {}
-  extraJs := {}
+  extraJs := [tex_prelude_table_js%, include_str "../../static-web/math.js"]
   extraJsFiles := {}
   extraCssFiles := {}
 

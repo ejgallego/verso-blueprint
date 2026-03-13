@@ -82,7 +82,7 @@ private structure RawResult where
 deriving FromJson, ToJson, Repr
 
 private def katexLintScriptPath : System.FilePath :=
-  "static-web" / "katex-lint.mjs"
+  "verso-blueprint" / "static-web" / "katex-lint.mjs"
 
 initialize nodeAvailableRef : IO.Ref (Option Bool) ← IO.mkRef none
 initialize lintCacheRef : IO.Ref (Std.HashMap String (Option Failure)) ← IO.mkRef {}

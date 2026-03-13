@@ -169,11 +169,19 @@ def blueprintWidget : Component GraphParams where
             const attrs = Array.isArray(node.attrs) ? node.attrs : [];
             const classAttr = attrs.find(a => a && a.name === 'class');
             const classes = typeof classAttr?.value === 'string' ? classAttr.value : '';
-            if (node.tag === 'code' && classes.includes('math')) {
+            if (node.tag === 'code' && classes.includes('bp_math')) {
               const tex = extractText(node.content);
               const displayMode = classes.includes('display');
-              const preludeAttr = attrs.find(a => a && a.name === 'data-bp-tex-prelude');
-              const prelude = typeof preludeAttr?.value === 'string' ? preludeAttr.value.trim() : '';
+              const preludeTable =
+                window.bpTexPreludeTable && typeof window.bpTexPreludeTable === 'object'
+                  ? window.bpTexPreludeTable
+                  : {};
+              const preludeIdAttr = attrs.find(a => a && a.name === 'data-bp-tex-prelude-id');
+              const preludeId = typeof preludeIdAttr?.value === 'string' ? preludeIdAttr.value.trim() : '';
+              const prelude =
+                preludeId.length > 0 && typeof preludeTable[preludeId] === 'string'
+                  ? preludeTable[preludeId].trim()
+                  : '';
               let rendered = tex;
               const renderInput = prelude.length > 0 ? `${prelude}\n${tex}` : tex;
               try {

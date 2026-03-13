@@ -310,6 +310,50 @@ private def buildManifestFile
   let previews := (traversalPreviews ++ leanCodePreviews).qsort (fun a b => a.key < b.key)
   pure { previews }
 
+private def parseRenderConfigOptions (config : RenderConfig := {}) :
+    List String → ReaderT ExtensionImpls IO RenderConfig
+  | ("--output"::dir::more) => parseRenderConfigOptions { config with destination := dir } more
+  | ("--depth"::n::more) => parseRenderConfigOptions { config with htmlDepth := n.toNat! } more
+
+  | ("--with-tex"::more) => parseRenderConfigOptions { config with emitTeX := true } more
+  | ("--without-tex"::more) => parseRenderConfigOptions { config with emitTeX := false } more
+
+  | ("--with-html-single"::more) => parseRenderConfigOptions { config with emitHtmlSingle := .immediately } more
+  | ("--delay-html-single"::more) =>
+    match Verso.CLI.requireFilename "--delay-html-single" more with
+    | .ok f more' _ => parseRenderConfigOptions { config with emitHtmlSingle := .delay f } more'
+    | .error e => throw (↑ e)
+  | ("--resume-html-single"::more) =>
+    match Verso.CLI.requireFilename "--resume-html-single" more with
+    | .ok f more' _ => parseRenderConfigOptions { config with emitHtmlSingle := .resumeFrom f } more'
+    | .error e => throw (↑ e)
+  | ("--without-html-single"::more) => parseRenderConfigOptions { config with emitHtmlSingle := .no } more
+
+  | ("--with-html-multi"::more) => parseRenderConfigOptions { config with emitHtmlMulti := .immediately } more
+  | ("--delay-html-multi"::more) =>
+    match Verso.CLI.requireFilename "--delay-html-multi" more with
+    | .ok f more' _ => parseRenderConfigOptions { config with emitHtmlMulti := .delay f } more'
+    | .error e => throw (↑ e)
+  | ("--resume-html-multi"::more) =>
+    match Verso.CLI.requireFilename "--resume-html-multi" more with
+    | .ok f more' _ => parseRenderConfigOptions { config with emitHtmlMulti := .resumeFrom f } more'
+    | .error e => throw (↑ e)
+  | ("--without-html-multi"::more) => parseRenderConfigOptions { config with emitHtmlMulti := .no } more
+
+  | ("--with-word-count"::more) =>
+    match Verso.CLI.requireFilename "--with-word-count" more with
+    | .ok file more' _ => parseRenderConfigOptions { config with wordCount := some file } more'
+    | .error e => throw (↑ e)
+  | ("--without-word-count"::more) => parseRenderConfigOptions { config with wordCount := none } more
+  | ("--draft"::more) => parseRenderConfigOptions { config with draft := true } more
+  | ("--verbose"::more) => parseRenderConfigOptions { config with verbose := true } more
+  | ("--remote-config"::more) =>
+    match Verso.CLI.requireFilename "--remote-config" more with
+    | .ok file more' _ => parseRenderConfigOptions { config with remoteConfigFile := some file } more'
+    | .error e => throw (↑ e)
+  | (other :: _) => throw (↑ s!"Unknown option {other}")
+  | [] => pure config
+
 private def dumpManifest
     (text : Part Manual)
     (options : List String)
@@ -319,7 +363,7 @@ private def dumpManifest
   let logError msg := do
     errorCount.modify (· + 1)
     IO.eprintln msg
-  let cfg ← ReaderT.run (Verso.Genre.Manual.parseRenderConfigOptions config options) extensionImpls
+  let cfg ← ReaderT.run (parseRenderConfigOptions config options) extensionImpls
   let (_text, traverseState) ← ReaderT.run (Verso.Genre.Manual.traverseHtmlMulti logError cfg text) extensionImpls
   let file ← buildManifestFile extensionImpls logError traverseState
   IO.println <| jsonPretty <| toJson file
@@ -332,16 +376,13 @@ The shared manifest contains both:
 - traversal-cached statement/proof previews keyed by `PreviewCache`,
 - dedicated Lean-code previews keyed by `Informal.LeanCodePreview`.
 -/
-def emitSharedPreviewManifest : ExtraStep := fun mode logError cfg state _text => do
-  let impls ← read
-  let file ← buildManifestFile impls logError state
+def emitSharedPreviewManifest (extensionImpls : ExtensionImpls) : ExtraStep := fun mode logError cfg state _text => do
+  let file ← buildManifestFile extensionImpls logError state
   let outDir := outDirForMode cfg mode
   let dataDir := outDir / "-verso-data"
   IO.FS.createDirAll dataDir
   let json := (toJson file).compress
   IO.FS.writeFile (dataDir / manifestFilename) json
-
-initialize Verso.Genre.Manual.registerExtraStep emitSharedPreviewManifest
 
 def dumpSchemaFlag : String := "--dump-schema"
 def dumpManifestFlag : String := "--dump-manifest"
@@ -400,6 +441,6 @@ def manualMainWithSharedPreviewManifest
   if let some code := dumped? then
     return code
   manualMain text (extensionImpls := extensionImpls) (options := options) (config := config)
-    (extraSteps := extraSteps)
+    (extraSteps := emitSharedPreviewManifest extensionImpls :: extraSteps)
 
 end Informal.PreviewManifest

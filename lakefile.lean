@@ -47,11 +47,12 @@ lean_exe spherepackingblueprint where
   supportInterpreter := true
 
 @[default_target]
-lean_lib Tests where
+lean_lib VersoBlueprintTests where
   srcDir := "src/tests"
+  roots := #[`VersoBlueprintTests]
 
 @[test_driver]
 lean_exe «verso-tests» where
-  root := `TestMain
+  root := `BlueprintTestMain
   srcDir := "src/tests"
   supportInterpreter := true

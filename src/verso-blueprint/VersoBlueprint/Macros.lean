@@ -53,6 +53,22 @@ def getTexPreludeChunks [Monad m] [MonadEnv m] : m (Array String) := do
 def getTexPrelude [Monad m] [MonadEnv m] : m String := do
   pure <| joinChunks (← getTexPreludeChunks)
 
+def texPreludeTableJs (prelude : String) : String :=
+  let payload : Json := Json.mkObj [("default", Json.str prelude)]
+  "window.bpTexPreludeTable = Object.assign({}, window.bpTexPreludeTable || {}, " ++
+    Json.compress payload ++
+    ");"
+
+def blueprintMathJs : String := include_str "../../../static-web/math.js"
+
+syntax (name := texPreludeTableJsTerm) "tex_prelude_table_js%" : term
+
+@[term_elab texPreludeTableJsTerm]
+def elabTexPreludeTableJsTerm : Lean.Elab.Term.TermElab
+  | _stx, _expectedType? => do
+    let prelude ← getTexPrelude
+    return Lean.ToExpr.toExpr (texPreludeTableJs prelude)
+
 syntax (name := texPreludeCmd) "tex_prelude" str : command
 
 @[command_elab texPreludeCmd]

@@ -29,7 +29,7 @@ structure BpMathData where
 deriving FromJson, ToJson, Repr, Quote
 
 private def mathClasses (mode : MathMode) : String :=
-  "math " ++ match mode with
+  "bp_math " ++ match mode with
     | .inline => "inline"
     | .display => "display"
 
@@ -68,7 +68,19 @@ private def lintBpMathTerm [Monad m] [MonadLiftT IO m] [MonadOptions m]
 
 inline_extension Inline.bpMath (data : BpMathData) where
   data := toJson data
-  traverse _id _data _contents := pure none
+  traverse _id data _contents := do
+    let .ok { texPrelude, .. } := fromJson? (α := BpMathData) data
+      | logError s!"Malformed blueprint math payload during traversal: {data}"
+        pure none
+    modify fun st =>
+      st.modifyHtmlAssets fun assets =>
+        assets.combine {
+          extraJs := [
+            Informal.Macros.texPreludeTableJs texPrelude,
+            Informal.Macros.blueprintMathJs
+          ]
+        }
+    pure none
   toTeX :=
     open Verso.Output.TeX in
     some <| fun _go _id data _contents => do
@@ -88,7 +100,7 @@ inline_extension Inline.bpMath (data : BpMathData) where
         if texPrelude.isEmpty then
           #[("class", mathClasses mode)]
         else
-          #[("class", mathClasses mode), ("data-bp-tex-prelude", texPrelude)]
+          #[("class", mathClasses mode), ("data-bp-tex-prelude-id", "default")]
       pure <| .tag "code" attrs (.text true source)
 
 /-- Build the serialized inline node shared by both the plain and linted elaboration paths. -/
