@@ -14,3 +14,15 @@ Items to upstream to `verso` once the blueprint split is stabilized.
   - current blueprint workaround restores root `static-web/math.js` to base and uses `verso-blueprint/static-web/math.js`
   - blueprint pages inject one `bpTexPreludeTable` entry once per page and math nodes carry `data-bp-tex-prelude-id`
   - if `verso` wants local math preludes generally, this should become a generic core mechanism rather than a blueprint-owned fork
+
+- [ ] Upstream the `Verso.Code.Highlighted` docstring rerender for dynamic hover content:
+  - current local copy lives in `src/verso/Verso/Code/Highlighted.lean`
+  - blueprint motivation: `VersoBlueprint.DocGenNameRender` emits local hover payloads containing `<pre class="docstring">...</pre>`
+  - without rerendering docstrings after hover content is inserted, blueprint declaration hovers would regress to raw docstring blocks
+  - keep the local copy until the upstream version lands
+
+- [ ] Upstream the `Verso.Code.Highlighted` hover robustness guards as a separate change:
+  - current local copy lives in `src/verso/Verso/Code/Highlighted.lean`
+  - guards `tactic` hovers when `.tactic-state` is missing
+  - guards missing `parentElement` when reading `data-verso-links`
+  - this looks like general core hardening rather than blueprint-specific behavior, so it should be reviewed independently from the docstring feature
