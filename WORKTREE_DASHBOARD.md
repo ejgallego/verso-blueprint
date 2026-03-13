@@ -4,14 +4,12 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
 
 ## Active Worktrees
 
-### `bp` (root checkout)
+### `main` (root checkout)
 
 - Status: `active`
-- Summary: extracted `VersoBlueprint` package on Lean `v4.29.0-rc6`; the extracted layout, toolchain repair, and migration bookkeeping baseline are now committed on `bp`.
+- Summary: extracted `VersoBlueprint` package on Lean `v4.29.0-rc6`; the extracted layout, toolchain repair, and migration bookkeeping baseline now live on `main`.
 - Path: `/home/egallego/lean/verso-blueprint`
-- Branch: `bp`
-- Tip commit:
-  - `427edde` `docs(dashboard): track reconstructed legacy port worktrees`
+- Branch: `main`
 - Validation status:
   - `script/lean-low-priority ./generate-example-blueprints.sh`
 - Resume commands/notes:
@@ -21,11 +19,11 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
 ### `feat/harness-state-of-the-art-20260313`
 
 - Status: `active`
-- Summary: live auxiliary worktree on the extracted repo, currently at the same commit as `bp`.
+- Summary: live auxiliary worktree on the extracted repo, currently based on the shared `main` head.
 - Path: `/home/egallego/lean/verso-blueprint/.worktrees/harness-state-of-the-art-20260313`
 - Branch: `feat/harness-state-of-the-art-20260313`
 - Validation status:
-  - no independent validation beyond the shared `bp` head yet
+  - no independent validation beyond the shared `main` head yet
 - Resume commands/notes:
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/harness-state-of-the-art-20260313`
   - `git status --short`
@@ -41,8 +39,8 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
 - Validation status:
   - no independent validation beyond the shared extracted-layout baseline yet
 - Migration notes:
-  - the live worktree was recreated from `bp`, then overlaid with the surviving legacy snapshot content
-  - the branch has now been re-anchored onto committed `bp` baseline `9f77cd9`, so its current diff reflects the surviving legacy overlay rather than the package extraction itself
+  - the live worktree was recreated from `main`, then overlaid with the surviving legacy snapshot content
+  - the branch has been re-anchored onto the committed extracted-package baseline on `main`, so its current diff reflects the surviving legacy overlay rather than the package extraction itself
 - Resume commands/notes:
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/blueprint-data-review-20260312`
   - `git status --short`
@@ -59,8 +57,8 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
 - Validation status:
   - no independent validation beyond the shared extracted-layout baseline yet
 - Migration notes:
-  - the live worktree was recreated from `bp`, then overlaid with the surviving legacy snapshot content
-  - the branch has now been re-anchored onto committed `bp` baseline `9f77cd9`, so its current diff reflects the surviving legacy overlay rather than the package extraction itself
+  - the live worktree was recreated from `main`, then overlaid with the surviving legacy snapshot content
+  - the branch has been re-anchored onto the committed extracted-package baseline on `main`, so its current diff reflects the surviving legacy overlay rather than the package extraction itself
 - Resume commands/notes:
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/lean-lean-interactive-latency-20260310`
   - `git status --short`
@@ -79,7 +77,7 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
   - `script/lean-low-priority lake build VersoBlueprint.Lean VersoBlueprint.Informal.Code`
   - `script/lean-low-priority ./generate-example-blueprints.sh /home/egallego/lean/verso-blueprint/_out/lean-commandm-incremental-20260306/example-blueprints`
 - Migration notes:
-  - recreated from current `bp`, then overlaid with blueprint-owned surfaces from the surviving legacy snapshot before being narrowed back down to the real fast-path port
+  - recreated from current `main`, then overlaid with blueprint-owned surfaces from the surviving legacy snapshot before being narrowed back down to the real fast-path port
   - current tracked diff is intentionally limited to `src/VersoBlueprint/Lean.lean`, `src/VersoBlueprint/Informal/Code.lean`, and `test-projects/Noperthedron/OPTIONS.md`
   - the current branch implements an opt-in `verso.blueprint.lean.fastPath` mode; the older inner command-snapshot reuse experiment has not been rebuilt yet against the extracted repo
 - Resume commands/notes:
@@ -105,11 +103,11 @@ not against the old monorepo bookkeeping.
   - `/home/egallego/lean/verso-blueprint-old/.worktrees/lean-commandm-incremental-20260306`
 - Migration notes:
   - the imported branch still carries the old monorepo layout and old dashboard churn
-  - do not fast-forward-merge it into `bp`
+  - do not fast-forward-merge it into `main`
   - live port work now happens in `feat/lean-commandm-incremental-20260306`
 - Resume commands/notes:
   - `git log --oneline legacy/feat-lean-commandm-incremental-20260306 --`
-  - `git diff --stat bp...legacy/feat-lean-commandm-incremental-20260306`
+  - `git diff --stat main...legacy/feat-lean-commandm-incremental-20260306`
   - inspect the legacy snapshot path if commit history is too noisy
 
 ## Notes
@@ -118,6 +116,7 @@ not against the old monorepo bookkeeping.
 - The migrated snapshot directories `blueprint-data-review-20260312` and `lean-lean-interactive-latency-20260310` have been removed from `/home/egallego/lean/verso-blueprint-old/.worktrees/` after reconstruction here.
 - The leftover archival scratch directory `tex-macro-import-20260305` has been removed from `/home/egallego/lean/verso-blueprint-old/.worktrees/`.
 - The `lsp-folding-chain` line has been retired and removed from both the extracted repo and the archival old-tree snapshot set.
-- The extracted package baseline is committed on `bp` at `9f77cd9`, and the two reconstructed snapshot worktrees have been re-anchored onto that committed base.
+- The extracted package baseline is now tracked on `main`, and the reconstructed snapshot worktrees have been re-anchored onto that committed base.
+- The `verso.blueprint.lean.fastPath` option remains branch-local on `feat/lean-commandm-incremental-20260306` until that branch is reviewed and merged.
 - Legacy branches were imported into this repo for preservation, the two surviving snapshot-only worktrees were reconstructed here, and a fresh extracted-repo port worktree now exists for the preserved `lean-commandm` line.
-- When reviving legacy work, prefer fresh branches from `bp` and targeted ports over direct rebases of the pre-extraction history.
+- When reviving legacy work, prefer fresh branches from `main` and targeted ports over direct rebases of the pre-extraction history.

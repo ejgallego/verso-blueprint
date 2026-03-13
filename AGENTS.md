@@ -3,7 +3,7 @@
 - Primary work areas:
   - `src/VersoBlueprint`
   - `test-projects/Noperthedron` (core example project)
-- Primary work branch at the repository root: `bp`
+- Primary work branch at the repository root: `main`
 - This harness applies to the extracted blueprint subproject rooted at `verso-blueprint/`
 - Run long Lean/Lake/Elan commands via `script/lean-low-priority ...` so Codex keeps Lean builds at lower CPU priority by default.
 - Main validation command:
