@@ -26,3 +26,13 @@ Items to upstream to `verso` once the blueprint split is stabilized.
   - guards `tactic` hovers when `.tactic-state` is missing
   - guards missing `parentElement` when reading `data-verso-links`
   - this looks like general core hardening rather than blueprint-specific behavior, so it should be reviewed independently from the docstring feature
+
+- [ ] Split out blueprint-owned CI / release / deploy infrastructure for the future standalone `verso-blueprint` repository:
+  - current local copies live in `.github/workflows/{ci,merge-main-nightly,update-nightly,overlay,release-tag,upload-snapshots}.yml`
+  - current helper scripts live in `deploy/{build.sh,generate.sh,overlay.py,prep.sh,release.py,release_utils.py}`
+  - this is not core `verso` drift to upstream; it should move with the future `verso-blueprint` repository
+  - remember to carry the local composite action `./.github/actions/install-texlive`
+  - rebrand/reconfigure standalone deployment details:
+    - canonical base URL in `deploy/overlay.py`
+    - Netlify site id / hosting secrets in `upload-snapshots.yml`
+    - artifact naming assumptions in `deploy/generate.sh`
