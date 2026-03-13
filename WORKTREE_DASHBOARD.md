@@ -11,7 +11,7 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
 - Path: `/home/egallego/lean/verso-blueprint`
 - Branch: `bp`
 - Tip commit:
-  - `9f77cd9` `refactor(blueprint): consolidate extracted package baseline`
+  - `427edde` `docs(dashboard): track reconstructed legacy port worktrees`
 - Validation status:
   - `script/lean-low-priority ./generate-example-blueprints.sh`
 - Resume commands/notes:
@@ -76,35 +76,16 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
   - branch: `legacy/feat-lean-commandm-incremental-20260306`
   - snapshot: `/home/egallego/lean/verso-blueprint-old/.worktrees/lean-commandm-incremental-20260306`
 - Validation status:
-  - no independent validation yet on the reconstructed port branch
+  - `script/lean-low-priority lake build VersoBlueprint.Lean VersoBlueprint.Informal.Code`
+  - `script/lean-low-priority ./generate-example-blueprints.sh /home/egallego/lean/verso-blueprint/_out/lean-commandm-incremental-20260306/example-blueprints`
 - Migration notes:
-  - recreated from current `bp`, then overlaid with blueprint-owned surfaces from the surviving legacy snapshot
-  - current diff now reflects the port overlay itself instead of the extracted-package move
-  - likely first files to reconcile are `src/VersoBlueprint/Lean.lean`, `src/VersoBlueprint/Informal/Code.lean`, `src/VersoBlueprint/PreviewRender.lean`, and `doc/UsersGuide/`
+  - recreated from current `bp`, then overlaid with blueprint-owned surfaces from the surviving legacy snapshot before being narrowed back down to the real fast-path port
+  - current tracked diff is intentionally limited to `src/VersoBlueprint/Lean.lean`, `src/VersoBlueprint/Informal/Code.lean`, and `test-projects/Noperthedron/OPTIONS.md`
+  - the current branch implements an opt-in `verso.blueprint.lean.fastPath` mode; the older inner command-snapshot reuse experiment has not been rebuilt yet against the extracted repo
 - Resume commands/notes:
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/lean-commandm-incremental-20260306`
   - `git status --short`
   - compare with `legacy/feat-lean-commandm-incremental-20260306` only when snapshot context is insufficient
-
-### `feat/lsp-folding-chain`
-
-- Status: `active` (fresh extracted-repo port branch seeded from the surviving legacy snapshot)
-- Summary: reconstructed port branch for the long-running folding/status/graph cleanup line, now anchored on the committed extracted-package baseline.
-- Path: `/home/egallego/lean/verso-blueprint/.worktrees/lsp-folding-chain`
-- Branch: `feat/lsp-folding-chain`
-- Source preservation refs:
-  - branch: `legacy/feat-lsp-folding-chain`
-  - snapshot: `/home/egallego/lean/verso-blueprint-old/.worktrees/lsp-folding-chain`
-- Validation status:
-  - no independent validation yet on the reconstructed port branch
-- Migration notes:
-  - recreated from current `bp`, then overlaid with blueprint-owned surfaces from the surviving legacy snapshot
-  - current diff now reflects the port overlay itself instead of the extracted-package move
-  - expect the first reconciliation pass to center on folding/status infrastructure in `src/VersoBlueprint`, then on the broadened Noperthedron surface changes
-- Resume commands/notes:
-  - `cd /home/egallego/lean/verso-blueprint/.worktrees/lsp-folding-chain`
-  - `git status --short`
-  - inspect new untracked files such as `src/VersoBlueprint/Commands.lean`, `src/VersoBlueprint/NameParsing.lean`, and `src/VersoBlueprint/TexPrelude.lean` early
 
 ## Legacy Migration Queue
 
@@ -131,29 +112,12 @@ not against the old monorepo bookkeeping.
   - `git diff --stat bp...legacy/feat-lean-commandm-incremental-20260306`
   - inspect the legacy snapshot path if commit history is too noisy
 
-### `legacy/feat-lsp-folding-chain`
-
-- Status: `preserved` (owner action: use the live extracted-repo port worktree for ongoing work)
-- Summary: long-running folding-chain branch imported from the old repo as a preservation ref.
-- Source branch: `/home/egallego/lean/verso-blueprint-old` `feat/lsp-folding-chain`
-- Local branch: `legacy/feat-lsp-folding-chain`
-- Tip commit:
-  - `4cafd289` `verso: cleanup folding metadata plumbing and dedupe helpers`
-- Associated legacy snapshot:
-  - `/home/egallego/lean/verso-blueprint-old/.worktrees/lsp-folding-chain`
-- Migration notes:
-  - the branch predates the extraction and still touches wide monorepo surfaces
-  - live port work now happens in `feat/lsp-folding-chain`
-- Resume commands/notes:
-  - `git log --oneline legacy/feat-lsp-folding-chain --`
-  - `git diff --stat bp...legacy/feat-lsp-folding-chain`
-  - prioritize blueprint-owned files under `src/VersoBlueprint`, `test-projects/Noperthedron`, and `tests`
-
 ## Notes
 
 - The old dashboard at `/home/egallego/lean/verso-blueprint-old/WORKTREE_DASHBOARD.md` is now archival.
 - The migrated snapshot directories `blueprint-data-review-20260312` and `lean-lean-interactive-latency-20260310` have been removed from `/home/egallego/lean/verso-blueprint-old/.worktrees/` after reconstruction here.
 - The leftover archival scratch directory `tex-macro-import-20260305` has been removed from `/home/egallego/lean/verso-blueprint-old/.worktrees/`.
+- The `lsp-folding-chain` line has been retired and removed from both the extracted repo and the archival old-tree snapshot set.
 - The extracted package baseline is committed on `bp` at `9f77cd9`, and the two reconstructed snapshot worktrees have been re-anchored onto that committed base.
-- Legacy branches were imported into this repo for preservation, the two surviving snapshot-only worktrees were reconstructed here, and fresh extracted-repo port worktrees now exist for the preserved `lean-commandm` and `lsp-folding-chain` lines.
+- Legacy branches were imported into this repo for preservation, the two surviving snapshot-only worktrees were reconstructed here, and a fresh extracted-repo port worktree now exists for the preserved `lean-commandm` line.
 - When reviving legacy work, prefer fresh branches from `bp` and targeted ports over direct rebases of the pre-extraction history.
