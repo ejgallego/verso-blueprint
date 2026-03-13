@@ -19,6 +19,7 @@
 - For extraction work that still touches the enclosing repository, keep changes tightly scoped and do not drift into unrelated root `verso` files.
 - `WORKTREE_DASHBOARD.md` now lives at the package root in `/home/egallego/lean/verso-blueprint/WORKTREE_DASHBOARD.md`.
 - The legacy file at `/home/egallego/lean/verso-blueprint-old/WORKTREE_DASHBOARD.md` is historical source material only; do not update it unless a separate archival task explicitly asks for that.
+- Treat feature and legacy worktree branches as local-only by default. Do not push anything except `main` to `origin` unless the user explicitly asks for that specific push.
 
 ## General recommendations
 

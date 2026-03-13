@@ -117,6 +117,7 @@ not against the old monorepo bookkeeping.
 - The leftover archival scratch directory `tex-macro-import-20260305` has been removed from `/home/egallego/lean/verso-blueprint-old/.worktrees/`.
 - The `lsp-folding-chain` line has been retired and removed from both the extracted repo and the archival old-tree snapshot set.
 - The extracted package baseline is now tracked on `main`, and the reconstructed snapshot worktrees have been re-anchored onto that committed base.
+- Feature and legacy worktree branches are local-only by default; do not push them to `origin` unless the user explicitly requests that publication step.
 - The `verso.blueprint.lean.fastPath` option remains branch-local on `feat/lean-commandm-incremental-20260306` until that branch is reviewed and merged.
 - Legacy branches were imported into this repo for preservation, the two surviving snapshot-only worktrees were reconstructed here, and a fresh extracted-repo port worktree now exists for the preserved `lean-commandm` line.
 - When reviving legacy work, prefer fresh branches from `main` and targeted ports over direct rebases of the pre-extraction history.
