@@ -66,6 +66,46 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
   - `git status --short`
   - review `src/VersoBlueprint/Lean.lean` and related docs first when resuming latency work
 
+### `feat/lean-commandm-incremental-20260306`
+
+- Status: `active` (fresh extracted-repo port branch seeded from the surviving legacy snapshot)
+- Summary: reconstructed port branch for the incremental Lean fence / command snapshot line, now rebased conceptually onto the committed extracted-package baseline.
+- Path: `/home/egallego/lean/verso-blueprint/.worktrees/lean-commandm-incremental-20260306`
+- Branch: `feat/lean-commandm-incremental-20260306`
+- Source preservation refs:
+  - branch: `legacy/feat-lean-commandm-incremental-20260306`
+  - snapshot: `/home/egallego/lean/verso-blueprint-old/.worktrees/lean-commandm-incremental-20260306`
+- Validation status:
+  - no independent validation yet on the reconstructed port branch
+- Migration notes:
+  - recreated from current `bp`, then overlaid with blueprint-owned surfaces from the surviving legacy snapshot
+  - current diff now reflects the port overlay itself instead of the extracted-package move
+  - likely first files to reconcile are `src/VersoBlueprint/Lean.lean`, `src/VersoBlueprint/Informal/Code.lean`, `src/VersoBlueprint/PreviewRender.lean`, and `doc/UsersGuide/`
+- Resume commands/notes:
+  - `cd /home/egallego/lean/verso-blueprint/.worktrees/lean-commandm-incremental-20260306`
+  - `git status --short`
+  - compare with `legacy/feat-lean-commandm-incremental-20260306` only when snapshot context is insufficient
+
+### `feat/lsp-folding-chain`
+
+- Status: `active` (fresh extracted-repo port branch seeded from the surviving legacy snapshot)
+- Summary: reconstructed port branch for the long-running folding/status/graph cleanup line, now anchored on the committed extracted-package baseline.
+- Path: `/home/egallego/lean/verso-blueprint/.worktrees/lsp-folding-chain`
+- Branch: `feat/lsp-folding-chain`
+- Source preservation refs:
+  - branch: `legacy/feat-lsp-folding-chain`
+  - snapshot: `/home/egallego/lean/verso-blueprint-old/.worktrees/lsp-folding-chain`
+- Validation status:
+  - no independent validation yet on the reconstructed port branch
+- Migration notes:
+  - recreated from current `bp`, then overlaid with blueprint-owned surfaces from the surviving legacy snapshot
+  - current diff now reflects the port overlay itself instead of the extracted-package move
+  - expect the first reconciliation pass to center on folding/status infrastructure in `src/VersoBlueprint`, then on the broadened Noperthedron surface changes
+- Resume commands/notes:
+  - `cd /home/egallego/lean/verso-blueprint/.worktrees/lsp-folding-chain`
+  - `git status --short`
+  - inspect new untracked files such as `src/VersoBlueprint/Commands.lean`, `src/VersoBlueprint/NameParsing.lean`, and `src/VersoBlueprint/TexPrelude.lean` early
+
 ## Legacy Migration Queue
 
 These items originated in `/home/egallego/lean/verso-blueprint-old` before the package extraction.
@@ -74,7 +114,7 @@ not against the old monorepo bookkeeping.
 
 ### `legacy/feat-lean-commandm-incremental-20260306`
 
-- Status: `imported` (owner action: reconstruct as extracted-package work and port/rebase selectively)
+- Status: `preserved` (owner action: use the live extracted-repo port worktree for ongoing work)
 - Summary: legacy incremental elaboration branch imported from the old repo as a preservation ref.
 - Source branch: `/home/egallego/lean/verso-blueprint-old` `feat/lean-commandm-incremental-20260306`
 - Local branch: `legacy/feat-lean-commandm-incremental-20260306`
@@ -85,7 +125,7 @@ not against the old monorepo bookkeeping.
 - Migration notes:
   - the imported branch still carries the old monorepo layout and old dashboard churn
   - do not fast-forward-merge it into `bp`
-  - port the substantive `VersoBlueprint` changes onto a fresh extracted-repo branch instead
+  - live port work now happens in `feat/lean-commandm-incremental-20260306`
 - Resume commands/notes:
   - `git log --oneline legacy/feat-lean-commandm-incremental-20260306 --`
   - `git diff --stat bp...legacy/feat-lean-commandm-incremental-20260306`
@@ -93,7 +133,7 @@ not against the old monorepo bookkeeping.
 
 ### `legacy/feat-lsp-folding-chain`
 
-- Status: `imported` (owner action: reconstruct as extracted-package work and port/rebase selectively)
+- Status: `preserved` (owner action: use the live extracted-repo port worktree for ongoing work)
 - Summary: long-running folding-chain branch imported from the old repo as a preservation ref.
 - Source branch: `/home/egallego/lean/verso-blueprint-old` `feat/lsp-folding-chain`
 - Local branch: `legacy/feat-lsp-folding-chain`
@@ -103,7 +143,7 @@ not against the old monorepo bookkeeping.
   - `/home/egallego/lean/verso-blueprint-old/.worktrees/lsp-folding-chain`
 - Migration notes:
   - the branch predates the extraction and still touches wide monorepo surfaces
-  - expect a manual port/rebase over the extracted layout, not a trivial `git rebase bp`
+  - live port work now happens in `feat/lsp-folding-chain`
 - Resume commands/notes:
   - `git log --oneline legacy/feat-lsp-folding-chain --`
   - `git diff --stat bp...legacy/feat-lsp-folding-chain`
@@ -113,6 +153,7 @@ not against the old monorepo bookkeeping.
 
 - The old dashboard at `/home/egallego/lean/verso-blueprint-old/WORKTREE_DASHBOARD.md` is now archival.
 - The migrated snapshot directories `blueprint-data-review-20260312` and `lean-lean-interactive-latency-20260310` have been removed from `/home/egallego/lean/verso-blueprint-old/.worktrees/` after reconstruction here.
+- The leftover archival scratch directory `tex-macro-import-20260305` has been removed from `/home/egallego/lean/verso-blueprint-old/.worktrees/`.
 - The extracted package baseline is committed on `bp` at `9f77cd9`, and the two reconstructed snapshot worktrees have been re-anchored onto that committed base.
-- Legacy branches were imported into this repo for preservation, and the two surviving snapshot-only worktrees have now been reconstructed here as live extracted-repo worktrees.
+- Legacy branches were imported into this repo for preservation, the two surviving snapshot-only worktrees were reconstructed here, and fresh extracted-repo port worktrees now exist for the preserved `lean-commandm` and `lsp-folding-chain` lines.
 - When reviving legacy work, prefer fresh branches from `bp` and targeted ports over direct rebases of the pre-extraction history.
