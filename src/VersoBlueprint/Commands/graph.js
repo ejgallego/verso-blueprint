@@ -10,43 +10,65 @@
     };
   }
 
-  function layoutGraphBlock(graphBlock) {
-    if (!(graphBlock instanceof Element)) return;
-
-    graphBlock.style.left = "0px";
-    graphBlock.style.width = "auto";
-    graphBlock.style.maxWidth = "none";
-
-    const main = document.querySelector(".with-toc > main");
-    const blockRect = graphBlock.getBoundingClientRect();
-    let left = 0;
-    let right = window.innerWidth;
-
-    if (main) {
-      const mainRect = main.getBoundingClientRect();
-      const mainStyle = window.getComputedStyle(main);
-      const padLeft = parseFloat(mainStyle.paddingLeft) || 0;
-      const padRight = parseFloat(mainStyle.paddingRight) || 0;
-      left = mainRect.left + padLeft;
-      right = mainRect.right - padRight;
-    }
-
-    const width = Math.max(320, right - left);
-    const shift = left - blockRect.left;
-
-    graphBlock.style.left = shift + "px";
-    graphBlock.style.width = width + "px";
-    graphBlock.style.maxWidth = width + "px";
+  function readViewportHeight() {
+    return window.innerHeight || document.documentElement.clientHeight || 900;
   }
 
-  function layoutGraphCanvas(graphRoot) {
+  function parsePixelSize(value) {
+    const size = parseFloat(value);
+    return isFinite(size) ? size : NaN;
+  }
+
+  function normalizeGraphDirection(rawDirection) {
+    const direction = String(rawDirection || "").trim().toUpperCase();
+    if (direction === "LR" || direction === "RL" || direction === "BT") {
+      return direction;
+    }
+    return "TB";
+  }
+
+  function readGraphCanvasFlowBottom(graphRoot) {
+    if (!(graphRoot instanceof Element)) return 0;
+    const flowContainer = graphRoot.closest(".content-wrapper") || graphRoot.closest("main");
+    if (!(flowContainer instanceof Element)) return 0;
+    const rect = flowContainer.getBoundingClientRect();
+    return rect.bottom;
+  }
+
+  function layoutGraphCanvas(graphRoot, graphState) {
     if (!(graphRoot instanceof Element)) return;
     const rect = graphRoot.getBoundingClientRect();
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 900;
+    const viewportHeight = readViewportHeight();
     const bottomGap = 20;
-    const availableHeight = Math.max(0, viewportHeight - rect.top - bottomGap);
-    const targetHeight = Math.max(360, Math.min(availableHeight, Math.floor(viewportHeight * 0.84)));
-    graphRoot.style.height = targetHeight + "px";
+    const viewportMaxHeight = Math.max(280, Math.floor(viewportHeight * 0.84));
+    const flowBottom = readGraphCanvasFlowBottom(graphRoot);
+    const trailingHeight = Math.max(0, flowBottom - rect.bottom);
+    const availableHeight = Math.max(1, Math.floor(viewportHeight - rect.top - bottomGap - trailingHeight));
+    const maxHeight = Math.min(viewportMaxHeight, availableHeight);
+    const minHeight = Math.min(maxHeight, 280);
+    const currentHeight = parsePixelSize(graphRoot.style.height);
+    const state = graphState && typeof graphState === "object" ? graphState : null;
+
+    graphRoot.style.minHeight = minHeight + "px";
+    graphRoot.style.maxHeight = maxHeight + "px";
+    if (
+      state &&
+      Number.isFinite(currentHeight) &&
+      Number.isFinite(state.canvasAutoHeight) &&
+      Math.abs(currentHeight - state.canvasAutoHeight) > 1
+    ) {
+      state.canvasUserResized = true;
+    }
+    if (state && state.canvasUserResized && Number.isFinite(currentHeight)) {
+      const clampedHeight = Math.max(minHeight, Math.min(currentHeight, maxHeight));
+      if (Math.abs(clampedHeight - currentHeight) > 1) {
+        graphRoot.style.height = clampedHeight + "px";
+      }
+      state.canvasAutoHeight = clampedHeight;
+      return;
+    }
+    graphRoot.style.height = maxHeight + "px";
+    if (state) state.canvasAutoHeight = maxHeight;
   }
 
   function load(src) {
@@ -82,7 +104,15 @@
     }
     const dotTxt = graphContainer.select("script.dot-source").text().trim();
     if (!dotTxt) return [];
-    return [{ key: "full", label: "Full Graph", dot: dotTxt, selectOnNodeId: [], hoverOnNodeId: [] }];
+    const fallbackDirection = normalizeGraphDirection(graphContainer.attr("data-bp-graph-direction"));
+    return [{
+      key: "full",
+      label: "Full Graph",
+      dot: dotTxt,
+      direction: fallbackDirection,
+      selectOnNodeId: [],
+      hoverOnNodeId: []
+    }];
   }
 
   function graphNodeLabel(node) {
@@ -116,13 +146,33 @@
       groupHoverShownKey: "",
       groupHoverShownNodeId: "",
       graphviz: null,
+      canvasAutoHeight: null,
+      canvasUserResized: false,
       renderToken: 0,
       renderFinalizedToken: 0,
       windowHandlersBound: false,
-      blockResizeBound: false
+      blockResizeBound: false,
+      resizeObserver: null,
+      lastBlockWidth: 0,
+      lastCanvasWidth: 0,
+      lastCanvasHeight: 0
     };
     graphBlock.__bpGraphState = state;
     return state;
+  }
+
+  function rememberGraphLayoutMeasurements(graphBlock, graphRoot, graphState) {
+    if (
+      !(graphBlock instanceof Element) ||
+      !(graphRoot instanceof Element) ||
+      !graphState ||
+      typeof graphState !== "object"
+    ) {
+      return;
+    }
+    graphState.lastBlockWidth = Math.round(graphBlock.getBoundingClientRect().width);
+    graphState.lastCanvasWidth = Math.round(graphRoot.clientWidth);
+    graphState.lastCanvasHeight = Math.round(graphRoot.clientHeight);
   }
 
   function parsePreviewEntry(entry) {
@@ -524,43 +574,6 @@
     if (groupLegend) groupLegend.hidden = !showGroupLegend;
   }
 
-  function applyGraphZoomHeuristic(graphContainer, width, height, variantKey) {
-    const svg = graphContainer.select("svg").node();
-    if (!svg) return;
-    const graphRoot = svg.querySelector("g.graph") || svg.querySelector("g");
-    if (!graphRoot || typeof graphRoot.getBBox !== "function") return;
-    const bounds = graphRoot.getBBox();
-    if (!bounds || !(bounds.width > 0) || !(bounds.height > 0)) return;
-
-    const padX = variantKey === "full" ? 40 : 24;
-    const padY = variantKey === "full" ? 32 : 24;
-    const baseX = bounds.x - padX;
-    const baseY = bounds.y - padY;
-    const baseW = bounds.width + padX * 2;
-    const baseH = bounds.height + padY * 2;
-    const fitScale = Math.min(
-      width / baseW,
-      height / baseH
-    );
-    if (!isFinite(fitScale) || fitScale <= 0) return;
-
-    const maxScale =
-      variantKey === "group" ? 1.85 :
-      variantKey === "full" ? 1.35 :
-      1.15;
-    const targetScale = Math.min(maxScale, fitScale);
-    if (!isFinite(targetScale) || targetScale <= 0) return;
-
-    const zoomFactor = Math.min(1, targetScale / fitScale);
-    const viewW = baseW * zoomFactor;
-    const viewH = baseH * zoomFactor;
-    const viewX = baseX + (baseW - viewW) / 2;
-    const topBiased = variantKey === "group" || variantKey === "full";
-    const viewY = topBiased ? baseY : baseY + (baseH - viewH) / 2;
-    svg.setAttribute("viewBox", [viewX, viewY, viewW, viewH].join(" "));
-    svg.setAttribute("preserveAspectRatio", topBiased ? "xMidYMin meet" : "xMidYMid meet");
-  }
-
   Promise.resolve()
     .then(function () { return load("https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"); })
     .then(function () { return load("https://cdn.jsdelivr.net/npm/d3-graphviz@5.6.0/build/d3-graphviz.min.js"); })
@@ -570,7 +583,6 @@
 
       function initGraphBlock(graphBlock) {
         if (!(graphBlock instanceof Element)) return;
-        layoutGraphBlock(graphBlock);
         const graphRoot = graphBlock.querySelector(".bp_graph_canvas");
         if (!graphRoot) return;
         const graphContainer = d3.select(graphRoot);
@@ -617,23 +629,25 @@
         if (!Array.isArray(rawVariants) || rawVariants.length === 0) return;
         const variantsByKey = new Map();
         rawVariants.forEach(function (variant) {
-        if (!variant || typeof variant !== "object") return;
-        const key = String(variant.key || "").trim();
-        const label = String(variant.label || key).trim();
-        const dot = String(variant.dot || "").trim();
-        const selectOnNodeId = Array.isArray(variant.selectOnNodeId) ? variant.selectOnNodeId : [];
-        const hoverOnNodeId = Array.isArray(variant.hoverOnNodeId) ? variant.hoverOnNodeId : [];
-        const previewKeyByNodeId = Array.isArray(variant.previewKeyByNodeId) ? variant.previewKeyByNodeId : [];
-        if (!key || !dot) return;
-        variantsByKey.set(key, {
-          key: key,
-          label: label || key,
-          dot: dot,
-          selectOnNodeId: selectOnNodeId,
-          hoverOnNodeId: hoverOnNodeId,
-          previewKeyByNodeId: new Map(previewKeyByNodeId)
+          if (!variant || typeof variant !== "object") return;
+          const key = String(variant.key || "").trim();
+          const label = String(variant.label || key).trim();
+          const dot = String(variant.dot || "").trim();
+          const direction = normalizeGraphDirection(variant.direction);
+          const selectOnNodeId = Array.isArray(variant.selectOnNodeId) ? variant.selectOnNodeId : [];
+          const hoverOnNodeId = Array.isArray(variant.hoverOnNodeId) ? variant.hoverOnNodeId : [];
+          const previewKeyByNodeId = Array.isArray(variant.previewKeyByNodeId) ? variant.previewKeyByNodeId : [];
+          if (!key || !dot) return;
+          variantsByKey.set(key, {
+            key: key,
+            label: label || key,
+            dot: dot,
+            direction: direction,
+            selectOnNodeId: selectOnNodeId,
+            hoverOnNodeId: hoverOnNodeId,
+            previewKeyByNodeId: new Map(previewKeyByNodeId)
+          });
         });
-      });
         const variants = Array.from(variantsByKey.values());
         if (variants.length === 0) return;
 
@@ -770,6 +784,10 @@
           renderGraph();
         };
 
+        const scheduleRender = debounce(function () {
+          renderGraph();
+        }, 180);
+
         function renderGraph() {
           const activeVariant = getActiveVariant();
           if (!activeVariant || !activeVariant.dot) return;
@@ -778,15 +796,14 @@
           syncLegend(graphBlock, activeVariant.key);
           if (previewController) previewController.hide();
           if (groupHoverController) groupHoverController.hide();
-          layoutGraphBlock(graphBlock);
-          layoutGraphCanvas(graphRoot);
+          layoutGraphCanvas(graphRoot, graphState);
           const width = graphRoot.clientWidth;
           const height = graphRoot.clientHeight;
+          rememberGraphLayoutMeasurements(graphBlock, graphRoot, graphState);
           const finalizeRender = function () {
             if (graphState.renderToken !== renderToken) return;
             if (graphState.renderFinalizedToken === renderToken) return;
             graphState.renderFinalizedToken = renderToken;
-            applyGraphZoomHeuristic(graphContainer, width, height, activeVariant.key);
             attachPreviewHandlers(
               graphBlock,
               graphContainer,
@@ -812,7 +829,7 @@
             .zoom(true)
             .width(width)
             .height(height)
-            .fit(false)
+            .fit(true)
             .on("end", function () {
               finalizeRender();
             });
@@ -831,7 +848,38 @@
         renderGraph();
         if (!graphState.blockResizeBound) {
           graphState.blockResizeBound = true;
-          window.addEventListener("resize", debounce(renderGraph, 180));
+          window.addEventListener("resize", scheduleRender);
+          if (typeof ResizeObserver === "function") {
+            const observer = new ResizeObserver(function (entries) {
+              let shouldRender = false;
+              entries.forEach(function (entry) {
+                if (!entry || !entry.target || !entry.contentRect) return;
+                const nextWidth = Math.round(entry.contentRect.width);
+                const nextHeight = Math.round(entry.contentRect.height);
+                if (entry.target === graphBlock) {
+                  if (Math.abs(nextWidth - graphState.lastBlockWidth) > 1) {
+                    graphState.lastBlockWidth = nextWidth;
+                    shouldRender = true;
+                  }
+                  return;
+                }
+                if (entry.target === graphRoot) {
+                  if (
+                    Math.abs(nextWidth - graphState.lastCanvasWidth) > 1 ||
+                    Math.abs(nextHeight - graphState.lastCanvasHeight) > 1
+                  ) {
+                    graphState.lastCanvasWidth = nextWidth;
+                    graphState.lastCanvasHeight = nextHeight;
+                    shouldRender = true;
+                  }
+                }
+              });
+              if (shouldRender) scheduleRender();
+            });
+            observer.observe(graphBlock);
+            observer.observe(graphRoot);
+            graphState.resizeObserver = observer;
+          }
         }
       }
 

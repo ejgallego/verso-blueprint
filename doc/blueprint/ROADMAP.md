@@ -89,6 +89,13 @@ Planned tests:
    views.
 4. Use compact status chips where possible.
 5. Consider a compact-mode toggle once the semantics are stable.
+6. Revisit the graph page with a CSS-first layout architecture:
+   - current graph width placement is mostly CSS-owned, but vertical sizing still
+     uses runtime JS because it depends on viewport position, trailing flow
+     content, and preserving user-driven canvas resizing across variant switches
+   - a future pure-CSS design would likely need a dedicated page/grid layout for
+     graph title, controls, legend, canvas, and footer/navigation so the canvas
+     height can be expressed declaratively instead of computed after render
 
 ## Known Risks
 

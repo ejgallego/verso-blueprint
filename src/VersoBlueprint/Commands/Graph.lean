@@ -79,11 +79,13 @@ structure GraphRenderVariant where
   key : String
   label : String
   dot : String
+  direction : GraphDirection := .TB
   selectOnNodeId : Array (String × String) := #[]
   hoverOnNodeId : Array (String × String) := #[]
   previewKeyByNodeId : Array (String × String) := #[]
 deriving Inhabited, ToJson
 
+-- Graph CSS uses the local content wrapper content box as the sizing container for full-width graphs.
 def graphCss := include_str "graph.css"
 
 def groupVariantKey : String := "group"
@@ -317,6 +319,7 @@ def mkGraphVariants (graphData : GraphBlockData) (resolveHref : Name → Option 
       key := "full"
       label := "Full Graph"
       dot := graphToDot graphData.graph graphData.direction resolveHref resolveGroupTitle
+      direction := graphData.direction
       selectOnNodeId := #[]
       hoverOnNodeId := #[]
       previewKeyByNodeId := previewKeyByNodeId graphData.graph
@@ -328,6 +331,7 @@ def mkGraphVariants (graphData : GraphBlockData) (resolveHref : Name → Option 
       label := "Group View"
       dot := graphToDot (mkParentOverviewGraph graphData.graph parents groupTitles)
         graphData.direction (fun _ => none) (fun _ => none)
+      direction := graphData.direction
       selectOnNodeId := parentVariantRefs
       hoverOnNodeId := parentVariantRefs
       previewKeyByNodeId := #[]
@@ -336,6 +340,7 @@ def mkGraphVariants (graphData : GraphBlockData) (resolveHref : Name → Option 
       key := "full"
       label := "Full Graph"
       dot := graphToDot graphData.graph graphData.direction resolveHref resolveGroupTitle
+      direction := graphData.direction
       selectOnNodeId := #[]
       hoverOnNodeId := #[]
       previewKeyByNodeId := previewKeyByNodeId graphData.graph
@@ -348,6 +353,7 @@ def mkGraphVariants (graphData : GraphBlockData) (resolveHref : Name → Option 
         label := title
         dot := graphToDot parentSubgraph
           graphData.direction resolveHref resolveGroupTitle
+        direction := graphData.direction
         selectOnNodeId := #[]
         hoverOnNodeId := #[]
         previewKeyByNodeId := previewKeyByNodeId parentSubgraph
@@ -355,9 +361,12 @@ def mkGraphVariants (graphData : GraphBlockData) (resolveHref : Name → Option 
     #[fullVariant, groupVariant] ++ parentVariants
 
 -- Keep this binding in Lean so asset updates flow through the command module rebuild.
--- Updated when the runtime asset changes; current runtime keeps one graphviz instance per block.
+-- Updated when the runtime asset changes; current runtime leaves block placement to CSS
+-- and relies on graphviz auto-fit plus flow-aware canvas sizing for initial placement.
 def loadD3Dot := include_str "graph.js"
 
+-- Keep this binding adjacent to `loadD3Dot` so runtime graph asset updates
+-- rebuild into generated pages together.
 def graphTocToggleJs : String := include_str "graph-toc-toggle.js"
 
 -- block_extension Block.dependency_graph (label : String) where
@@ -486,7 +495,7 @@ block_extension Block.graph (graphData : GraphBlockData) where
               {{graphVariantOptions}}
             </select>
           </div>
-          <div class="bp_graph_canvas">
+          <div class="bp_graph_canvas" "data-bp-graph-direction"={{graphData.direction.rankdir}}>
             <script type="application/json" class="bp-graph-variants">
               {{.text false s!"{graphVariantJson}"}}
             </script>

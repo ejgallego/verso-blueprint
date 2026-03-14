@@ -1,7 +1,19 @@
+.content-wrapper {
+  container-type: inline-size;
+}
+
 .bp_graph_fullwidth {
   position: relative;
   box-sizing: border-box;
   margin-top: 0.35rem;
+  width: 100%;
+  max-width: none;
+}
+
+@supports (width: 100cqw) {
+  .bp_graph_fullwidth {
+    width: 100cqw;
+  }
 }
 
 #bp-toc-toggle {

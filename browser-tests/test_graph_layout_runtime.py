@@ -1,0 +1,192 @@
+from playwright.sync_api import Page
+
+
+def wait_for_graph(page: Page):
+    page.wait_for_function(
+        """() => {
+            const canvas = document.querySelector(".bp_graph_canvas");
+            const svg = canvas ? canvas.querySelector("svg") : null;
+            return !!canvas && !!svg;
+        }"""
+    )
+
+
+class TestGraphLayoutRuntime:
+    def test_graph_page_does_not_force_extra_vertical_scroll(self, server: str, page: Page):
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.goto(f"{server}/Dependency-Graph/")
+        wait_for_graph(page)
+
+        metrics = page.evaluate(
+            """() => ({
+                scrollHeight: document.documentElement.scrollHeight,
+                viewportHeight: window.innerHeight,
+            })"""
+        )
+
+        assert metrics["scrollHeight"] - metrics["viewportHeight"] <= 2
+
+    def test_graph_aligns_with_local_content_frame(self, server: str, page: Page):
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.goto(f"{server}/Dependency-Graph/")
+        wait_for_graph(page)
+
+        metrics = page.evaluate(
+            """() => {
+                const graph = document.querySelector(".bp_graph_fullwidth");
+                const wrapper = document.querySelector(".content-wrapper");
+                const section = document.querySelector("main > .content-wrapper > section");
+                if (!graph || !wrapper || !section) return null;
+                const graphRect = graph.getBoundingClientRect();
+                const wrapperRect = wrapper.getBoundingClientRect();
+                const sectionRect = section.getBoundingClientRect();
+                const wrapperStyle = getComputedStyle(wrapper);
+                const paddingRight = parseFloat(wrapperStyle.paddingRight) || 0;
+                return {
+                    graphLeft: graphRect.left,
+                    graphRight: graphRect.right,
+                    sectionLeft: sectionRect.left,
+                    wrapperRight: wrapperRect.right,
+                    paddingRight,
+                };
+            }"""
+        )
+
+        assert metrics is not None
+        assert abs(metrics["graphLeft"] - metrics["sectionLeft"]) < 4
+        assert abs(metrics["graphRight"] - (metrics["wrapperRight"] - metrics["paddingRight"])) < 4
+
+    def test_graph_content_is_visible_near_top_of_canvas(self, server: str, page: Page):
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.goto(f"{server}/Dependency-Graph/")
+        wait_for_graph(page)
+
+        metrics = page.evaluate(
+            """() => {
+                const canvas = document.querySelector(".bp_graph_canvas");
+                const svg = canvas ? canvas.querySelector("svg") : null;
+                const graph = svg ? (svg.querySelector("g.graph") || svg.querySelector("g")) : null;
+                if (!canvas || !svg || !graph) return null;
+                const canvasRect = canvas.getBoundingClientRect();
+                const graphRect = graph.getBoundingClientRect();
+                return {
+                    canvasTop: canvasRect.top,
+                    canvasHeight: canvasRect.height,
+                    graphTop: graphRect.top,
+                    graphBottom: graphRect.bottom,
+                };
+            }"""
+        )
+
+        assert metrics is not None
+        assert metrics["graphTop"] < metrics["canvasTop"] + 0.35 * metrics["canvasHeight"]
+        assert metrics["graphBottom"] > metrics["canvasTop"] + 0.5 * metrics["canvasHeight"]
+
+    def test_graph_width_is_css_driven_without_inline_offsets(self, server: str, page: Page):
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.goto(f"{server}/Dependency-Graph/")
+        wait_for_graph(page)
+        page.wait_for_function("() => !!document.getElementById('bp-toc-toggle')")
+
+        graph = page.locator(".bp_graph_fullwidth").first
+        button = page.locator("#bp-toc-toggle")
+
+        def style_snapshot():
+            return graph.evaluate(
+                """(el) => ({
+                    left: el.style.left || "",
+                    width: el.style.width || "",
+                    maxWidth: el.style.maxWidth || "",
+                })"""
+            )
+
+        initial_style = style_snapshot()
+        assert initial_style == {"left": "", "width": "", "maxWidth": ""}
+
+        button.click()
+        page.wait_for_function("() => !document.documentElement.classList.contains('bp-graph-toc-hidden')")
+        toggled_style = style_snapshot()
+        assert toggled_style == {"left": "", "width": "", "maxWidth": ""}
+
+    def test_toc_toggle_reflows_graph_width(self, server: str, page: Page):
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.goto(f"{server}/Dependency-Graph/")
+        wait_for_graph(page)
+        page.wait_for_function("() => !!document.getElementById('bp-toc-toggle')")
+
+        graph = page.locator(".bp_graph_fullwidth").first
+        button = page.locator("#bp-toc-toggle")
+
+        width_without_toc = graph.evaluate("el => el.getBoundingClientRect().width")
+        button.click()
+        page.wait_for_function("() => !document.documentElement.classList.contains('bp-graph-toc-hidden')")
+        page.wait_for_function(
+            """(previousWidth) => {
+                const graph = document.querySelector(".bp_graph_fullwidth");
+                return !!graph && graph.getBoundingClientRect().width < previousWidth - 100;
+            }""",
+            arg=width_without_toc,
+        )
+        width_with_toc = graph.evaluate("el => el.getBoundingClientRect().width")
+
+        assert width_with_toc < width_without_toc - 100
+
+        button.click()
+        page.wait_for_function("() => document.documentElement.classList.contains('bp-graph-toc-hidden')")
+        page.wait_for_function(
+            """(expectedWidth) => {
+                const graph = document.querySelector(".bp_graph_fullwidth");
+                if (!graph) return false;
+                return Math.abs(graph.getBoundingClientRect().width - expectedWidth) < 8;
+            }""",
+            arg=width_without_toc,
+        )
+
+    def test_manual_canvas_height_survives_variant_switch(self, server: str, page: Page):
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.goto(f"{server}/Dependency-Graph/")
+        wait_for_graph(page)
+
+        canvas = page.locator(".bp_graph_canvas").first
+        selector = page.locator(".bp_graph_view_select").first
+
+        desired_height = canvas.evaluate(
+            """(el) => {
+                const style = getComputedStyle(el);
+                const currentHeight = el.getBoundingClientRect().height;
+                const maxHeight = parseFloat(style.maxHeight) || currentHeight;
+                const desired = Math.max(300, Math.min(maxHeight - 10, currentHeight + 40));
+                el.style.height = `${desired}px`;
+                return desired;
+            }"""
+        )
+        page.wait_for_function(
+            """(desiredHeight) => {
+                const canvas = document.querySelector(".bp_graph_canvas");
+                if (!canvas) return false;
+                return Math.abs(canvas.getBoundingClientRect().height - desiredHeight) < 3;
+            }""",
+            arg=desired_height,
+        )
+
+        selector.select_option("group")
+        page.wait_for_function(
+            """(desiredHeight) => {
+                const canvas = document.querySelector(".bp_graph_canvas");
+                const select = document.querySelector(".bp_graph_view_select");
+                if (!canvas || !select) return false;
+                return select.value === "group" && Math.abs(canvas.getBoundingClientRect().height - desiredHeight) < 3;
+            }""",
+            arg=desired_height,
+        )
+
+        selector.select_option("full")
+        page.wait_for_function(
+            """(desiredHeight) => {
+                const canvas = document.querySelector(".bp_graph_canvas");
+                const select = document.querySelector(".bp_graph_view_select");
+                if (!canvas || !select) return false;
+                return select.value === "full" && Math.abs(canvas.getBoundingClientRect().height - desiredHeight) < 3;
+            }""",
+            arg=desired_height,
+        )

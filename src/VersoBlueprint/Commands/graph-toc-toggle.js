@@ -1,8 +1,6 @@
 (function () {
   const className = "bp-graph-toc-hidden";
   const storageKey = "verso-blueprint-graph-toc-visible";
-  if (!document.querySelector(".bp_graph_fullwidth")) return;
-  if (!document.getElementById("toc")) return;
 
   function readVisible() {
     try {
@@ -13,38 +11,45 @@
     return false;
   }
 
-  let visible = readVisible();
-  const root = document.documentElement;
-  const button = document.createElement("button");
-  button.id = "bp-toc-toggle";
-  button.type = "button";
+  function init() {
+    if (!document.querySelector(".bp_graph_fullwidth")) return;
+    if (!document.getElementById("toc")) return;
+    if (document.getElementById("bp-toc-toggle")) return;
 
-  function apply() {
-    if (visible) root.classList.remove(className);
-    else root.classList.add(className);
-    button.textContent = visible ? "Hide ToC" : "Show ToC";
-    window.dispatchEvent(new Event("resize"));
-  }
+    let visible = readVisible();
+    const root = document.documentElement;
+    const button = document.createElement("button");
+    button.id = "bp-toc-toggle";
+    button.type = "button";
 
-  function persist() {
-    try {
-      localStorage.setItem(storageKey, visible ? "1" : "0");
-    } catch (_err) {}
-  }
+    function apply() {
+      if (visible) root.classList.remove(className);
+      else root.classList.add(className);
+      button.textContent = visible ? "Hide ToC" : "Show ToC";
+      window.dispatchEvent(new Event("resize"));
+    }
 
-  button.addEventListener("click", function () {
-    visible = !visible;
-    persist();
+    function persist() {
+      try {
+        localStorage.setItem(storageKey, visible ? "1" : "0");
+      } catch (_err) {}
+    }
+
+    button.addEventListener("click", function () {
+      visible = !visible;
+      persist();
+      apply();
+    });
+
+    if (document.body) {
+      document.body.appendChild(button);
+    }
     apply();
-  });
-
-  if (document.body) {
-    document.body.appendChild(button);
-  } else {
-    document.addEventListener("DOMContentLoaded", function () {
-      if (document.body) document.body.appendChild(button);
-    }, { once: true });
   }
 
-  apply();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
 })();

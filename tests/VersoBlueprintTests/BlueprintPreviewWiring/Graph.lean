@@ -28,13 +28,15 @@ open Verso.VersoBlueprintTests.BlueprintPreviewWiring.Shared
       hasSubstr out "class=\"bp_group_hover_preview\"" &&
       hasSubstr out "aria-label=\"Close group preview\"" &&
       hasSubstr out "class=\"bp-graph-variants\"" &&
+      hasSubstr out "data-bp-graph-direction=\"TB\"" &&
+      hasSubstr out "\"direction\":\"TB\"" &&
       hasSubstr out "data-bp-tex-prelude-id" &&
       !hasSubstr out "data-bp-tex-prelude=\"" &&
       !hasSubstr out "bp_preview_tex_prelude" &&
       match graphJs? with
       | some graphJs =>
         hasSubstr graphJs "return utils.readPreviewTemplate(entry);" &&
-        hasSubstr graphJs "function layoutGraphCanvas(graphRoot)" &&
+        hasSubstr graphJs "function layoutGraphCanvas(graphRoot, graphState)" &&
         hasSubstr graphJs "function ensureGraphBlockState(graphBlock)" &&
         hasSubstr graphJs "function createPanelController(panel, behavior, titleSelector, bodySelector, options)" &&
         hasSubstr graphJs "function bindHoverablePanelLifetime(previewUtils, controller, getActiveAnchor, boundAttr)" &&
@@ -55,8 +57,10 @@ open Verso.VersoBlueprintTests.BlueprintPreviewWiring.Shared
         hasSubstr graphJs "if (graphState.renderToken !== renderToken) return;" &&
         hasSubstr graphJs "const gv = graphState.graphviz || graphContainer.graphviz();" &&
         hasSubstr graphJs ".zoom(true)" &&
-        hasSubstr graphJs "const padX = variantKey === \"full\" ? 40 : 24;" &&
-        hasSubstr graphJs "const zoomFactor = Math.min(1, targetScale / fitScale);" &&
+        hasSubstr graphJs "function normalizeGraphDirection(rawDirection)" &&
+        hasSubstr graphJs "layoutGraphCanvas(graphRoot, graphState)" &&
+        hasSubstr graphJs "if (typeof ResizeObserver === \"function\")" &&
+        hasSubstr graphJs ".fit(true)" &&
         hasSubstr graphJs "syncLegend(graphBlock, activeKey)"
       | none => false
     )
