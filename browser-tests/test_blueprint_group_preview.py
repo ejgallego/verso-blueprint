@@ -1,10 +1,11 @@
-import re
-
 from playwright.sync_api import expect, Page
+
+from support import assert_no_runtime_errors, record_runtime_errors
 
 
 class TestBlueprintGroupPreview:
     def test_group_chip_opens_panel_and_updates_preview(self, server: str, page: Page):
+        errors = record_runtime_errors(page)
         page.goto(f"{server}/Bounding-Rotations/")
 
         wrapper = page.locator('.bp_wrapper[title="«lem:jensen»"]').first
@@ -27,10 +28,13 @@ class TestBlueprintGroupPreview:
 
         expect(panel.locator(".bp_used_by_preview_title")).to_have_text("Lemma 3.5")
         expect(panel.locator(".bp_used_by_preview_body")).to_contain_text("For any")
+        assert_no_runtime_errors(errors)
 
     def test_blocks_without_parent_do_not_render_group_chip(self, server: str, page: Page):
+        errors = record_runtime_errors(page)
         page.goto(f"{server}/Main-Theorems/")
 
         wrapper = page.locator('.bp_wrapper[title="«thm:no_nopert_tight_pose»"]').first
 
         expect(wrapper.locator(".bp_extra_slot_group")).to_have_count(0)
+        assert_no_runtime_errors(errors)

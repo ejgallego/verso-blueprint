@@ -1,6 +1,6 @@
 # Blueprint Roadmap
 
-Last updated: 2026-03-11
+Last updated: 2026-03-15
 
 This document tracks the active cleanup and refactor plan for Blueprint support
 in this repository.
@@ -12,6 +12,7 @@ Background and design rationale live in `DESIGN_RATIONALE.md`.
 1. Keep one source of truth for Blueprint semantics and status derivation.
 2. Keep command/traversal render paths aligned with shared `Lib` APIs.
 3. Add regression coverage before any new structural split.
+4. Land a small, explicit harness surface for humans and AI agents.
 
 ## Immediate Next Actions
 
@@ -55,6 +56,53 @@ Planned tests:
    silent overwrite.
 
 ## Planned Work
+
+### Harness Surface and External Project Plan
+
+Goal: keep the public harness surface direct and repository-local, even as the
+implementation moves toward a worktree-aware Python orchestrator.
+
+Target public entry points:
+
+1. `./generate-example-blueprints.sh`
+2. `./validate-example-blueprints.sh`
+3. `python3 -m script.blueprint_harness sync-root-lake`
+4. `python3 -m script.blueprint_harness paths`
+
+Design constraints:
+
+1. Keep shell wrappers thin and ergonomic.
+2. Keep Python as the single source of truth for orchestration and path logic.
+3. Treat helper modules and command-assembly details as internal, not public,
+   surface area.
+4. Keep artifact locations and failure messages predictable across root checkouts
+   and linked worktrees.
+5. Keep the in-repo `test-projects/` examples as the default validation
+   baseline.
+6. Keep Lean tests opt-in in the default validation path until the `lake test`
+   baseline is trustworthy again.
+
+External-project requirements that must eventually be supported:
+
+1. Easily test a new or local `verso` checkout against this package.
+2. Easily test Blueprint projects that live in another repository.
+3. Preserve the same top-level harness entry points for those scenarios rather
+   than introducing a separate ad hoc workflow.
+4. Keep the external-project path/configuration explicit enough for AI agents to
+   use reliably.
+
+Toward full completion, the harness work should:
+
+1. Land the repo-local Python orchestrator and thin shell entry points.
+2. Validate both root-checkout and linked-worktree flows end to end.
+3. Stabilize output path conventions for generation, static checks, and browser
+   checks.
+4. Add the minimum path/dependency override surface needed for local `verso`
+   testing.
+5. Add the minimum path/project override surface needed for Blueprint projects
+   that live outside this repository.
+6. Document the finished workflow in `USER_MANUAL.md` once the interface is no
+   longer provisional.
 
 ### Phase 1: Shared Status Semantics
 

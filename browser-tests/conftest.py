@@ -1,31 +1,24 @@
 import json
 import pytest
 import random
+import shutil
 import socket
 import subprocess
+import sys
 import time
+import urllib.request
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+if str(PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_ROOT))
+
+from script.blueprint_harness_paths import default_example_site_dir
+
 
 def default_site_dir() -> Path:
-    package_root = Path(__file__).resolve().parents[1]
-    repo_root = package_root.parent
-    if repo_root.parent.name == ".worktrees":
-        shared_out = repo_root.parents[1] / "_out" / repo_root.name
-        candidates = [
-            shared_out / "example-blueprints" / "noperthedron" / "html-multi",
-            shared_out / "noperthedron" / "html-multi",
-        ]
-    else:
-        candidates = [
-            package_root / "_out" / "example-blueprints" / "noperthedron" / "html-multi",
-            package_root / "_out" / "noperthedron" / "html-multi",
-        ]
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return candidates[0]
+    return default_example_site_dir("noperthedron", Path(__file__))
 
 
 DEFAULT_SITE_DIR = default_site_dir()
@@ -35,6 +28,31 @@ def find_free_port():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+def browser_executable(browser_type: str) -> str | None:
+    candidates = {
+        "chromium": ["chromium", "chromium-browser", "google-chrome"],
+        "firefox": ["firefox"],
+    }.get(browser_type, [])
+    for candidate in candidates:
+        path = shutil.which(candidate)
+        if path:
+            return path
+    return None
+
+
+def wait_for_server(url: str, proc: subprocess.Popen[bytes], timeout_s: float = 10.0) -> None:
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            raise RuntimeError(f"local test server exited early with code {proc.returncode}")
+        try:
+            with urllib.request.urlopen(url):
+                return
+        except OSError:
+            time.sleep(0.1)
+    raise RuntimeError(f"timed out waiting for local test server at {url}")
 
 
 def load_redirects(site_dir: str | Path):
@@ -108,8 +126,9 @@ def server(request):
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    time.sleep(1)
-    yield f"http://127.0.0.1:{port}"
+    server_url = f"http://127.0.0.1:{port}"
+    wait_for_server(server_url, proc)
+    yield server_url
     proc.terminate()
     proc.wait()
 
@@ -123,7 +142,23 @@ def playwright_instance():
 @pytest.fixture(scope="session", params=["chromium", "firefox"])
 def browser(request, playwright_instance):
     browser_type = request.param
-    browser = getattr(playwright_instance, browser_type).launch()
+    selected = request.config.getoption("browser")
+    if isinstance(selected, (list, tuple, set)):
+        selected_browsers = set(selected)
+    elif selected in (None, ""):
+        selected_browsers = {"chromium"}
+    else:
+        selected_browsers = {selected}
+    if browser_type not in selected_browsers:
+        pytest.skip(f"browser {browser_type} not selected")
+    launcher = getattr(playwright_instance, browser_type)
+    try:
+        browser = launcher.launch()
+    except Exception as err:
+        executable = browser_executable(browser_type)
+        if executable is None:
+            pytest.skip(f"no Playwright-managed or system browser available for {browser_type}: {err}")
+        browser = launcher.launch(executable_path=executable)
     yield browser
     browser.close()
 

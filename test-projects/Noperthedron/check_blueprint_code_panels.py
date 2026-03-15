@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 import re
 import sys
+
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+if str(PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_ROOT))
+
+from script.blueprint_harness_paths import default_example_site_dir, resolve_cli_path
 
 
 def fail(msg: str) -> None:
@@ -17,19 +24,25 @@ def load(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def default_site_root() -> Path:
-    repo_root = Path(__file__).resolve().parents[2]
-    candidates = [repo_root / "_out" / "html-multi"]
-    if repo_root.parent.name == ".worktrees":
-        candidates.append(repo_root.parents[1] / "_out" / repo_root.name / "html-multi")
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return candidates[0]
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Static regression checks for generated Noperthedron code panels."
+    )
+    parser.add_argument(
+        "--site-dir",
+        default=None,
+        help="Path to the generated noperthedron html-multi directory.",
+    )
+    return parser.parse_args()
 
 
 def main() -> int:
-    out_root = default_site_root()
+    args = parse_args()
+    out_root = (
+        resolve_cli_path(args.site_dir)
+        if args.site_dir is not None
+        else default_example_site_dir("noperthedron", Path(__file__))
+    )
     local_theorem = load(out_root / "The-Local-Theorem" / "index.html")
     global_theorem = load(out_root / "The-Global-Theorem" / "index.html")
     bounding = load(out_root / "Bounding-Rotations" / "index.html")
