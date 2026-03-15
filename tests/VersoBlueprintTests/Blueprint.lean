@@ -16,6 +16,7 @@ import VersoBlueprintTests.BlueprintMathLint
 import VersoBlueprintTests.BlueprintMetadataPanel
 import VersoBlueprintTests.BlueprintNumbering
 import VersoBlueprintTests.BlueprintPreviewSchema
+import VersoBlueprintTests.BlueprintPreviewPanels
 import VersoBlueprintTests.BlueprintPreviewSource
 import VersoBlueprintTests.BlueprintPreviewWiring
 import VersoBlueprintTests.BlueprintSummaryLinks

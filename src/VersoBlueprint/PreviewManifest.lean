@@ -252,6 +252,7 @@ private def buildTraversalEntries
       if entry.blocks.isEmpty then
         continue
       let html ← Output.Html.asString <$> Informal.renderManualBlocksHtmlWithState entry.blocks impls state
+        (logError := logError)
       if html.trimAscii.isEmpty then
         continue
       let blockData? := blockInfo? state entry.label
@@ -289,6 +290,7 @@ private def buildLeanCodeEntries
       logError s!"Preview manifest: malformed Lean-code preview entry {obj.canonicalName}: {err}"
     | .ok entry =>
       let html ← Output.Html.asString <$> Informal.LeanCodePreview.renderHtmlWithState entry impls state
+        (logError := logError)
       if html.trimAscii.isEmpty then
         continue
       let manifestEntry : Entry := {

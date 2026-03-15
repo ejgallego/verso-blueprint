@@ -13,13 +13,12 @@ namespace Informal.HoverRender
 open Lean
 open Verso.Output.Html
 
-structure GraphPreviewUi where
+structure PreviewUi where
   store : Verso.Output.Html := .empty
   panel : Verso.Output.Html := .empty
 
-structure SummaryPreviewUi where
-  store : Verso.Output.Html := .empty
-  panel : Verso.Output.Html := .empty
+abbrev GraphPreviewUi := PreviewUi
+abbrev SummaryPreviewUi := PreviewUi
 
 /--
 Preview visibility behavior:
@@ -145,33 +144,53 @@ private def previewPanel
   </aside>
 }}
 
-def graphPreviewUi
-    (mode : PreviewMode := .pinned) (placement : PreviewPlacement := .docked) : GraphPreviewUi :=
+private def mkPreviewUi
+    (rootClass headerClass titleClass closeClass bodyClass closeLabel : String)
+    (mode : PreviewMode) (placement : PreviewPlacement) : PreviewUi :=
   {
     store := .empty
     panel := previewPanel
-      "bp_graph_preview bp_preview_panel"
-      "bp_graph_preview_header bp_preview_panel_header"
-      "bp_graph_preview_title bp_preview_panel_title"
-      "bp_graph_preview_close bp_preview_panel_close"
-      "bp_graph_preview_body bp_preview_panel_body"
-      "Close informal preview"
+      rootClass
+      headerClass
+      titleClass
+      closeClass
+      bodyClass
+      closeLabel
       mode placement
   }
 
+def graphPreviewUi
+    (mode : PreviewMode := .pinned) (placement : PreviewPlacement := .docked) : GraphPreviewUi :=
+  mkPreviewUi
+    "bp_graph_preview bp_preview_panel"
+    "bp_graph_preview_header bp_preview_panel_header"
+    "bp_graph_preview_title bp_preview_panel_title"
+    "bp_graph_preview_close bp_preview_panel_close"
+    "bp_graph_preview_body bp_preview_panel_body"
+    "Close informal preview"
+    mode placement
+
 def summaryPreviewUi
     (mode : PreviewMode := .hover) (placement : PreviewPlacement := .anchored) : SummaryPreviewUi :=
-  {
-    store := .empty
-    panel := previewPanel
-      "bp_summary_preview_panel bp_preview_panel"
-      "bp_summary_preview_panel_header bp_preview_panel_header"
-      "bp_summary_preview_panel_title bp_preview_panel_title"
-      "bp_summary_preview_panel_close bp_preview_panel_close"
-      "bp_summary_preview_panel_body bp_preview_panel_body"
-      "Close summary preview"
-      mode placement
-  }
+  mkPreviewUi
+    "bp_summary_preview_panel bp_preview_panel"
+    "bp_summary_preview_panel_header bp_preview_panel_header"
+    "bp_summary_preview_panel_title bp_preview_panel_title"
+    "bp_summary_preview_panel_close bp_preview_panel_close"
+    "bp_summary_preview_panel_body bp_preview_panel_body"
+    "Close summary preview"
+    mode placement
+
+def graphGroupPreviewUi
+    (mode : PreviewMode := .pinned) (placement : PreviewPlacement := .docked) : PreviewUi :=
+  mkPreviewUi
+    "bp_group_hover_preview bp_preview_panel"
+    "bp_group_hover_preview_header bp_preview_panel_header"
+    "bp_group_hover_preview_title bp_preview_panel_title"
+    "bp_group_hover_preview_close bp_preview_panel_close"
+    "bp_group_hover_preview_graph bp_preview_panel_body"
+    "Close group preview"
+    mode placement
 
 def summaryPreviewWrap
     (labelNode : Verso.Output.Html)

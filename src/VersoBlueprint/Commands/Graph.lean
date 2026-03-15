@@ -473,18 +473,7 @@ block_extension Block.graph (graphData : GraphBlockData) where
         | some variant => variant.dot
         | Option.none => graphToDot graphData.graph graphData.direction resolveHref resolveGroupTitle
       let previewUi := Informal.HoverRender.graphPreviewUi
-      let groupHoverPanel : Output.Html := {{
-        <aside class="bp_group_hover_preview"
-            "data-bp-preview-mode"="pinned"
-            "data-bp-preview-placement"="docked"
-            hidden>
-          <div class="bp_group_hover_preview_header">
-            <div class="bp_group_hover_preview_title"></div>
-            <button type="button" class="bp_group_hover_preview_close" aria-label="Close group preview">"Close"</button>
-          </div>
-          <div class="bp_group_hover_preview_graph"></div>
-        </aside>
-      }}
+      let groupHoverUi := Informal.HoverRender.graphGroupPreviewUi
       return {{
         <div class="bp_graph_fullwidth">
           {{fullLegendHtml}}
@@ -505,7 +494,7 @@ block_extension Block.graph (graphData : GraphBlockData) where
           </div>
           {{previewUi.store}}
           {{previewUi.panel}}
-          {{groupHoverPanel}}
+          {{groupHoverUi.panel}}
         </div>
       }}
   extraCss := withPreviewPanelCssAssets [graphCss]

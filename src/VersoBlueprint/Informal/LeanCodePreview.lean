@@ -66,10 +66,11 @@ def title (decl : Name) : String :=
 def renderHtmlWithState
     (entry : Entry)
     (impls : Verso.Genre.Manual.ExtensionImpls)
-    (state : Verso.Genre.Manual.TraverseState) : IO Verso.Output.Html := do
+    (state : Verso.Genre.Manual.TraverseState)
+    (logError : String → IO Unit := fun _ => pure ()) : IO Verso.Output.Html := do
   match entry.source with
   | .inlineBlocks blocks =>
-    Informal.renderManualBlocksHtmlWithState blocks impls state
+    Informal.renderManualBlocksHtmlWithState blocks impls state (logError := logError)
   | .externalDecl decl =>
     pure <| Informal.ExternalCode.renderPreviewHtml #[decl]
 

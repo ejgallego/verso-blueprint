@@ -21,11 +21,16 @@ open Verso.VersoBlueprintTests.BlueprintPreviewWiring.Shared
         "function attachPreviewHandlers(graphBlock, graphContainer, previewMap, previewController, previewKeyByNodeId)"
     pure (
       hasSubstr out "bp_graph_preview" &&
+      hasSubstr out "class=\"bp_graph_preview bp_preview_panel\"" &&
       hasSubstr out "data-bp-preview-mode=\"pinned\"" &&
       hasSubstr out "data-bp-preview-placement=\"docked\"" &&
       !hasSubstr out "class=\"bp_graph_preview_store\"" &&
       !hasSubstr out "class=\"bp_graph_preview_tpl\"" &&
-      hasSubstr out "class=\"bp_group_hover_preview\"" &&
+      hasSubstr out "class=\"bp_group_hover_preview bp_preview_panel\"" &&
+      hasSubstr out "class=\"bp_group_hover_preview_header bp_preview_panel_header\"" &&
+      hasSubstr out "class=\"bp_group_hover_preview_title bp_preview_panel_title\"" &&
+      hasSubstr out "class=\"bp_group_hover_preview_close bp_preview_panel_close\"" &&
+      hasSubstr out "class=\"bp_group_hover_preview_graph bp_preview_panel_body\"" &&
       hasSubstr out "aria-label=\"Close group preview\"" &&
       hasSubstr out "class=\"bp-graph-variants\"" &&
       hasSubstr out "data-bp-graph-direction=\"TB\"" &&

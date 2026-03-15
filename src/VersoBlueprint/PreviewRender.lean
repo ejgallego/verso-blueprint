@@ -10,6 +10,8 @@ import VersoBlueprint.Lib.HoverRender
 
 namespace Informal
 
+private def discardRenderError (_msg : String) : IO Unit := pure ()
+
 private def initTraverseState (impls : Verso.Genre.Manual.ExtensionImpls) : Verso.Genre.Manual.TraverseState :=
   Id.run do
     let mut st : Verso.Genre.Manual.TraverseState := Verso.Genre.Manual.TraverseState.initialize {}
@@ -21,12 +23,13 @@ private def initTraverseState (impls : Verso.Genre.Manual.ExtensionImpls) : Vers
         st := descr.init st
     return st
 
-private def traverseManualBlocks
+def traverseManualBlocks
     (blocks : Array (Verso.Doc.Block Verso.Genre.Manual))
-    (impls : Verso.Genre.Manual.ExtensionImpls) :
+    (impls : Verso.Genre.Manual.ExtensionImpls)
+    (logError : String → IO Unit := discardRenderError) :
     IO (Array (Verso.Doc.Block Verso.Genre.Manual) × Verso.Genre.Manual.TraverseState) := do
   let ctxt : Verso.Genre.Manual.TraverseContext := {
-    logError := fun _ => pure ()
+    logError := logError
   }
   let mut st := initTraverseState impls
   let mut cur := blocks
@@ -42,14 +45,18 @@ def renderManualBlocksHtmlWithState
     (blocks : Array (Verso.Doc.Block Verso.Genre.Manual))
     (impls : Verso.Genre.Manual.ExtensionImpls)
     (st : Verso.Genre.Manual.TraverseState)
-    (linkTargets : Verso.Code.LinkTargets Verso.Genre.Manual.TraverseContext := st.localTargets) :
+    (linkTargets : Verso.Code.LinkTargets Verso.Genre.Manual.TraverseContext := st.localTargets)
+    (logError : String → IO Unit := discardRenderError) :
     IO Verso.Output.Html := do
+  let htmlLogError :
+      String → ReaderT Verso.Multi.AllRemotes (ReaderT Verso.Genre.Manual.ExtensionImpls IO) Unit :=
+    fun msg => monadLift <| logError msg
   let opts : Verso.Doc.Html.Options (ReaderT Verso.Multi.AllRemotes (ReaderT Verso.Genre.Manual.ExtensionImpls IO)) := {
     headerLevel := 1
-    logError := fun _ => pure ()
+    logError := htmlLogError
   }
   let ctxt : Verso.Genre.Manual.TraverseContext := {
-    logError := fun _ => pure ()
+    logError := logError
   }
   let definitionIds : Lean.NameMap String := {}
   let codeOptions : Verso.Code.HighlightHtmlM.Options := {}
@@ -71,9 +78,10 @@ def renderManualBlocksHtmlWithState
 
 private def renderManualBlocksHtml
     (blocks : Array (Verso.Doc.Block Verso.Genre.Manual))
-    (impls : Verso.Genre.Manual.ExtensionImpls) : IO Verso.Output.Html := do
-  let (blocks, st) ← traverseManualBlocks blocks impls
-  renderManualBlocksHtmlWithState blocks impls st
+    (impls : Verso.Genre.Manual.ExtensionImpls)
+    (logError : String → IO Unit := discardRenderError) : IO Verso.Output.Html := do
+  let (blocks, st) ← traverseManualBlocks blocks impls logError
+  renderManualBlocksHtmlWithState blocks impls st (logError := logError)
 
 private unsafe def evalElaboratedBlocksUnsafe (stxs : Array Lean.Syntax) :
     Lean.Elab.Term.TermElabM (Array (Verso.Doc.Block Verso.Genre.Manual)) := do

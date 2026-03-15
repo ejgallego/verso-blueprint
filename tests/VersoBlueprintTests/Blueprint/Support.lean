@@ -28,32 +28,6 @@ private partial def collectBlocks (part : Doc.Part Genre.Manual) : Array (Doc.Bl
     acc ++ collectBlocks child
   part.content ++ childBlocks
 
-private def initTraverseState (impls : ExtensionImpls) : TraverseState :=
-  Id.run do
-    let mut st : TraverseState := TraverseState.initialize {}
-    for ⟨_, b⟩ in impls.blockDescrs do
-      if let some descr := b.get? BlockDescr then
-        st := descr.init st
-    for ⟨_, i⟩ in impls.inlineDescrs do
-      if let some descr := i.get? InlineDescr then
-        st := descr.init st
-    return st
-
-private def traverseManualBlocks
-    (blocks : Array (Doc.Block Genre.Manual))
-    (impls : ExtensionImpls) :
-    IO (Array (Doc.Block Genre.Manual) × TraverseState) := do
-  let ctxt : TraverseContext := { logError := fun _ => pure () }
-  let mut st := initTraverseState impls
-  let mut cur := blocks
-  for _ in [0:4] do
-    let (next, st') ← TraverseM.run impls ctxt st <| cur.mapM Verso.Genre.Manual.traverseBlock
-    if next == cur && st' == st then
-      return (next, st')
-    cur := next
-    st := st'
-  return (cur, st)
-
 /-- Keep extension impls explicit so each test renders with its own imported extension set. -/
 def renderManualDocHtmlAndState
     (impls : ExtensionImpls)
@@ -62,7 +36,7 @@ def renderManualDocHtmlAndState
     headerLevel := 1
     logError := fun _ => pure ()
   }
-  let (blocks, st) ← traverseManualBlocks (collectBlocks doc.toPart) impls
+  let (blocks, st) ← Informal.traverseManualBlocks (collectBlocks doc.toPart) impls
   let ctxt : TraverseContext := { logError := fun _ => pure () }
   let definitionIds : Lean.NameMap String := {}
   let linkTargets : Code.LinkTargets TraverseContext := {}
