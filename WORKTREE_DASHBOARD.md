@@ -52,6 +52,18 @@ Last updated: 2026-03-16 (migrated from the old monorepo dashboard; this file is
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/manual-link-ready-20260316`
   - `git status --short`
 
+### `feat/doc-root-cleanup-20260316`
+
+- Status: `active`
+- Summary: cleanup worktree for moving nonstandard internal docs out of the repository root and merging redundant debt notes into the roadmap.
+- Path: `/home/egallego/lean/verso-blueprint/.worktrees/doc-root-cleanup-20260316`
+- Branch: `feat/doc-root-cleanup-20260316`
+- Validation status:
+  - documentation-only edits; root doc surface reviewed locally
+- Resume commands/notes:
+  - `cd /home/egallego/lean/verso-blueprint/.worktrees/doc-root-cleanup-20260316`
+  - `git status --short`
+
 ### `feat/blueprint-data-review-20260312`
 
 - Status: `active` (reconstructed from a legacy snapshot onto the extracted package layout)

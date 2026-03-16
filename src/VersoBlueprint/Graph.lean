@@ -14,7 +14,7 @@ open Lean
 open Informal Data Environment
 
 /-!
-See `doc/blueprint/DESIGN_RATIONALE.md` for the human-readable graph
+See `doc/DESIGN_RATIONALE.md` for the human-readable graph
 status/completion and warning/color mapping rationale.
 -/
 

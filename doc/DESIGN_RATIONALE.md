@@ -12,7 +12,7 @@ It is intentionally not:
 - the change backlog
 
 Those responsibilities live in
-[`MANUAL.md`](../../MANUAL.md),
+[`MANUAL.md`](./MANUAL.md),
 [`USER_MANUAL.md`](./USER_MANUAL.md), and
 [`ROADMAP.md`](./ROADMAP.md).
 

@@ -15,10 +15,9 @@ It is organized around two reader questions:
 2. what does that source render into?
 
 Operational workflow lives in
-[`doc/blueprint/USER_MANUAL.md`](./doc/blueprint/USER_MANUAL.md). Architecture
-background and planned cleanup live in
-[`doc/blueprint/DESIGN_RATIONALE.md`](./doc/blueprint/DESIGN_RATIONALE.md) and
-[`doc/blueprint/ROADMAP.md`](./doc/blueprint/ROADMAP.md).
+[`USER_MANUAL.md`](./USER_MANUAL.md). Architecture background and planned
+cleanup live in [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md) and
+[`ROADMAP.md`](./ROADMAP.md).
 
 ## What You Can Write
 
@@ -32,10 +31,10 @@ A Blueprint project currently has three main pieces:
 
 Example source entry points:
 
-- [`test-projects/Noperthedron/Contents.lean`](./test-projects/Noperthedron/Contents.lean)
-- [`test-projects/Noperthedron/Main.lean`](./test-projects/Noperthedron/Main.lean)
-- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Contents.lean`](./test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Contents.lean)
-- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprintMain.lean`](./test-projects/Sphere-Packing-Lean/SpherePackingBlueprintMain.lean)
+- [`test-projects/Noperthedron/Contents.lean`](../../test-projects/Noperthedron/Contents.lean)
+- [`test-projects/Noperthedron/Main.lean`](../../test-projects/Noperthedron/Main.lean)
+- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Contents.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Contents.lean)
+- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprintMain.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprintMain.lean)
 
 <!-- Future inline image: example document landing page or rendered chapter index. -->
 
@@ -71,8 +70,8 @@ label.
 
 Example source modules:
 
-- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](./test-projects/Noperthedron/Chapters/Noperthedron.lean)
-- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean`](./test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean)
+- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](../../test-projects/Noperthedron/Chapters/Noperthedron.lean)
+- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean)
 
 <!-- Future inline image: one rendered theorem block with its attached proof. -->
 
@@ -122,8 +121,8 @@ Notes:
 
 Example source modules:
 
-- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](./test-projects/Noperthedron/Chapters/Noperthedron.lean)
-- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/ModularForms.lean`](./test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/ModularForms.lean)
+- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](../../test-projects/Noperthedron/Chapters/Noperthedron.lean)
+- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/ModularForms.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/ModularForms.lean)
 
 <!-- Future inline image: local block header showing Lean badge and code-panel link. -->
 
@@ -149,8 +148,8 @@ Group labels and author ids are global within the document state.
 
 Example source modules:
 
-- [`test-projects/Noperthedron/Authors.lean`](./test-projects/Noperthedron/Authors.lean)
-- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean`](./test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean)
+- [`test-projects/Noperthedron/Authors.lean`](../../test-projects/Noperthedron/Authors.lean)
+- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean)
 
 <!-- Future inline image: author panel or grouped summary section. -->
 
@@ -282,9 +281,9 @@ Current options:
 
 Project-specific option examples:
 
-- [`test-projects/Noperthedron/Contents.lean`](./test-projects/Noperthedron/Contents.lean)
-- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](./test-projects/Noperthedron/Chapters/Noperthedron.lean)
-- [`test-projects/Noperthedron/OPTIONS.md`](./test-projects/Noperthedron/OPTIONS.md)
+- [`test-projects/Noperthedron/Contents.lean`](../../test-projects/Noperthedron/Contents.lean)
+- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](../../test-projects/Noperthedron/Chapters/Noperthedron.lean)
+- [`test-projects/Noperthedron/OPTIONS.md`](../../test-projects/Noperthedron/OPTIONS.md)
 
 ## Preview Manifest
 
@@ -292,8 +291,8 @@ Blueprint builds emit a shared preview manifest at:
 
 `html-multi/-verso-data/blueprint-preview-manifest.json`
 
-Most authors do not need this file for routine writing. It is mainly
-useful for:
+Most authors do not need this file for routine writing. It is mainly useful
+for:
 
 - runtime preview support in generated sites
 - tooling and integration work

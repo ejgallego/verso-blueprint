@@ -57,9 +57,9 @@ the package is to build the repository and inspect the in-repo examples:
 
 For the maintainer validation workflow, linked-worktree behavior, and output
 layout, see
-[`doc/blueprint/USER_MANUAL.md`](./doc/blueprint/USER_MANUAL.md).
+[`doc/USER_MANUAL.md`](./doc/USER_MANUAL.md).
 For authoring syntax, metadata, options, and rendering semantics, see
-[`MANUAL.md`](./MANUAL.md).
+[`doc/MANUAL.md`](./doc/MANUAL.md).
 
 ## Authoring Model Today
 
@@ -93,7 +93,8 @@ lean_exe noperthedron where
 The `lean_lib` owns the Blueprint source modules. The `lean_exe` is the
 renderer you run with `lake exe ...`.
 
-For the author-facing reference surface, see [MANUAL.md](./MANUAL.md).
+For the author-facing reference surface, see
+[`doc/MANUAL.md`](./doc/MANUAL.md).
 
 ## A Small Blueprint Fragment
 
@@ -148,7 +149,8 @@ def main (args : List String) : IO UInt32 :=
 ```
 
 Generated sites also include a shared preview manifest. For the manifest
-location, flags, and rendering reference, see [MANUAL.md](./MANUAL.md).
+location, flags, and rendering reference, see
+[`doc/MANUAL.md`](./doc/MANUAL.md).
 
 ## Repository Layout
 
@@ -161,13 +163,13 @@ location, flags, and rendering reference, see [MANUAL.md](./MANUAL.md).
 ## Documentation Map
 
 - [README.md](./README.md): package overview and current onboarding path
-- [MANUAL.md](./MANUAL.md): options, metadata fields, rendering semantics, and
-  preview-manifest reference
-- [doc/blueprint/USER_MANUAL.md](./doc/blueprint/USER_MANUAL.md): maintainer
+- [doc/MANUAL.md](./doc/MANUAL.md): options, metadata
+  fields, rendering semantics, and preview-manifest reference
+- [doc/USER_MANUAL.md](./doc/USER_MANUAL.md): maintainer
   workflow for generation, validation, and linked worktrees
-- [doc/blueprint/DESIGN_RATIONALE.md](./doc/blueprint/DESIGN_RATIONALE.md):
+- [doc/DESIGN_RATIONALE.md](./doc/DESIGN_RATIONALE.md):
   architecture and implementation rationale
-- [doc/blueprint/ROADMAP.md](./doc/blueprint/ROADMAP.md): active cleanup and
+- [doc/ROADMAP.md](./doc/ROADMAP.md): active cleanup and
   follow-up work
 - [WORKTREE_DASHBOARD.md](./WORKTREE_DASHBOARD.md): linked-worktree inventory
 

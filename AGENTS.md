@@ -97,10 +97,11 @@
 ## Documentation Map
 
 - `README.md`: user-facing overview and getting-started guide
-- `MANUAL.md`: feature semantics, options, and rendering notes
-- `doc/blueprint/USER_MANUAL.md`: maintainer-oriented harness workflow
-- `doc/blueprint/DESIGN_RATIONALE.md`: architecture rationale
-- `doc/blueprint/ROADMAP.md`: planned cleanup and follow-up work
+- `doc/MANUAL.md`: feature semantics, options, and rendering notes
+- `doc/USER_MANUAL.md`: maintainer-oriented harness workflow
+- `doc/DESIGN_RATIONALE.md`: architecture rationale
+- `doc/ROADMAP.md`: planned cleanup and follow-up work
+- `doc/UPSTREAM_TODO.md`: items that should eventually be upstreamed to `verso`
 
 ## General Recommendations
 

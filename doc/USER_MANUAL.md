@@ -13,7 +13,7 @@ It focuses on:
 - repository-local policy for the in-repo example projects
 
 Syntax and rendering semantics live in
-[`MANUAL.md`](../../MANUAL.md). Architecture background lives in
+[`MANUAL.md`](./MANUAL.md). Architecture background lives in
 [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md). Planned cleanup and follow-up
 work live in [`ROADMAP.md`](./ROADMAP.md).
 
@@ -139,7 +139,7 @@ Each generated Blueprint site includes a shared preview manifest at:
 
 `html-multi/-verso-data/blueprint-preview-manifest.json`
 
-See [`MANUAL.md`](../../MANUAL.md) for the manifest semantics and executable
+See [`MANUAL.md`](./MANUAL.md) for the manifest semantics and executable
 inspection flags.
 
 ## Project-Local Option Policy
@@ -154,7 +154,7 @@ Current example-specific reference:
 ## Documentation Reading Order
 
 1. Start here for commands, outputs, and worktree behavior.
-2. Read [`MANUAL.md`](../../MANUAL.md) for Blueprint options and rendering
+2. Read [`MANUAL.md`](./MANUAL.md) for Blueprint options and rendering
    semantics.
 3. Read [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md) before touching
    architecture boundaries.

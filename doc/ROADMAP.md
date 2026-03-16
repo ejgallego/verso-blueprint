@@ -13,7 +13,7 @@ It is not the place for:
 
 Those live in
 [`USER_MANUAL.md`](./USER_MANUAL.md),
-[`MANUAL.md`](../../MANUAL.md), and
+[`MANUAL.md`](./MANUAL.md), and
 [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md).
 
 ## Guiding Constraints
@@ -75,6 +75,16 @@ Work:
 2. replace ad hoc decoding with shared APIs
 3. keep traversal and widget adapters separate internally, but behind the same
    interface
+4. consolidate widget preview cache (`elabStx`) and traversal preview cache
+   (`PreviewCache.Entry`) behind one phase-safe representation
+5. unify preview labels and titles behind one canonical API so graph, summary,
+   and other surfaces stop mixing resolved titles, raw labels, and local
+   fallbacks
+6. reduce duplicated preview-domain decode logic across renderers
+7. unify preview UI behavior across graph panels and summary hovers where that
+   can be done without overcoupling the renderers
+8. remove temporary runtime workarounds such as the graph preview handler
+   `setTimeout` fallback once the underlying lifecycle is verified stable
 
 ### Validation Hardening
 
@@ -86,6 +96,7 @@ Work:
    bibliography citations/backrefs, and widget statement preview rendering
 2. keep generating example sites after boundary changes
 3. prefer behavior-preserving refactors until the regression surface is broader
+4. add direct regression coverage for preview-cache keying and JSON roundtrips
 
 ### Harness and External Project Support
 
