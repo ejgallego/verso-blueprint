@@ -1,38 +1,18 @@
 # Verso Blueprint
 
 Verso Blueprint is a Lean package for writing mathematical blueprints in
-[Verso](https://github.com/leanprover/verso). It extends the Verso manual genre
-with Blueprint-specific directives, Lean-linked statements, dependency graphs,
-summary views, bibliography support, and interactive previews for statements,
-proofs, and Lean code.
+[Verso](https://github.com/leanprover/verso).
 
-## Status
+It lets you write project documents that combine:
 
-The intended end-user generation interface is `lake exe blueprint-gen`.
+- informal mathematical exposition
+- links to Lean declarations
+- dependency-aware summary and graph pages
+- generated HTML output with interactive previews
 
-This repository also contains example Blueprint projects under
-[`test-projects`](./test-projects) plus the maintainer harness used to generate
-and validate them. Those repository-local scripts are for example maintenance
-and regression coverage; the package-facing authoring and rendering surface is
-documented in [`doc/MANUAL.md`](./doc/MANUAL.md).
+## Quick Start
 
-## What You Get
-
-- informal blueprint blocks for definitions, lemmas, theorems, proofs, groups,
-  authors, and related metadata
-- links from informal statements to Lean code, either through inline labeled
-  code blocks or external declarations via `(lean := "...")`
-- generated summary and dependency-graph pages
-- shared preview data for hover panels and inline statement/proof previews
-- bibliography support with generated backreferences
-
-## Getting Started Today
-
-### Prerequisites
-
-- Lean toolchain `leanprover/lean4:v4.29.0-rc6`
-
-### Clone and Build
+### Build the Package
 
 ```bash
 git clone https://github.com/leanprover/verso-blueprint.git
@@ -40,98 +20,45 @@ cd verso-blueprint
 script/lean-low-priority lake build
 ```
 
-### If You Want to Evaluate This Repository
+### Learn the Authoring Model
 
-To evaluate the package in this repository, build and inspect the included
-example projects:
+Start with [doc/MANUAL.md](./doc/MANUAL.md).
 
-```bash
-./scripts/generate-example-blueprints.sh
-./scripts/validate-example-blueprints.sh
-./scripts/validate-example-blueprints.sh --run-lean-tests
-python3 -m script.blueprint_harness sync-root-lake
-python3 -m script.blueprint_harness create-worktree my-change
-python3 -m script.blueprint_harness paths
-```
+That document covers:
 
-For the maintainer validation workflow, linked-worktree behavior, and output
-layout, see
-[`doc/USER_MANUAL.md`](./doc/USER_MANUAL.md).
-For authoring syntax, metadata, options, and rendering semantics, see
-[`doc/MANUAL.md`](./doc/MANUAL.md).
+- the smallest useful Blueprint file layout
+- the main Blueprint block forms
+- how blocks connect to Lean
+- the current rendering surface and options
 
-### If You Want to Build Your Own Blueprint Project
+The intended package-facing generation interface is `lake exe blueprint-gen`.
 
-Blueprint projects currently follow the standard Verso workflow: the project
-owns both the Blueprint source modules and a small `lean_exe` target that
-renders the document into `_out/`.
+If you want to inspect or maintain the example projects in this repository, see
+[doc/MAINTAINER_GUIDE.md](./doc/MAINTAINER_GUIDE.md).
 
-For repository-local maintenance work, create linked worktrees only through the
-harness helper:
+## Acknowledgements and Related Work
 
-```bash
-python3 -m script.blueprint_harness create-worktree <name>
-```
+Verso Blueprint builds on:
 
-That helper always places linked worktrees under `.worktrees/<name>` and syncs
-`.lake/` from the root checkout by default. In linked worktrees, the harness
-writes artifacts to the shared repository-root preview area
-`_out/<name>/example-blueprints`.
+- [Verso](https://github.com/leanprover/verso), the document system used to
+  write and render Blueprint documents
+- [Lean 4](https://lean-lang.org/) and its package ecosystem
+- [mathlib4](https://github.com/leanprover-community/mathlib4), which many real
+  Blueprint projects depend on
 
-In practice that means a Blueprint project needs:
+This repository also includes larger example Blueprint projects under
+[`test-projects`](./test-projects), including Noperthedron and
+Sphere-Packing-Lean.
 
-1. a dependency on this package
-2. one or more Lean modules containing the Blueprint content
-3. a `lean_exe` target that renders the document
+## Documentation
 
-In this repository, the example setup in [lakefile.lean](./lakefile.lean) looks
-like:
-
-```lean
-require verso from git "https://github.com/leanprover/verso"@"main"
-require mathlib from git "https://github.com/leanprover-community/mathlib4"@"v4.29.0-rc6"
-
-lean_lib Noperthedron where
-  srcDir := "test-projects/Noperthedron"
-  roots := #[`Authors, `Contents, `Chapters, `Noperthedron, `Bibliography, `Macros]
-
-lean_exe noperthedron where
-  srcDir := "test-projects/Noperthedron"
-  root := `Main
-  supportInterpreter := true
-```
-
-The `lean_lib` owns the Blueprint source modules. The `lean_exe` is the
-renderer you run with `lake exe ...`.
-
-For the author-facing reference surface, see
-[`doc/MANUAL.md`](./doc/MANUAL.md).
-
-## Repository Layout
-
-- `src/VersoBlueprint`: the Blueprint library
-- `tests`: library and rendering regression tests
-- `browser-tests`: browser-level regression coverage for generated sites
-- `script`: worktree-aware maintainer harness
-- `scripts`: shell wrappers and local helper scripts
-- `test-projects`: example blueprints used for validation and reference
-
-## Documentation Map
-
-- [README.md](./README.md): package overview and current onboarding path
-- [doc/MANUAL.md](./doc/MANUAL.md): options, metadata
-  fields, rendering semantics, and preview-manifest reference
-- [doc/USER_MANUAL.md](./doc/USER_MANUAL.md): maintainer
-  workflow for generation, validation, and linked worktrees
-- [doc/DESIGN_RATIONALE.md](./doc/DESIGN_RATIONALE.md):
-  architecture and implementation rationale
-- [doc/ROADMAP.md](./doc/ROADMAP.md): active cleanup and
-  follow-up work
+- [doc/MANUAL.md](./doc/MANUAL.md): authoring surface, rendering semantics, and
+  options
+- [doc/MAINTAINER_GUIDE.md](./doc/MAINTAINER_GUIDE.md): repository-local
+  workflow for example generation, validation, and linked worktrees
+- [doc/DESIGN_RATIONALE.md](./doc/DESIGN_RATIONALE.md): architecture and design
+  rationale
+- [doc/ROADMAP.md](./doc/ROADMAP.md): active cleanup and follow-up work
+- [doc/UPSTREAM_TODO.md](./doc/UPSTREAM_TODO.md): items intended to move back
+  into `verso`
 - [WORKTREE_DASHBOARD.md](./WORKTREE_DASHBOARD.md): linked-worktree inventory
-
-## Examples
-
-Complete working examples live in:
-
-- [`test-projects/Noperthedron`](./test-projects/Noperthedron)
-- [`test-projects/Sphere-Packing-Lean`](./test-projects/Sphere-Packing-Lean)

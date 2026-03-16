@@ -13,7 +13,7 @@ It is intentionally not:
 
 Those responsibilities live in
 [`MANUAL.md`](./MANUAL.md),
-[`USER_MANUAL.md`](./USER_MANUAL.md), and
+[`MAINTAINER_GUIDE.md`](./MAINTAINER_GUIDE.md), and
 [`ROADMAP.md`](./ROADMAP.md).
 
 ## Architecture Snapshot

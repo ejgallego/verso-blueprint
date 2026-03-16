@@ -101,7 +101,7 @@
 
 - `README.md`: user-facing overview and getting-started guide
 - `doc/MANUAL.md`: feature semantics, options, and rendering notes
-- `doc/USER_MANUAL.md`: maintainer-oriented harness workflow
+- `doc/MAINTAINER_GUIDE.md`: maintainer-oriented harness workflow
 - `doc/DESIGN_RATIONALE.md`: architecture rationale
 - `doc/ROADMAP.md`: planned cleanup and follow-up work
 - `doc/UPSTREAM_TODO.md`: items that should eventually be upstreamed to `verso`

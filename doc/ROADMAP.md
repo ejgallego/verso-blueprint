@@ -12,7 +12,7 @@ It is not the place for:
 - architecture explanation
 
 Those live in
-[`USER_MANUAL.md`](./USER_MANUAL.md),
+[`MAINTAINER_GUIDE.md`](./MAINTAINER_GUIDE.md),
 [`MANUAL.md`](./MANUAL.md), and
 [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md).
 

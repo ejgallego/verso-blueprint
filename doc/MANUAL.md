@@ -15,7 +15,7 @@ It is organized around two reader questions:
 2. what does that source render into?
 
 Operational workflow lives in
-[`USER_MANUAL.md`](./USER_MANUAL.md). Architecture background and planned
+[`MAINTAINER_GUIDE.md`](./MAINTAINER_GUIDE.md). Architecture background and planned
 cleanup live in [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md) and
 [`ROADMAP.md`](./ROADMAP.md).
 

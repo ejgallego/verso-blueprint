@@ -88,6 +88,18 @@ Last updated: 2026-03-16 (migrated from the old monorepo dashboard; this file is
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/root-scripts-to-scripts-20260316`
   - `git status --short`
 
+### `feat/onboarding-split-20260316`
+
+- Status: `active`
+- Summary: rename the maintainer document and trim the README back to package-user onboarding only.
+- Path: `/home/egallego/lean/verso-blueprint/.worktrees/onboarding-split-20260316`
+- Branch: `feat/onboarding-split-20260316`
+- Validation status:
+  - documentation-only edits; README audience split reviewed locally
+- Resume commands/notes:
+  - `cd /home/egallego/lean/verso-blueprint/.worktrees/onboarding-split-20260316`
+  - `git status --short`
+
 ### `feat/blueprint-data-review-20260312`
 
 - Status: `active` (reconstructed from a legacy snapshot onto the extracted package layout)
