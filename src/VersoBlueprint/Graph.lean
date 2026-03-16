@@ -89,6 +89,7 @@ deriving Inhabited, Repr, ToJson, FromJson
 structure LegendGroup where
   key : String
   title : String
+  summary? : Option String := none
   items : Array LegendItem
 deriving Inhabited, Repr, ToJson, FromJson
 
@@ -124,6 +125,8 @@ def warningDepsText : String := "Dependencies are not fully formalized"
 def warningHiddenInGroupViewText : String := "Warning markers are not shown individually in Group View"
 def edgeMixedText : String := "Thicker solid/dashed: statement + proof deps"
 def groupEdgeMixedText : String := "Thicker solid: statement + proof deps"
+def graphLegendFullViewNote : String :=
+  "Shape shows declaration kind, border shows statement status, fill shows proof status, and edge style separates statement from proof dependencies."
 
 private def legendItem (label : String) (swatch? : Option LegendSwatch := none) : LegendItem :=
   { label, swatch? }
@@ -144,6 +147,7 @@ def graphLegendGroups (includeMathlib : Bool := false) : Array LegendGroup :=
     {
       key := "shape"
       title := "Shapes"
+      summary? := some "Node outline shows whether the item is definition-like or theorem-like."
       items := #[
         legendItem "Definition" (some { borderRadius := "0.2rem" }),
         legendItem "Theorem / lemma / corollary" (some { borderRadius := "999px" })
@@ -152,11 +156,13 @@ def graphLegendGroups (includeMathlib : Bool := false) : Array LegendGroup :=
     {
       key := "statement"
       title := "Statement Border"
+      summary? := some "Border color tracks whether the statement is blocked, ready, or already formalized."
       items := statementItems
     },
     {
       key := "proof"
       title := "Background Status"
+      summary? := some "Fill color tracks proof readiness independently from statement progress."
       items := #[
         legendItem "Not ready" (some { background := proofBackgroundNeutralColor }),
         legendItem "Ready to formalize" (some { background := proofBackgroundReadyColor }),
@@ -168,6 +174,7 @@ def graphLegendGroups (includeMathlib : Bool := false) : Array LegendGroup :=
     {
       key := "warning"
       title := "Warning Markers"
+      summary? := some "Border treatments flag missing references, incomplete code, or dependency gaps."
       items := #[
         legendItem "Unknown reference"
           (some { background := unresolvedFillColor, borderColor := unresolvedBorderColor }),
@@ -197,6 +204,7 @@ def graphLegendGroups (includeMathlib : Bool := false) : Array LegendGroup :=
     {
       key := "edge"
       title := "Edges"
+      summary? := some "Line style distinguishes statement dependencies from proof-only dependencies."
       items := #[
         legendItem "Solid: statement deps from theorem-like sources",
         legendItem "Dashed: statement deps from box-shaped sources",
@@ -214,6 +222,7 @@ def groupGraphLegendGroups : Array LegendGroup :=
     {
       key := "group-view"
       title := "Group View"
+      summary? := some "Group nodes summarize children instead of showing each declaration separately."
       items := #[
         legendItem "Tab nodes summarize grouped children",
         legendItem "Border/fill colors average child node status colors",
@@ -223,6 +232,7 @@ def groupGraphLegendGroups : Array LegendGroup :=
     {
       key := "group-edge"
       title := "Edges"
+      summary? := some "Grouped edges compress many child edges into one aggregate connection."
       items := #[
         legendItem "Solid: at least one statement dep",
         legendItem "Dotted: proof-only deps",

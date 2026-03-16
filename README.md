@@ -53,6 +53,10 @@ the package is to build the repository and inspect the in-repo examples:
 ```bash
 ./generate-example-blueprints.sh
 ./validate-example-blueprints.sh
+./validate-example-blueprints.sh --run-lean-tests
+python3 -m script.blueprint_harness sync-root-lake
+python3 -m script.blueprint_harness create-worktree my-change
+python3 -m script.blueprint_harness paths
 ```
 
 For the maintainer validation workflow, linked-worktree behavior, and output
@@ -66,6 +70,18 @@ For authoring syntax, metadata, options, and rendering semantics, see
 Blueprint projects currently follow the standard Verso workflow: the project
 owns both the Blueprint source modules and a small `lean_exe` target that
 renders the document into `_out/`.
+
+For repository-local maintenance work, create linked worktrees only through the
+harness helper:
+
+```bash
+python3 -m script.blueprint_harness create-worktree <name>
+```
+
+That helper always places linked worktrees under `.worktrees/<name>` and syncs
+`.lake/` from the root checkout by default. In linked worktrees, the harness
+writes artifacts to the shared repository-root preview area
+`_out/<name>/example-blueprints`.
 
 In practice that means a Blueprint project needs:
 

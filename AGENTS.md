@@ -21,6 +21,9 @@
 - If a task starts in the root checkout and requires code changes, stop before
   editing and move the work into a linked worktree unless the user explicitly
   asks to work on the root checkout itself.
+- Create linked worktrees only via `python3 -m script.blueprint_harness create-worktree <name>`.
+- Do not create sibling checkouts or ad hoc `git worktree add` paths unless you
+  are debugging the harness itself.
 - Worktree preview output should be written to the repository-root
   `_out/<worktree>/`.
 - `WORKTREE_DASHBOARD.md` lives at the package root and is the live index of

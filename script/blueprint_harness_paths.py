@@ -64,10 +64,15 @@ def resolve_output_root(path_text: str | None, start: Path | None = None) -> Pat
     return detect_harness_layout(start).example_output_root
 
 
+def canonical_example_site_dir(example: str, start: Path | None = None) -> Path:
+    layout = detect_harness_layout(start)
+    return layout.example_output_root / example / "html-multi"
+
+
 def example_site_candidates(example: str, start: Path | None = None) -> list[Path]:
     layout = detect_harness_layout(start)
     candidates = [
-        layout.example_output_root / example / "html-multi",
+        canonical_example_site_dir(example, start),
         layout.artifact_root / example / "html-multi",
         layout.package_root / "_out" / "example-blueprints" / example / "html-multi",
         layout.package_root / "_out" / example / "html-multi",

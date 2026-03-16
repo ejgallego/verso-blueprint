@@ -9,6 +9,7 @@ from pathlib import Path
 
 from script.blueprint_harness_paths import (
     EXAMPLES,
+    canonical_example_site_dir,
     default_example_site_dir,
     detect_harness_layout,
     resolve_output_root,
@@ -84,6 +85,39 @@ def sync_root_worktree_lake(layout) -> None:
             f"{destination_lake}/",
         ],
         cwd=layout.package_root,
+    )
+
+
+def worktree_path(repo_root: Path, worktree_name: str) -> Path:
+    return repo_root / ".worktrees" / worktree_name
+
+
+def normalize_worktree_name(raw_name: str) -> str:
+    name = raw_name.strip()
+    if not name:
+        raise SystemExit("[blueprint-harness] worktree name must not be empty")
+    if Path(name).name != name or name in {".", ".."}:
+        raise SystemExit(
+            "[blueprint-harness] worktree name must be a single path segment; "
+            "the helper always creates linked worktrees under `.worktrees/<name>`."
+        )
+    return name
+
+
+def default_branch_name(worktree_name: str) -> str:
+    return f"feat/{worktree_name}"
+
+
+def branch_exists(repo_root: Path, branch: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=repo_root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
     )
 
 
@@ -331,18 +365,49 @@ def command_sync_root_lake(_: argparse.Namespace) -> int:
     return 0
 
 
+def command_create_worktree(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    worktree_name = normalize_worktree_name(args.name)
+    destination = worktree_path(layout.repo_root, worktree_name)
+    branch = args.branch or default_branch_name(worktree_name)
+    base_ref = args.base
+
+    if destination.exists():
+        raise SystemExit(f"[blueprint-harness] worktree path already exists: {destination}")
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if branch_exists(layout.repo_root, branch):
+        command = ["git", "worktree", "add", str(destination), branch]
+    else:
+        command = ["git", "worktree", "add", "-b", branch, str(destination), base_ref]
+    run(command, cwd=layout.repo_root)
+
+    new_layout = detect_harness_layout(destination)
+    if not args.skip_sync:
+        sync_root_worktree_lake(new_layout)
+
+    print(f"[blueprint-harness] worktree path: {destination}")
+    print(f"[blueprint-harness] branch: {branch}")
+    print(f"[blueprint-harness] artifact root: {new_layout.artifact_root}")
+    return 0
+
+
 def command_paths(_: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
+    noperthedron_site = canonical_example_site_dir("noperthedron", Path(__file__))
+    noperthedron_site_resolved = default_example_site_dir("noperthedron", Path(__file__))
+    spherepacking_site = canonical_example_site_dir("spherepackingblueprint", Path(__file__))
+    spherepacking_site_resolved = default_example_site_dir("spherepackingblueprint", Path(__file__))
     print(f"package_root={layout.package_root}")
     print(f"repo_root={layout.repo_root}")
+    print(f"worktree_name={layout.worktree_name or ''}")
     print(f"artifact_root={layout.artifact_root}")
     print(f"root_lake={layout.repo_root / '.lake'}")
     print(f"example_output_root={layout.example_output_root}")
-    print(f"noperthedron_site={default_example_site_dir('noperthedron', Path(__file__))}")
-    print(
-        "spherepackingblueprint_site="
-        f"{default_example_site_dir('spherepackingblueprint', Path(__file__))}"
-    )
+    print(f"noperthedron_site={noperthedron_site}")
+    print(f"noperthedron_site_resolved={noperthedron_site_resolved}")
+    print(f"spherepackingblueprint_site={spherepacking_site}")
+    print(f"spherepackingblueprint_site_resolved={spherepacking_site_resolved}")
     return 0
 
 
@@ -436,9 +501,31 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sync_root_lake.set_defaults(func=command_sync_root_lake)
 
+    create_worktree = subparsers.add_parser(
+        "create-worktree",
+        help="Create a linked worktree under `.worktrees/<name>` and sync root artifacts into it.",
+    )
+    create_worktree.add_argument("name", help="Worktree directory name under `.worktrees/`.")
+    create_worktree.add_argument(
+        "--branch",
+        default=None,
+        help="Branch to attach to the new worktree. Defaults to `feat/<name>`.",
+    )
+    create_worktree.add_argument(
+        "--base",
+        default="main",
+        help="Base ref used when creating a new branch. Ignored if `--branch` already exists.",
+    )
+    create_worktree.add_argument(
+        "--skip-sync",
+        action="store_true",
+        help="Do not sync `.lake/` from the root checkout after creating the worktree.",
+    )
+    create_worktree.set_defaults(func=command_create_worktree)
+
     paths = subparsers.add_parser(
         "paths",
-        help="Print the resolved worktree-aware harness paths.",
+        help="Print canonical and resolved worktree-aware harness paths.",
     )
     paths.set_defaults(func=command_paths)
     return parser

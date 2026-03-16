@@ -29,6 +29,7 @@ The supported repository-local entry points are:
 ```bash
 ./generate-example-blueprints.sh
 ./validate-example-blueprints.sh
+python3 -m script.blueprint_harness create-worktree <name>
 python3 -m script.blueprint_harness --help
 python3 -m script.blueprint_harness paths
 python3 -m script.blueprint_harness sync-root-lake
@@ -99,10 +100,18 @@ To print the resolved paths for the current checkout, run:
 python3 -m script.blueprint_harness paths
 ```
 
+`paths` prints both the canonical linked-worktree output locations and the
+resolved existing site directories, so stale local `_out/` artifacts cannot be
+mistaken for the intended shared worktree output root.
+
 ## Working from Linked Worktrees
 
-For implementation work, use a linked worktree under `.worktrees/` and keep the
-root checkout as the stable base.
+For implementation work, create a linked worktree under `.worktrees/` and keep
+the root checkout as the stable base:
+
+```bash
+python3 -m script.blueprint_harness create-worktree <name>
+```
 
 The harness is worktree-aware:
 
