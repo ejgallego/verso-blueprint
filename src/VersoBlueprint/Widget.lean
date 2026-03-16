@@ -71,18 +71,12 @@ def blueprintWidget : Component GraphParams where
         };
         const legendStyle = {
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(14rem, 1fr))',
-          gap: '0.55rem',
-          fontSize: '0.78rem'
+          gap: '0.45rem',
+          fontSize: '0.75rem'
         };
         const legendGroupStyle = {
           display: 'grid',
-          gap: '0.4rem',
-          alignContent: 'start',
-          border: '1px solid #dbe4ee',
-          borderRadius: '0.45rem',
-          padding: '0.55rem 0.65rem',
-          background: 'linear-gradient(180deg, #ffffff, #f8fafc)'
+          gap: '0.22rem'
         };
         const legendGroupTitleStyle = {
           fontSize: '0.68rem',
@@ -91,21 +85,10 @@ def blueprintWidget : Component GraphParams where
           textTransform: 'uppercase',
           color: '#334155'
         };
-        const legendSummaryStyle = {
-          margin: 0,
-          fontSize: '0.72rem',
-          lineHeight: 1.35,
-          color: '#475569'
-        };
-        const legendItemsStyle = {
-          display: 'grid',
-          gap: '0.32rem'
-        };
         const itemStyle = {
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '0.35rem',
-          lineHeight: 1.3
+          gap: '0.35rem'
         };
         const swatch = (swatchSpec, key) => {
           if (!swatchSpec || typeof swatchSpec !== 'object') return null;
@@ -150,18 +133,12 @@ def blueprintWidget : Component GraphParams where
               ? group.key
               : `group-${groupIndex}`;
           const titleText = typeof group.title === 'string' ? group.title : key;
-          const summaryText = typeof group.summary === 'string' ? group.summary : '';
           const items = Array.isArray(group.items)
             ? group.items.map((item, itemIndex) => legendItem(key, item, itemIndex)).filter(Boolean)
             : [];
           return React.createElement('div', { key, style: legendGroupStyle }, [
-            React.createElement('div', { key: `${key}-header`, style: { display: 'grid', gap: '0.18rem' } }, [
-              React.createElement('div', { key: `${key}-title`, style: legendGroupTitleStyle }, titleText),
-              summaryText
-                ? React.createElement('p', { key: `${key}-summary`, style: legendSummaryStyle }, summaryText)
-                : null
-            ]),
-            React.createElement('div', { key: `${key}-items`, style: legendItemsStyle }, items)
+            React.createElement('div', { key: `${key}-title`, style: legendGroupTitleStyle }, titleText),
+            ...items
           ]);
         };
         const extractText = node => {

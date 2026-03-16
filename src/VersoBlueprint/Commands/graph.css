@@ -165,20 +165,14 @@ html.bp-graph-toc-hidden .with-toc > main {
 .bp_graph_legend {
   margin-top: 0.75rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  gap: 0.75rem;
+  gap: 0.65rem;
   font-size: 0.88rem;
-}
-
-.bp_graph_legend[hidden] {
-  display: none;
 }
 
 .bp_graph_legend_note {
   margin: 0;
   font-size: 0.8rem;
   color: var(--bp-color-text-subtle);
-  grid-column: 1 / -1;
 }
 
 .bp_graph_controls {
@@ -207,46 +201,25 @@ html.bp-graph-toc-hidden .with-toc > main {
 }
 
 .bp_graph_legend_group {
-  display: grid;
-  gap: 0.55rem;
-  align-content: start;
-  border: 1px solid var(--bp-color-border-soft);
-  border-radius: var(--bp-radius-lg);
-  padding: 0.7rem 0.8rem;
-  background: linear-gradient(180deg, var(--bp-color-surface), var(--bp-color-surface-subtle));
-}
-
-.bp_graph_legend_group_header {
-  display: grid;
-  gap: 0.22rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  align-items: center;
 }
 
 .bp_graph_legend_group_title {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--bp-color-text-muted);
-}
-
-.bp_graph_legend_group_summary {
-  margin: 0;
-  font-size: 0.79rem;
-  line-height: 1.35;
-  color: var(--bp-color-text-subtle);
-}
-
-.bp_graph_legend_items {
-  display: grid;
-  gap: 0.4rem;
+  margin-right: 0.25rem;
 }
 
 .bp_graph_legend_item {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  line-height: 1.3;
-  min-width: 0;
 }
 
 .bp_graph_legend_swatch {
@@ -266,12 +239,7 @@ html[data-bp-style="modern"] .bp_graph_legend {
   background: var(--bp-color-surface-modern);
   border: 1px solid var(--bp-color-modern-border);
   border-radius: var(--bp-radius-2xl);
-  padding: 0.7rem 0.75rem;
-}
-
-html[data-bp-style="modern"] .bp_graph_legend_group {
-  border-color: var(--bp-color-modern-border);
-  background: linear-gradient(180deg, var(--bp-color-surface), var(--bp-color-modern-surface-alt));
+  padding: 0.6rem 0.75rem;
 }
 
 html[data-bp-style="bold"] .bp_graph_legend {
@@ -283,13 +251,6 @@ html[data-bp-style="bold"] .bp_graph_legend {
   border-radius: var(--bp-radius-3xl);
   box-shadow: var(--bp-shadow-bold);
   padding: 0.65rem 0.8rem;
-}
-
-html[data-bp-style="bold"] .bp_graph_legend_group {
-  border: 2px solid var(--bp-color-text-strong);
-  border-radius: var(--bp-radius-2xl);
-  box-shadow: 0 4px 0 rgba(15, 23, 42, 0.14);
-  background: rgba(255, 255, 255, 0.92);
 }
 
 html[data-bp-style="bold"] .bp_graph_legend_item {

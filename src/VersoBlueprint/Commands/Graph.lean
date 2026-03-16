@@ -86,7 +86,6 @@ structure GraphRenderVariant where
 deriving Inhabited, ToJson
 
 -- Graph CSS uses the local content wrapper content box as the sizing container for full-width graphs.
--- Keep this module rebuilt when the embedded graph assets change.
 def graphCss := include_str "graph.css"
 
 def groupVariantKey : String := "group"
@@ -412,14 +411,6 @@ block_extension Block.graph (graphData : GraphBlockData) where
           (note? : Option String := none) (hidden : Bool := false) : Output.Html :=
         let legendGroupHtml : Array Output.Html :=
           groups.map fun group =>
-            let summaryHtml : Output.Html :=
-              match group.summary? with
-              | some summary => {{
-                  <p class="bp_graph_legend_group_summary">
-                    {{.text false summary}}
-                  </p>
-                }}
-              | Option.none => .empty
             let itemHtml : Array Output.Html :=
               group.items.map fun item =>
                 match item.swatch? with
@@ -435,15 +426,10 @@ block_extension Block.graph (graphData : GraphBlockData) where
                     </span>
                   }}
             {{
-              <section class="bp_graph_legend_group">
-                <div class="bp_graph_legend_group_header">
-                  <span class="bp_graph_legend_group_title">{{.text false group.title}}</span>
-                  {{summaryHtml}}
-                </div>
-                <div class="bp_graph_legend_items">
-                  {{itemHtml}}
-                </div>
-              </section>
+              <div class="bp_graph_legend_group">
+                <span class="bp_graph_legend_group_title">{{.text false group.title}}</span>
+                {{itemHtml}}
+              </div>
             }}
         let noteHtml : Output.Html :=
           match note? with
@@ -469,7 +455,6 @@ block_extension Block.graph (graphData : GraphBlockData) where
           }}
       let fullLegendHtml :=
         renderLegend "full" (Informal.Graph.graphLegendGroups includeMathlibLegend)
-          (note? := some Informal.Graph.graphLegendFullViewNote)
       let groupLegendHtml : Output.Html :=
         if hasGroupVariant then
           renderLegend "group" Informal.Graph.groupGraphLegendGroups
@@ -502,14 +487,14 @@ block_extension Block.graph (graphData : GraphBlockData) where
       }}
       return {{
         <div class="bp_graph_fullwidth">
+          {{fullLegendHtml}}
+          {{groupLegendHtml}}
           <div class="bp_graph_controls">
             <label class="bp_graph_controls_label" for={{graphViewSelectId}}>"View"</label>
             <select id={{graphViewSelectId}} class="bp_graph_controls_select bp_graph_view_select">
               {{graphVariantOptions}}
             </select>
           </div>
-          {{fullLegendHtml}}
-          {{groupLegendHtml}}
           <div class="bp_graph_canvas" "data-bp-graph-direction"={{graphData.direction.rankdir}}>
             <script type="application/json" class="bp-graph-variants">
               {{.text false s!"{graphVariantJson}"}}
