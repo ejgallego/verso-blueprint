@@ -60,9 +60,9 @@
 - Main build/test commands:
   - `script/lean-low-priority lake build`
   - `script/lean-low-priority lake test`
-  - `./generate-example-blueprints.sh`
-  - `./validate-example-blueprints.sh`
-  - `./validate-example-blueprints.sh --run-lean-tests`
+  - `./scripts/generate-example-blueprints.sh`
+  - `./scripts/validate-example-blueprints.sh`
+  - `./scripts/validate-example-blueprints.sh --run-lean-tests`
 - Harness commands:
   - `python3 -m script.blueprint_harness --help`
   - `python3 -m script.blueprint_harness generate`

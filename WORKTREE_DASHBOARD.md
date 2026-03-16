@@ -11,7 +11,7 @@ Last updated: 2026-03-16 (migrated from the old monorepo dashboard; this file is
 - Path: `/home/egallego/lean/verso-blueprint`
 - Branch: `main`
 - Validation status:
-  - `script/lean-low-priority ./generate-example-blueprints.sh`
+  - `script/lean-low-priority ./scripts/generate-example-blueprints.sh`
 - Resume commands/notes:
   - `git status --short`
   - `git log --oneline -1`
@@ -76,6 +76,18 @@ Last updated: 2026-03-16 (migrated from the old monorepo dashboard; this file is
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/doc-polish-20260316`
   - `git status --short`
 
+### `feat/root-scripts-to-scripts-20260316`
+
+- Status: `active`
+- Summary: move the root shell wrappers into `scripts/` and update the documented public command surface to match.
+- Path: `/home/egallego/lean/verso-blueprint/.worktrees/root-scripts-to-scripts-20260316`
+- Branch: `feat/root-scripts-to-scripts-20260316`
+- Validation status:
+  - documentation and wrapper-path edits; local reference pass completed
+- Resume commands/notes:
+  - `cd /home/egallego/lean/verso-blueprint/.worktrees/root-scripts-to-scripts-20260316`
+  - `git status --short`
+
 ### `feat/blueprint-data-review-20260312`
 
 - Status: `active` (reconstructed from a legacy snapshot onto the extracted package layout)
@@ -123,7 +135,7 @@ Last updated: 2026-03-16 (migrated from the old monorepo dashboard; this file is
   - snapshot: `/home/egallego/lean/verso-blueprint-old/.worktrees/lean-commandm-incremental-20260306`
 - Validation status:
   - `script/lean-low-priority lake build VersoBlueprint.Lean VersoBlueprint.Informal.Code`
-  - `script/lean-low-priority ./generate-example-blueprints.sh /home/egallego/lean/verso-blueprint/_out/lean-commandm-incremental-20260306/example-blueprints`
+  - `script/lean-low-priority ./scripts/generate-example-blueprints.sh /home/egallego/lean/verso-blueprint/_out/lean-commandm-incremental-20260306/example-blueprints`
 - Migration notes:
   - recreated from current `main`, then overlaid with blueprint-owned surfaces from the surviving legacy snapshot before being narrowed back down to the real fast-path port
   - current tracked diff is intentionally limited to `src/VersoBlueprint/Lean.lean`, `src/VersoBlueprint/Informal/Code.lean`, and `test-projects/Noperthedron/OPTIONS.md`

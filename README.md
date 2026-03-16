@@ -51,9 +51,9 @@ Until the starter template and scaffolding land, the supported way to evaluate
 the package is to build the repository and inspect the in-repo examples:
 
 ```bash
-./generate-example-blueprints.sh
-./validate-example-blueprints.sh
-./validate-example-blueprints.sh --run-lean-tests
+./scripts/generate-example-blueprints.sh
+./scripts/validate-example-blueprints.sh
+./scripts/validate-example-blueprints.sh --run-lean-tests
 python3 -m script.blueprint_harness sync-root-lake
 python3 -m script.blueprint_harness create-worktree my-change
 python3 -m script.blueprint_harness paths
@@ -118,6 +118,7 @@ For the author-facing reference surface, see
 - `tests`: library and rendering regression tests
 - `browser-tests`: browser-level regression coverage for generated sites
 - `script`: worktree-aware maintainer harness
+- `scripts`: shell wrappers and local helper scripts
 - `test-projects`: current pre-release example blueprints
 
 ## Documentation Map

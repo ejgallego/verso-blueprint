@@ -8,10 +8,13 @@ sphere_packing_src="_out/example-blueprints/spherepackingblueprint/html-multi/"
 noperthedron_dst="/srv/www/Noperthedron/"
 sphere_packing_dst="/srv/www/SpherePackingBlueprint/"
 
+package_root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$package_root"
+
 for path in "$noperthedron_src" "$sphere_packing_src"; do
   if [[ ! -d "$path" ]]; then
     echo "missing artifact directory: $path" >&2
-    echo "run ./generate-example-blueprints.sh before syncing" >&2
+    echo "run ./scripts/generate-example-blueprints.sh before syncing" >&2
     exit 1
   fi
 done

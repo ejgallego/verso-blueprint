@@ -27,8 +27,8 @@ for authoring every Blueprint directive.
 The supported repository-local entry points are:
 
 ```bash
-./generate-example-blueprints.sh
-./validate-example-blueprints.sh
+./scripts/generate-example-blueprints.sh
+./scripts/validate-example-blueprints.sh
 python3 -m script.blueprint_harness create-worktree <name>
 python3 -m script.blueprint_harness --help
 python3 -m script.blueprint_harness paths
@@ -43,7 +43,7 @@ module is the single source of truth for orchestration and path resolution.
 ### Generate the Example Sites
 
 ```bash
-./generate-example-blueprints.sh
+./scripts/generate-example-blueprints.sh
 ```
 
 This builds and renders the current in-repo example sites:
@@ -54,7 +54,7 @@ This builds and renders the current in-repo example sites:
 ### Run the Default Validation Flow
 
 ```bash
-./validate-example-blueprints.sh
+./scripts/validate-example-blueprints.sh
 ```
 
 The default validation path:
@@ -66,7 +66,7 @@ The default validation path:
 Lean tests are intentionally opt-in:
 
 ```bash
-./validate-example-blueprints.sh --run-lean-tests
+./scripts/validate-example-blueprints.sh --run-lean-tests
 ```
 
 ### Select Examples or Forward Test Flags
