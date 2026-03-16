@@ -1,162 +1,126 @@
 # Blueprint Roadmap
 
-Last updated: 2026-03-15
+Last updated: 2026-03-16
 
-This document tracks the active cleanup and refactor plan for Blueprint support
-in this repository.
+This document tracks active cleanup and follow-up work for Blueprint support in
+this repository.
 
-Background and design rationale live in `DESIGN_RATIONALE.md`.
+It is not the place for:
 
-## Current Priority
+- operational commands and workflow details
+- option and rendering reference material
+- architecture explanation
 
-1. Keep one source of truth for Blueprint semantics and status derivation.
-2. Keep command/traversal render paths aligned with shared `Lib` APIs.
-3. Add regression coverage before any new structural split.
-4. Land a small, explicit harness surface for humans and AI agents.
+Those live in
+[`USER_MANUAL.md`](./USER_MANUAL.md),
+[`MANUAL.md`](../../MANUAL.md), and
+[`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md).
 
-## Immediate Next Actions
+## Guiding Constraints
 
-1. Introduce `buildCodeRenderData` so `Informal/Code.lean` stays pure over
-   precomputed facts.
-2. Fix the highest-priority review issues:
-   - nested and duplicate block soft-fail behavior within one module
-   - imported duplicate-label collision handling across aggregated files
-   - duplicated preview-source representations
+The current cleanup work should preserve these constraints:
 
-## Scheduled Hardening Passes
+1. keep one semantic source of truth for Blueprint data and status derivation
+2. keep command, traversal, and runtime paths aligned through shared library
+   APIs
+3. add regression coverage before large structural splits
+4. keep the public maintainer harness small, explicit, and repository-local
+
+## Active Workstreams
 
 ### Duplicate Identity Hardening
 
 Goal: make duplicate Blueprint identities fail clearly instead of being accepted
 locally or silently overwritten during imported-state aggregation.
 
-Implementation scope:
+Work:
 
-1. Reject invalid nested and duplicate block declarations before they mutate the
-   active environment stack.
-2. Make `Data.register` and the block elaboration path agree on whether a
-   declaration was accepted, ignored, or rejected.
-3. Detect imported collisions in `Informal.Environment.informalExt.addImportedFn`
-   instead of silently letting later inserts overwrite earlier ones.
-4. Apply the same duplicate-collision policy to:
-   - node labels
-   - group labels
-   - author ids
+1. reject invalid nested and duplicate block declarations before they mutate the
+   active environment stack
+2. make `Data.register` and block elaboration agree on whether a declaration was
+   accepted, ignored, or rejected
+3. detect imported collisions in
+   `Informal.Environment.informalExt.addImportedFn` instead of silently letting
+   later inserts overwrite earlier ones
+4. apply the same collision policy to node labels, group labels, and author ids
 
-Planned tests:
+Tests still needed:
 
-1. Same-module duplicate label cases in `Tests.BlueprintInformal`.
-2. Nested invalid block cases in `Tests.BlueprintInformal`.
-3. Cross-module duplicate node labels via sibling provider modules plus one
-   importing test module.
-4. Cross-module duplicate groups and duplicate authors via the same pattern.
-5. Transitive-import coverage so a reexport path does not bypass collision
-   detection.
-6. Assertions that failures are reported explicitly rather than resolved by
-   silent overwrite.
+1. same-module duplicate label cases in `Tests.BlueprintInformal`
+2. nested invalid block cases in `Tests.BlueprintInformal`
+3. cross-module duplicate labels via sibling providers plus one importing test
+   module
+4. cross-module duplicate groups and duplicate authors via the same pattern
+5. transitive-import coverage so reexports cannot bypass collision detection
 
-## Planned Work
+### Shared Status Semantics
 
-### Harness Surface and External Project Plan
+Goal: remove the remaining duplicated status recomputation.
 
-Goal: keep the public harness surface direct and repository-local, even as the
-implementation moves toward a worktree-aware Python orchestrator.
+Work:
 
-Target public entry points:
+1. define a shared status record derived from `Data.Node` plus external
+   declaration checks
+2. route graph, summary, and local block status badges through that record
+3. keep the compact UI vocabulary stable while centralizing the semantics behind
+   it
 
-1. `./generate-example-blueprints.sh`
-2. `./validate-example-blueprints.sh`
-3. `python3 -m script.blueprint_harness sync-root-lake`
-4. `python3 -m script.blueprint_harness paths`
+### Preview API Consolidation
 
-Design constraints:
+Goal: keep `PreviewSource` as the only retrieval abstraction visible to callers.
 
-1. Keep shell wrappers thin and ergonomic.
-2. Keep Python as the single source of truth for orchestration and path logic.
-3. Treat helper modules and command-assembly details as internal, not public,
-   surface area.
-4. Keep artifact locations and failure messages predictable across root checkouts
-   and linked worktrees.
-5. Keep the in-repo `test-projects/` examples as the default validation
-   baseline.
-6. Keep Lean tests opt-in in the default validation path until the `lake test`
-   baseline is trustworthy again.
+Work:
 
-External-project requirements that must eventually be supported:
+1. audit call sites for direct preview decoding
+2. replace ad hoc decoding with shared APIs
+3. keep traversal and widget adapters separate internally, but behind the same
+   interface
 
-1. Easily test a new or local `verso` checkout against this package.
-2. Easily test Blueprint projects that live in another repository.
-3. Preserve the same top-level harness entry points for those scenarios rather
-   than introducing a separate ad hoc workflow.
-4. Keep the external-project path/configuration explicit enough for AI agents to
-   use reliably.
+### Validation Hardening
 
-Toward full completion, the harness work should:
+Goal: expand the regression surface before deeper refactors.
 
-1. Land the repo-local Python orchestrator and thin shell entry points.
-2. Validate both root-checkout and linked-worktree flows end to end.
-3. Stabilize output path conventions for generation, static checks, and browser
-   checks.
-4. Add the minimum path/dependency override surface needed for local `verso`
-   testing.
-5. Add the minimum path/project override surface needed for Blueprint projects
-   that live outside this repository.
-6. Document the finished workflow in `USER_MANUAL.md` once the interface is no
-   longer provisional.
+Work:
 
-### Phase 1: Shared Status Semantics
+1. add targeted regression coverage for graph previews, summary previews,
+   bibliography citations/backrefs, and widget statement preview rendering
+2. keep generating example sites after boundary changes
+3. prefer behavior-preserving refactors until the regression surface is broader
 
-1. Define a shared status record derived from `Data.Node` plus external
-   declaration checks.
-2. Route graph, summary, and local block status badges through that record.
-3. Remove remaining duplicated status recomputation.
+### Harness and External Project Support
 
-### Phase 2: Preview API Consolidation
+Goal: keep the maintainer harness direct and repository-local while expanding it
+carefully beyond the in-repo examples.
 
-1. Keep `PreviewSource` as the only preview retrieval abstraction.
-2. Audit call sites for direct preview decoding and replace them with shared
-   APIs.
-3. Keep traversal/widget adapters separate internally, but behind the same
-   interface.
+Work:
 
-### Phase 3: Validation and Safety Nets
+1. keep the current shell wrappers thin and ergonomic
+2. keep the Python harness as the single source of truth for orchestration and
+   path logic
+3. validate both root-checkout and linked-worktree flows end to end
+4. stabilize output-path conventions for generation, static checks, and browser
+   checks
+5. add the minimum path and dependency override surface needed for testing a
+   local `verso` checkout
+6. add the minimum project override surface needed for Blueprint projects that
+   live outside this repository
 
-1. Add targeted regression tests for:
-   - graph hover previews
-   - summary hover previews
-   - bibliography citations/backrefs
-   - widget statement preview rendering
-2. Run `./generate-example-blueprints.sh` after each boundary change.
-3. Keep behavior-preserving changes until the regression surface is covered.
+## UI Follow-Ups
 
-## UI and Summary Follow-ups
+These are secondary to semantic consolidation, but still worthwhile:
 
-1. Hide zero-value summary cards and sections by default.
-2. Collapse duplicate blocker lists into one filtered blockers section.
-3. Prefer one primary theorem list by default instead of parallel repeated
-   views.
-4. Use compact status chips where possible.
-5. Consider a compact-mode toggle once the semantics are stable.
-6. Revisit the graph page with a CSS-first layout architecture:
-   - current graph width placement is mostly CSS-owned, but vertical sizing still
-     uses runtime JS because it depends on viewport position, trailing flow
-     content, and preserving user-driven canvas resizing across variant switches
-   - a future pure-CSS design would likely need a dedicated page/grid layout for
-     graph title, controls, legend, canvas, and footer/navigation so the canvas
-     height can be expressed declaratively instead of computed after render
+1. hide zero-value summary cards and sections by default
+2. collapse duplicate blocker lists into one filtered blockers section
+3. prefer one primary theorem list by default instead of parallel repeated
+   views
+4. use compact status chips where possible
+5. consider a compact-mode toggle once the semantics are stable
+6. revisit the graph page with a CSS-first layout architecture so canvas sizing
+   is less runtime-driven
 
-## Known Risks
+## Risks to Watch
 
-1. Silent divergence between local and global status rendering.
-2. Preview regressions not caught by compile-only checks.
-3. Silent imported duplicate collisions for labels, groups, or authors unless
-   the aggregation pass is hardened.
-4. Drift across long-lived worktrees and branches.
-
-## Validation Baseline
-
-1. `lake build VersoBlueprint` passed on the last dedicated refactor pass.
-2. `./generate-example-blueprints.sh` passed with warnings only.
-3. `python3 test-projects/Noperthedron/check_blueprint_code_panels.py` had a
-   known baseline failure at the time of the earlier refactor note:
-   - missing `bp_external_status_sorry` in `The-Local-Theorem`
+1. silent divergence between local and global status rendering
+2. preview regressions that compile-only checks will not catch
+3. imported duplicate collisions for labels, groups, or authors
+4. workflow drift across long-lived worktrees and branches

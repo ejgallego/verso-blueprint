@@ -1,41 +1,35 @@
 # Verso Blueprint
 
 Verso Blueprint is a Lean package for writing mathematical blueprints in
-[Verso](https://github.com/leanprover/verso): documents that combine informal
-mathematical exposition, Lean-linked declarations, dependency structure, and
-publishable HTML output.
-
-It extends the Verso manual genre with Blueprint-specific directives, summary
-views, dependency graphs, bibliography support, and interactive previews for
-statements, proofs, and Lean code.
+[Verso](https://github.com/leanprover/verso). It extends the Verso manual genre
+with Blueprint-specific directives, Lean-linked statements, dependency graphs,
+summary views, bibliography support, and interactive previews for statements,
+proofs, and Lean code.
 
 ## Status
 
-This repository is close to its first standalone release. The current code
-layout is already representative of the package, with three pre-release
-differences to keep in mind:
+This repository is close to its first standalone release.
 
-- The example projects still live in `test-projects/`; they will move to their
-  own repositories.
-- We will add a smaller starter project and a reusable template.
-- We will add project scaffolding so users can run `lake exe bp new`.
-- The preferred end-user generation interface is `lake exe blueprint-gen`; the
-  Python harness in this repository is maintainer tooling for the in-repo
-  examples, not the intended user entry point.
+Current pre-release realities:
 
-Until that scaffolding lands, the supported way to get started is to build this
-repository and study the in-repo examples.
+- the example projects still live in [`test-projects`](./test-projects)
+- the preferred end-user generation interface is `lake exe blueprint-gen`
+- project scaffolding such as `lake exe bp new`, a smaller starter example, and
+  a reusable template are planned but not landed yet
+
+Release-facing documentation should treat `lake exe blueprint-gen` as the
+intended front door. The Python harness in this repository is maintainer
+tooling for the in-repo examples, not the long-term end-user workflow.
 
 ## What You Get
 
-- Informal blueprint blocks for definitions, theorems, proofs, groups, authors,
-  and related metadata.
-- Links from informal statements to Lean code, either through inline labeled
-  code blocks or external declarations via `(lean := "...")`.
-- Generated Blueprint summary and dependency-graph pages.
-- Shared preview data for hover panels and inline statement/proof previews.
-- Bibliography integration with backreferences from the generated site.
-- Repository-local generation and validation commands for example projects.
+- informal blueprint blocks for definitions, lemmas, theorems, proofs, groups,
+  authors, and related metadata
+- links from informal statements to Lean code, either through inline labeled
+  code blocks or external declarations via `(lean := "...")`
+- generated summary and dependency-graph pages
+- shared preview data for hover panels and inline statement/proof previews
+- bibliography support with generated backreferences
 
 ## Getting Started Today
 
@@ -51,38 +45,34 @@ cd verso-blueprint
 script/lean-low-priority lake build
 ```
 
-### Preferred User Interface
+### Evaluate the Current Examples
+
+Until the starter template and scaffolding land, the supported way to evaluate
+the package is to build the repository and inspect the in-repo examples:
 
 ```bash
-lake exe blueprint-gen --help
+./generate-example-blueprints.sh
+./validate-example-blueprints.sh
 ```
 
-Release-facing documentation should treat `lake exe blueprint-gen` as the main
-user-facing entry point for building Blueprint output from a Lean project.
+For the maintainer validation workflow, linked-worktree behavior, and output
+layout, see
+[`doc/blueprint/USER_MANUAL.md`](./doc/blueprint/USER_MANUAL.md).
 
-Users should not need Python helper scripts or a system Graphviz installation
-as part of the normal Blueprint workflow.
+## Authoring Model Today
 
-### Current Verso Workflow
+Blueprint projects currently follow the standard Verso workflow: the project
+owns both the Blueprint source modules and a small `lean_exe` target that
+renders the document into `_out/`.
 
-Today, a Blueprint project still follows the standard Verso pattern: you
-maintain both
+In practice that means a Blueprint project needs:
 
-1. the Blueprint Lean source files, and
-2. a small `lean_exe` target that renders the document into `_out/`.
+1. a dependency on this package
+2. one or more Lean modules containing the Blueprint content
+3. a `lean_exe` target that renders the document
 
-In other words, a Blueprint is not just a set of chapter files. It also needs a
-generator binary, typically driven with `lake exe ...`.
-
-### Lake Setup
-
-At the Lake level, a Blueprint project needs:
-
-1. a dependency on this package,
-2. one or more Lean modules containing the Blueprint content,
-3. a `lean_exe` target that renders the document.
-
-In this repository, that looks like this in [lakefile.lean](./lakefile.lean):
+In this repository, the example setup in [lakefile.lean](./lakefile.lean) looks
+like:
 
 ```lean
 require verso from git "https://github.com/leanprover/verso"@"main"
@@ -98,42 +88,12 @@ lean_exe noperthedron where
   supportInterpreter := true
 ```
 
-The important part is the split of responsibilities:
-
-- the `lean_lib` target holds the Blueprint source modules,
-- the `lean_exe` target is the renderer you run with `lake exe ...`.
-
-### Current Repository Example Flow
-
-Until the packaging work is finished, this repository still uses a local
-maintainer harness for the in-repo examples:
-
-```bash
-./generate-example-blueprints.sh
-./validate-example-blueprints.sh
-```
-
-That flow generates the current example sites at:
-
-- `_out/example-blueprints/noperthedron/`
-- `_out/example-blueprints/spherepackingblueprint/`
-
-The default validation path:
-
-- regenerates the example sites,
-- runs the static Noperthedron panel regression check,
-- runs the browser regression suite.
-
-Lean tests are opt-in:
-
-```bash
-./validate-example-blueprints.sh --run-lean-tests
-```
+The `lean_lib` owns the Blueprint source modules. The `lean_exe` is the
+renderer you run with `lake exe ...`.
 
 ## A Small Blueprint Fragment
 
-The exact project template is still being finalized, but the core authoring
-model already looks like this:
+The core authoring model already looks like this:
 
 ```lean
 import VersoManual
@@ -165,8 +125,8 @@ Proof sketch.
 {bp_bibliography}
 ```
 
-And the corresponding executable is a small `Main.lean`-style entry point that
-turns that document into site output:
+The corresponding executable is a small `Main.lean` entry point that writes the
+site output:
 
 ```lean
 import VersoManual
@@ -183,85 +143,33 @@ def main (args : List String) : IO UInt32 :=
     (extensionImpls := by exact extension_impls%)
 ```
 
-That binary is the thing that ultimately writes `_out/...` when you run
-`lake exe ...`. This is standard Verso workflow today, even if we want to make
-it more turnkey.
-
-## Manifest JSON
-
-Blueprint builds emit a shared preview manifest at:
-
-`html-multi/-verso-data/blueprint-preview-manifest.json`
-
-The current executable entry points also support JSON-oriented inspection flags:
-
-```bash
-lake exe noperthedron --dump-schema
-lake exe noperthedron --dump-manifest
-lake exe noperthedron --output _out/noperthedron
-```
-
-- `--dump-schema` prints the JSON Schema for the shared preview manifest.
-- `--dump-manifest` prints the generated manifest JSON instead of writing the
-  site and then reading the file.
-- `--output <dir>` writes the rendered site to the selected output directory.
-
-For complete working examples, see:
-
-- [`test-projects/Noperthedron`](./test-projects/Noperthedron)
-- [`test-projects/Sphere-Packing-Lean`](./test-projects/Sphere-Packing-Lean)
+Generated sites also include a shared preview manifest. For the manifest
+location, flags, and rendering reference, see [MANUAL.md](./MANUAL.md).
 
 ## Repository Layout
 
-- `src/VersoBlueprint`
-  - the Blueprint library itself
-- `tests`
-  - library and rendering regression tests
-- `browser-tests`
-  - browser-level regression coverage for generated sites
-- `script`
-  - the local generation/validation harness
-- `test-projects`
-  - current pre-release example blueprints
+- `src/VersoBlueprint`: the Blueprint library
+- `tests`: library and rendering regression tests
+- `browser-tests`: browser-level regression coverage for generated sites
+- `script`: worktree-aware maintainer harness
+- `test-projects`: current pre-release example blueprints
 
-## Working in Linked Worktrees
+## Documentation Map
 
-The maintainer harness is worktree-aware. Useful commands:
+- [README.md](./README.md): package overview and current onboarding path
+- [MANUAL.md](./MANUAL.md): options, metadata fields, rendering semantics, and
+  preview-manifest reference
+- [doc/blueprint/USER_MANUAL.md](./doc/blueprint/USER_MANUAL.md): maintainer
+  workflow for generation, validation, and linked worktrees
+- [doc/blueprint/DESIGN_RATIONALE.md](./doc/blueprint/DESIGN_RATIONALE.md):
+  architecture and implementation rationale
+- [doc/blueprint/ROADMAP.md](./doc/blueprint/ROADMAP.md): active cleanup and
+  follow-up work
+- [WORKTREE_DASHBOARD.md](./WORKTREE_DASHBOARD.md): linked-worktree inventory
 
-```bash
-python3 -m script.blueprint_harness --help
-python3 -m script.blueprint_harness paths
-python3 -m script.blueprint_harness sync-root-lake
-```
+## Examples
 
-For new implementation work, prefer starting from a linked worktree under
-`.worktrees/` and keep the root checkout as the stable base.
+Complete working examples live in:
 
-In linked worktrees, the harness writes artifacts to the shared repo-root
-preview area under `_out/<worktree>/...` and prefers reusing the root checkout's
-prepared `.lake` artifacts instead of rebuilding Mathlib locally.
-
-## Documentation
-
-- [`MANUAL.md`](./MANUAL.md)
-  - directive-level notes, options, and rendering behavior
-- [`doc/blueprint/USER_MANUAL.md`](./doc/blueprint/USER_MANUAL.md)
-  - maintainer-oriented generation and validation workflow
-- [`doc/blueprint/DESIGN_RATIONALE.md`](./doc/blueprint/DESIGN_RATIONALE.md)
-  - architecture and implementation rationale
-- [`doc/blueprint/ROADMAP.md`](./doc/blueprint/ROADMAP.md)
-  - planned cleanup and follow-up work
-- [`WORKTREE_DASHBOARD.md`](./WORKTREE_DASHBOARD.md)
-  - current linked-worktree inventory for local development
-
-## Near-Term Release Plan
-
-Before the first release, we expect to:
-
-1. move the current example projects out of this repository,
-2. add a simpler starter example and a reusable project template,
-3. expose project scaffolding through `lake exe bp new`,
-4. make `lake exe blueprint-gen` the clear default interface for end users.
-
-The current repo is already the right place to evaluate the library and its
-rendering model; the main remaining work is packaging and onboarding.
+- [`test-projects/Noperthedron`](./test-projects/Noperthedron)
+- [`test-projects/Sphere-Packing-Lean`](./test-projects/Sphere-Packing-Lean)

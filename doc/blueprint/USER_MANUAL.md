@@ -1,165 +1,161 @@
-# Blueprint User Manual
+# Blueprint Maintainer Guide
 
-Last updated: 2026-03-15
+Last updated: 2026-03-16
 
-This document is the repository-level manual for working with Blueprint in this
-repo.
+This document is the repository-level workflow guide for maintaining Blueprint
+support in `verso-blueprint`.
 
-It focuses on practical usage and maintenance:
+It focuses on:
 
-- how to validate the example blueprints,
-- where generated artifacts land,
-- where Blueprint-specific options and project-local policy live,
-- which other docs to read next.
+- generation and validation commands
+- output locations
+- linked-worktree usage
+- repository-local policy for the in-repo example projects
 
-Design background lives in `DESIGN_RATIONALE.md`.
-Planned cleanup and implementation work lives in `ROADMAP.md`.
+Syntax and rendering semantics live in
+[`MANUAL.md`](../../MANUAL.md). Architecture background lives in
+[`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md). Planned cleanup and follow-up
+work live in [`ROADMAP.md`](./ROADMAP.md).
 
 ## Scope
 
-This is a maintainer-oriented manual for the Blueprint support in
-`verso-blueprint`, not a full end-user syntax reference for every directive.
+This is a maintainer document for this repository. It is not the end-user guide
+for authoring every Blueprint directive.
 
-## Harness Status
+## Current Command Surface
 
-This repository is intended to be developed AI-first. The public harness surface
-should therefore stay small, explicit, and repository-local so humans and AI
-agents use the same entry points.
-
-Today, the current baseline is still the in-repo example flow centered on:
-
-```bash
-./generate-example-blueprints.sh
-```
-
-That baseline targets the projects under `test-projects/`. A fuller
-worktree-aware harness is planned, but until it lands, treat any additional
-helpers and refactor scaffolding as implementation details rather than stable
-user-facing API.
-
-## Target Public Harness Surface
-
-As the harness refactor lands, the intended human-facing and AI-facing command
-surface is:
+The supported repository-local entry points are:
 
 ```bash
 ./generate-example-blueprints.sh
 ./validate-example-blueprints.sh
-python3 -m script.blueprint_harness sync-root-lake
+python3 -m script.blueprint_harness --help
 python3 -m script.blueprint_harness paths
+python3 -m script.blueprint_harness sync-root-lake
 ```
 
-The design intent is:
+The shell wrappers are the normal front door for day-to-day work. The Python
+module is the single source of truth for orchestration and path resolution.
 
-- keep the root shell scripts as the obvious everyday entry points,
-- keep the Python module as the single source of truth for orchestration,
-- keep helper modules and internal command assembly out of the public surface,
-- keep output locations and failure reporting predictable across root checkouts
-  and linked worktrees.
+## Everyday Workflows
 
-## Current Validation Baseline
+### Generate the Example Sites
 
-To validate the example Blueprint projects, run:
+```bash
+./generate-example-blueprints.sh
+```
+
+This builds and renders the current in-repo example sites:
+
+- `noperthedron`
+- `spherepackingblueprint`
+
+### Run the Default Validation Flow
 
 ```bash
 ./validate-example-blueprints.sh
 ```
 
-This default validation run:
+The default validation path:
 
-- generates the example sites,
-- runs the static Noperthedron panel regression check,
-- runs the browser regression suite.
+- generates the example sites
+- runs the static Noperthedron code-panel regression check
+- runs the browser regression suite
 
-Lean tests are intentionally not part of the default validation path right now.
-Run them explicitly with:
+Lean tests are intentionally opt-in:
 
 ```bash
 ./validate-example-blueprints.sh --run-lean-tests
 ```
 
-The generation phase builds:
+### Select Examples or Forward Test Flags
 
-- `noperthedron`
-- `spherepackingblueprint`
+The harness supports narrowing the example set and forwarding extra pytest
+arguments:
 
-Outputs go to:
+```bash
+python3 -m script.blueprint_harness generate --example noperthedron
+python3 -m script.blueprint_harness validate --example noperthedron --pytest-arg -k --pytest-arg preview
+```
+
+Run `python3 -m script.blueprint_harness --help` for the full flag surface.
+
+## Output Layout
+
+In the root checkout, generated artifacts go under:
 
 - `_out/example-blueprints/noperthedron/`
 - `_out/example-blueprints/spherepackingblueprint/`
 
-For now, these in-repo `test-projects/` examples remain the supported baseline
-for routine validation and regression checking.
+In a linked worktree, generated artifacts go under the shared repo-root preview
+area:
 
-## Planned External Project Support
+- `_out/<worktree>/example-blueprints/noperthedron/`
+- `_out/<worktree>/example-blueprints/spherepackingblueprint/`
 
-External-project support is a planned harness capability, not a finished feature
-yet.
+To print the resolved paths for the current checkout, run:
 
-The two important future scenarios are:
+```bash
+python3 -m script.blueprint_harness paths
+```
 
-- testing a new or local `verso` checkout against this package,
-- testing Blueprint projects that live in another repository.
+## Working from Linked Worktrees
 
-When that support is added, the same repository-local harness surface should
-remain the front door. In other words, users and AI agents should not need a
-separate orchestration stack just because the Blueprint project or the `verso`
-dependency lives elsewhere.
+For implementation work, use a linked worktree under `.worktrees/` and keep the
+root checkout as the stable base.
 
-For now, we are happy using the in-repo `test-projects/` examples as the main
-validation baseline while the external-project flow is still being designed.
+The harness is worktree-aware:
 
-## Shared Preview Manifest
+- in a linked worktree it writes artifacts to `_out/<worktree>/...`
+- by default it prefers reusing the root checkout's prepared `.lake` artifacts
+- local `lake build` and `lake test` in a linked worktree are disabled by
+  default to avoid unnecessary Mathlib rebuilds
 
-Each generated Blueprint site emits a shared preview manifest at:
+Before rebuilding from a linked worktree, prefer:
+
+```bash
+python3 -m script.blueprint_harness sync-root-lake
+```
+
+If local rebuilding is actually required, opt in explicitly:
+
+```bash
+python3 -m script.blueprint_harness generate --allow-local-build
+python3 -m script.blueprint_harness validate --allow-local-build --run-lean-tests
+```
+
+## Example Project Notes
+
+- `test-projects/Noperthedron/` is Mathlib-heavy, so linked worktrees should
+  normally sync `.lake/` from the root checkout before any local build
+- the in-repo `test-projects/` remain the supported baseline for routine
+  validation during this pre-release phase
+- the Python harness is maintainer tooling for those examples, not the intended
+  long-term end-user interface
+
+## Shared Preview Artifact
+
+Each generated Blueprint site includes a shared preview manifest at:
 
 `html-multi/-verso-data/blueprint-preview-manifest.json`
 
-This manifest is the canonical runtime source for Blueprint statement/proof
-preview bodies. It also carries structured preview metadata such as:
+See [`MANUAL.md`](../../MANUAL.md) for the manifest semantics and executable
+inspection flags.
 
-- label
-- facet
-- kind
-- parent
-- dependencies
-- ownership and triage fields
+## Project-Local Option Policy
 
-Useful CLI entry points:
+Repository-level Blueprint reference material lives in the main doc set. Project
+specific option policy should stay with the project that owns it.
 
-```bash
-lake exe noperthedron --dump-schema
-lake exe noperthedron --dump-manifest
-lake exe noperthedron --help
-```
+Current example-specific reference:
 
-## Where Option Policy Lives
+- [`test-projects/Noperthedron/OPTIONS.md`](../../test-projects/Noperthedron/OPTIONS.md)
 
-Repository-level Blueprint implementation notes live in this directory.
+## Documentation Reading Order
 
-Project-local option policy stays with the project that owns it. In particular:
-
-- `test-projects/Noperthedron/OPTIONS.md`
-
-That file is currently the detailed option-policy reference for the
-Noperthedron example, including:
-
-- chapter-local `set_option` conventions,
-- Blueprint-specific options already in use,
-- example values and known follow-ups.
-
-## Current Repo-Level Doc Set
-
-- `USER_MANUAL.md`
-  - operational guide for validating and maintaining Blueprint support here
-- `DESIGN_RATIONALE.md`
-  - architecture, ownership boundaries, preview rationale, and graph-status rationale
-- `ROADMAP.md`
-  - active priorities, planned cleanup phases, and near-term implementation work
-
-## Practical Reading Order
-
-1. Start here for commands and artifact locations.
-2. Read `DESIGN_RATIONALE.md` to understand why the implementation is shaped the
-   way it is.
-3. Read `ROADMAP.md` before starting structural refactors.
+1. Start here for commands, outputs, and worktree behavior.
+2. Read [`MANUAL.md`](../../MANUAL.md) for Blueprint options and rendering
+   semantics.
+3. Read [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md) before touching
+   architecture boundaries.
+4. Read [`ROADMAP.md`](./ROADMAP.md) before starting structural cleanup.

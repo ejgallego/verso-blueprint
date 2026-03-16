@@ -1,6 +1,6 @@
 # Worktree Dashboard
 
-Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is now the active dashboard, and the old repo has been reduced to archival-only reference material)
+Last updated: 2026-03-16 (migrated from the old monorepo dashboard; this file is now the active dashboard, and the old repo has been reduced to archival-only reference material)
 
 ## Active Worktrees
 
@@ -26,6 +26,18 @@ Last updated: 2026-03-13 (migrated from the old monorepo dashboard; this file is
   - no independent validation beyond the shared `main` head yet
 - Resume commands/notes:
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/harness-state-of-the-art-20260313`
+  - `git status --short`
+
+### `feat/docs-doc-surface-20260316`
+
+- Status: `active`
+- Summary: documentation cleanup worktree for tightening page boundaries across the README, manual, maintainer guide, rationale, and roadmap.
+- Path: `/home/egallego/lean/verso-blueprint/.worktrees/docs-doc-surface-20260316`
+- Branch: `feat/docs-doc-surface-20260316`
+- Validation status:
+  - documentation-only edits; local consistency pass completed
+- Resume commands/notes:
+  - `cd /home/egallego/lean/verso-blueprint/.worktrees/docs-doc-surface-20260316`
   - `git status --short`
 
 ### `feat/blueprint-data-review-20260312`

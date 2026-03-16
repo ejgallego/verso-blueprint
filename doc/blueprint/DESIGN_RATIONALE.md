@@ -1,138 +1,149 @@
 # Blueprint Design Rationale
 
-Last updated: 2026-03-11
+Last updated: 2026-03-16
 
-This document consolidates the earlier architecture notes, external-rendering
-review, preview-hover design notes, and graph-status specification into one
-repository-level rationale document.
+This document records the current architecture boundaries and the reasons the
+Blueprint implementation is shaped the way it is.
 
-## Scope
+It is intentionally not:
 
-- Record the current Blueprint architecture boundaries.
-- Capture the external-declaration rendering/data flow.
-- Explain why preview and graph behavior are shaped the way they are.
+- the user-facing reference for options and rendering details
+- the maintainer workflow guide
+- the change backlog
 
-## Current Architecture Snapshot
+Those responsibilities live in
+[`MANUAL.md`](../../MANUAL.md),
+[`USER_MANUAL.md`](./USER_MANUAL.md), and
+[`ROADMAP.md`](./ROADMAP.md).
 
-1. Canonical semantic source remains `Environment.State.data`.
-2. Command modules are split by concern:
-   - `VersoBlueprint/Commands/Graph.lean`
-   - `VersoBlueprint/Commands/Summary.lean`
-   - `VersoBlueprint/Commands/Bibliography.lean`
-   - shared command JS in `VersoBlueprint/Commands/Common.lean`
-3. Shared preview/render helpers live in `VersoBlueprint/Lib/`:
-   - `HoverRender.lean`
-   - `PreviewSource.lean`
-4. Command CSS is per-command:
-   - `Commands/graph.css`
-   - `Commands/summary.css`
-   - `Commands/bibliography.css`
+## Architecture Snapshot
 
-## Active Traversal and Rendering Clients
+### Canonical Semantic Source
 
-1. Link resolution:
+The canonical semantic source remains `Environment.State.data`. Rendering and
+UI layers are expected to project from that state, not invent parallel sources
+of truth.
+
+### Command Split
+
+Command modules are split by concern:
+
+- `VersoBlueprint/Commands/Graph.lean`
+- `VersoBlueprint/Commands/Summary.lean`
+- `VersoBlueprint/Commands/Bibliography.lean`
+- shared command JS in `VersoBlueprint/Commands/Common.lean`
+
+Shared preview and rendering helpers live in `VersoBlueprint/Lib/`, notably:
+
+- `HoverRender.lean`
+- `PreviewSource.lean`
+
+Command CSS is likewise split per command:
+
+- `Commands/graph.css`
+- `Commands/summary.css`
+- `Commands/bibliography.css`
+
+## Rendering Clients
+
+Active consumers of Blueprint traversal data fall into three broad groups:
+
+1. local link and block rendering:
    - `Inline.informal`
    - `Block.informal`
    - `Block.informalCode`
-2. Global rendering outputs:
+2. global rendered outputs:
    - `Block.graph`
    - `Block.summary`
    - `Block.bibliography`
-3. Widget path:
-   - consumes `PreviewSource` over environment payloads
+3. widget/runtime clients:
+   - preview consumers built on `PreviewSource`
 
-## `Data.CodeRef` Consumer Map
+This split is why one-source-of-truth pressure matters so much: local blocks,
+global pages, and runtime widgets all need to agree on the same semantics while
+projecting them differently.
 
-`Data.CodeRef` still feeds multiple independent paths:
+## External Declaration Model
 
-1. Registration and merge semantics in `Data.register`, `Data.registerCode`,
-   and `Data.registerCodeRef`.
-2. Informal block/code rendering in `Informal/Block.lean` and
-   `Informal/Code.lean`.
-3. Graph semantics in `Graph.lean`.
-4. Summary semantics in `Commands/Summary.lean`.
-
-This is the main place where "one source of truth" pressure still shows up in
-the implementation, which is why future cleanup should be careful about adding
-new ad hoc projections.
-
-## External Declaration Flow
+The external declaration flow is intentionally staged:
 
 1. `(lean := "...")` references become `Data.ExternalRef`.
-2. Snapshot/enrichment adds:
-   - presence,
-   - provenance and ranges,
-   - optional `sourceHref?`,
-   - declaration rendering result.
-3. Informal block rendering projects those snapshots into hover/panel views.
+2. Snapshot and enrichment add presence, provenance, optional `sourceHref?`,
+   and declaration rendering results.
+3. Informal block rendering turns those snapshots into hover and panel views.
 4. Summary and graph logic read the same snapshots for status reporting.
 
-## Name Ownership Boundary
+The goal is to avoid a world where local rendering, global status, and preview
+surfaces each re-resolve external declarations differently.
 
-1. Blueprint node labels are blueprint-owned metadata.
+## Ownership Boundaries
+
+Two naming domains must stay distinct:
+
+1. Blueprint node labels are Blueprint-owned metadata.
 2. `(lean := "...")` names are Lean-owned identifiers.
-3. Blueprint label policies must not rewrite external Lean declaration names.
 
-## Preview and Hover Rationale
+That boundary matters because convenience policies for Blueprint labels must not
+quietly rewrite or reinterpret external Lean declaration names.
 
-### Shared browser-side preview helpers
+## Preview Rationale
 
-Preview behavior is correctness-sensitive and was previously drifting through
-copy/paste. The shared browser runtime therefore owns the reusable preview
-operations, including:
+### Shared Browser Runtime
 
-- template collection and decoding,
-- math rendering for inserted preview bodies,
-- anchored-panel positioning,
-- close-button policy,
-- subtree hydration for nested preview content.
+Preview behavior is correctness-sensitive and previously drifted through
+copy-paste. The shared browser-side runtime therefore owns reusable preview
+operations such as:
 
-The goal is to keep preview behavior uniform across inline, summary, graph, and
-other Blueprint surfaces.
+- template collection and decoding
+- math rendering for inserted preview bodies
+- anchored-panel positioning
+- close-button policy
+- subtree hydration for nested preview content
 
-### Statement/proof previews stay separate from Lean-code previews
+The goal is consistent preview behavior across inline references, summary
+panels, graph panels, and other Blueprint surfaces.
 
-Statement/proof previews use `PreviewCache` keyed by `(label, facet)`.
-Lean-code previews use `Informal.LeanCodePreview` under a dedicated Lean-name
-namespace.
+### Separate Informal and Lean-Code Preview Identities
 
-That split is intentional:
+Statement and proof previews are keyed by `(label, facet)`. Lean-code previews
+use `Informal.LeanCodePreview` under a Lean-name-oriented namespace.
 
-- statement/proof previews are about informal node overviews,
-- Lean-code previews are about declaration-centric code navigation.
+That split is deliberate:
 
-The two eventually feed similar UI, but they do not have the same ownership
-model or identity scheme.
+- statement/proof previews are blueprint-entry overviews
+- Lean-code previews are declaration-centric navigation
 
-### Preview retrieval should still look like one API to callers
+The UI can converge while the identity schemes remain distinct.
 
-Even though traversal and widget paths have different internal storage
-boundaries, the call sites should converge on `PreviewSource` rather than
-decoding multiple payload forms directly.
+### One Retrieval Surface for Callers
 
-### Self-contained snippet rendering matters
+Even though traversal-time and widget/runtime paths use different internal
+storage boundaries, call sites should converge on `PreviewSource` rather than
+decode multiple payload forms directly.
 
-Rendered HTML hovers are page-output scoped, while editor/LSP hovers are
-info-tree scoped. Isolated renderers therefore cannot emit raw shared hover ids
-unless they also participate in the surrounding hover table. That is why
-Blueprint currently rewrites some isolated hover payloads into self-contained
+### Self-Contained Snippet Rendering
+
+Rendered HTML hovers are page-output scoped, while editor and LSP hovers are
+info-tree scoped. Isolated renderers therefore cannot rely on shared hover-id
+tables unless they also participate in the surrounding hover environment. That
+is why Blueprint sometimes rewrites isolated hover payloads into self-contained
 HTML.
 
-## Graph Status and Completion Rationale
+## Graph and Completion Rationale
 
-### Two-track status model
+### Two-Track Status Model
 
 The graph pipeline computes two orthogonal tracks per node:
 
 - statement track (`StatementStatus`) drives border color
 - proof/background track (`ProofStatus`) drives fill color
 
-This keeps "can I state it?" separate from "can I finish the proof?" and avoids
+This keeps "can I state it?" separate from "can I finish the proof?" instead of
 collapsing all progress into one overloaded color.
 
-### Completion policy comes from `ProvedStatus`
+### Completion Policy
 
-Completion blocking policy is centralized in `Informal.Data.ProvedStatus`:
+Completion blocking policy is centralized in `Informal.Data.ProvedStatus` via:
 
 - `blocksStatementCompletion`
 - `blocksProofCompletion`
@@ -141,35 +152,31 @@ Completion blocking policy is centralized in `Informal.Data.ProvedStatus`:
 
 Definitions and theorem-like nodes intentionally differ:
 
-- definitions are blocked by both type-side and body-side gaps,
-- theorem-like statements are blocked only by statement/type gaps,
-- proof completion is blocked by any gap.
+- definitions are blocked by both type-side and body-side gaps
+- theorem-like statements are blocked only by statement/type gaps
+- proof completion is blocked by any gap
 
-### Source precision is intentionally asymmetric
+### Precision and Warning Policy
 
-Inline/literate code has finer-grained provenance than external declaration
-snapshots. External references are still useful, but the UI should not imply
-the same per-command precision when that information does not exist.
+Inline code has finer-grained provenance than external declaration snapshots.
+The UI should expose useful external information without pretending it has the
+same precision as local literate code.
 
-### Warning overlays are separate from fill colors
+Warning conditions such as missing external declarations, local `sorry`, and
+Lean-only-without-informal-statement are modeled separately from fill colors.
+That keeps progress state and warning state orthogonal.
 
-Warning conditions such as:
+## Active Tension Points
 
-- missing external declarations,
-- local sorries,
-- lean-only-without-informal-statement
+These are the current architectural fault lines that still deserve care:
 
-are encoded as border-style overlays rather than as alternate fill colors. This
-keeps progress color and warning state orthogonal.
+1. status semantics can still drift between local block rendering and global
+   outputs
+2. preview retrieval still has multiple internal representations and adapters
+3. external hover and panel rendering still share concepts that are not fully
+   unified in one view model
+4. preview regressions are easy to miss without traversal-level regression
+   coverage
 
-## Current Duplications and Risks
-
-1. Status semantics still drift across local block rendering and global outputs.
-2. Preview retrieval still has multiple internal representations/adapters.
-3. External hover and external panel rendering still share concepts that are not
-   fully unified in one view model.
-4. Preview regressions are easy to miss without traversal-level regression
-   tests.
-
-This document is intentionally about why the current shape exists. Active
-cleanup work and sequencing now live in `ROADMAP.md`.
+Those concerns motivate the cleanup priorities tracked in
+[`ROADMAP.md`](./ROADMAP.md).
