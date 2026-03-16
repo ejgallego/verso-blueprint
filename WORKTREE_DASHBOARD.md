@@ -40,6 +40,18 @@ Last updated: 2026-03-16 (migrated from the old monorepo dashboard; this file is
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/docs-doc-surface-20260316`
   - `git status --short`
 
+### `feat/manual-link-ready-20260316`
+
+- Status: `active`
+- Summary: manual rewrite worktree focused on task-shaped structure plus source-link and future screenshot scaffolding.
+- Path: `/home/egallego/lean/verso-blueprint/.worktrees/manual-link-ready-20260316`
+- Branch: `feat/manual-link-ready-20260316`
+- Validation status:
+  - documentation-only edits; markdown consistency pass in progress
+- Resume commands/notes:
+  - `cd /home/egallego/lean/verso-blueprint/.worktrees/manual-link-ready-20260316`
+  - `git status --short`
+
 ### `feat/blueprint-data-review-20260312`
 
 - Status: `active` (reconstructed from a legacy snapshot onto the extracted package layout)

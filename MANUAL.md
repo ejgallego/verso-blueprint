@@ -1,21 +1,242 @@
 # Blueprint Manual
 
-This document is the reference page for the current Blueprint-specific authoring
-and rendering surface in this repository.
+This document explains the current Blueprint authoring surface in this
+repository.
 
-It covers:
+A Blueprint is a mathematical project document that mixes informal exposition
+with links to Lean declarations, dependency information, and generated overview
+pages.
 
-- Blueprint options
-- node and group metadata
-- Lean-summary semantics
-- summary/graph behavior
-- shared preview-manifest output
+Verso is the document system used to write and render those documents.
+
+It is organized around two reader questions:
+
+1. what can I write in a Blueprint source file?
+2. what does that source render into?
 
 Operational workflow lives in
 [`doc/blueprint/USER_MANUAL.md`](./doc/blueprint/USER_MANUAL.md). Architecture
 background and planned cleanup live in
 [`doc/blueprint/DESIGN_RATIONALE.md`](./doc/blueprint/DESIGN_RATIONALE.md) and
 [`doc/blueprint/ROADMAP.md`](./doc/blueprint/ROADMAP.md).
+
+## What You Can Write
+
+### Document Skeleton
+
+A Blueprint project currently has three main pieces:
+
+- a `Contents` module that assembles the document
+- one or more chapter modules containing the document content
+- a small `Main` executable that renders the site
+
+Example source entry points:
+
+- [`test-projects/Noperthedron/Contents.lean`](./test-projects/Noperthedron/Contents.lean)
+- [`test-projects/Noperthedron/Main.lean`](./test-projects/Noperthedron/Main.lean)
+- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Contents.lean`](./test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Contents.lean)
+- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprintMain.lean`](./test-projects/Sphere-Packing-Lean/SpherePackingBlueprintMain.lean)
+
+<!-- Future inline image: example document landing page or rendered chapter index. -->
+
+### Core Content Blocks
+
+Blueprint chapters use block directives for mathematical content. The main ones
+used in the current examples are:
+
+- `:::definition "..."`
+- `:::lemma_ "..."`
+- `:::theorem "..."`
+- `:::corollary "..."`
+- `:::proof "..."`
+
+Typical usage:
+
+```md
+:::definition "def:sample"
+A sample informal definition.
+:::
+
+:::theorem "thm:sample" (lean := "Nat.add")
+This theorem uses {uses "def:sample"}[].
+:::
+
+:::proof "thm:sample"
+Proof sketch.
+:::
+```
+
+The `:::proof "..."` block attaches to the earlier statement with the same
+label.
+
+Example source modules:
+
+- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](./test-projects/Noperthedron/Chapters/Noperthedron.lean)
+- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean`](./test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean)
+
+<!-- Future inline image: one rendered theorem block with its attached proof. -->
+
+### How Blocks Connect to Lean
+
+Statement-like blocks can connect to Lean in three main ways:
+
+1. inline labeled Lean code blocks
+2. external declarations via `(lean := "...")`
+3. manual completion via `(leanok := true)`
+
+Inline example:
+
+````md
+:::lemma_ "lem:sample"
+Informal statement.
+:::
+
+```lean "lem:sample"
+theorem sample : True := by
+  trivial
+```
+````
+
+External declaration example:
+
+```md
+:::theorem "thm:sample" (lean := "Nat.add")
+...
+:::
+```
+
+Manual completion example:
+
+```md
+:::theorem "thm:planned" (leanok := true)
+...
+:::
+```
+
+Notes:
+
+- `(lean := "...")` points at Lean-owned declaration names
+- Blueprint label conventions do not rewrite external Lean names
+- current examples include both single-name and comma-separated external
+  declaration strings
+
+Example source modules:
+
+- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](./test-projects/Noperthedron/Chapters/Noperthedron.lean)
+- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/ModularForms.lean`](./test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/ModularForms.lean)
+
+<!-- Future inline image: local block header showing Lean badge and code-panel link. -->
+
+### Groups and Authors
+
+Use `:::group` to declare a reusable group label and the text shown for that
+group:
+
+```md
+:::group "local_linear_algebra"
+Linear-algebra lemmas for local geometry.
+:::
+```
+
+Use `:::author` to declare author metadata:
+
+```md
+:::author "alice" (name := "Alice Example") (url := "https://example.com/alice")
+:::
+```
+
+Group labels and author ids are global within the document state.
+
+Example source modules:
+
+- [`test-projects/Noperthedron/Authors.lean`](./test-projects/Noperthedron/Authors.lean)
+- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean`](./test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean)
+
+<!-- Future inline image: author panel or grouped summary section. -->
+
+### Statement Metadata
+
+Statement-like directives may also declare extra metadata:
+
+```md
+:::lemma_ "lem:pythagoras" (parent := "local_linear_algebra") (priority := "high")
+...
+:::
+```
+
+Current metadata fields:
+
+- `(parent := "...")`
+- `(owner := "...")`
+- `(tags := "...")`
+- `(effort := "small" | "medium" | "large")`
+- `(priority := "high" | "medium" | "low")`
+- `(pr_url := "https://github.com/org/repo/pull/123")`
+
+How these relationships work:
+
+- `parent := "..."` points at a `:::group`
+- `owner := "..."` points at a `:::author`
+- `priority` expresses author intent and may be used by overview surfaces
+- the remaining fields are currently display-oriented metadata
+
+Duplicate handling is conservative:
+
+- same `parent` or `priority` value: warning, existing value kept
+- different `parent` or `priority` value: error, existing value kept
+
+## What It Renders
+
+### Rendered Statement Blocks
+
+Statement headers always show the Lean badge `L∃∀N`.
+
+There are three main ways an informal statement can be associated with Lean:
+
+1. `inline`
+   The statement has an associated labeled Lean code block. The badge links to
+   the rendered code panel for that block.
+2. `external`
+   The statement uses `(lean := "...")` to point at external Lean declarations.
+   The badge summarizes those declarations instead of a local code block.
+3. `userOk`
+   The statement uses `(leanok := true)` as a manual assertion that the Lean
+   side is complete.
+
+If none of those states is present, the header still renders a muted `L∃∀N`
+badge as a stable placeholder for "no associated Lean code or declarations".
+
+The exact chip vocabulary and presentation details are still provisional. The
+stable point for authors is that the local block header indicates whether Lean
+content is present, missing, or incomplete, and links into the associated Lean
+material when available.
+
+More detailed distinctions, including tooltip wording and status refinement, are
+still expected to evolve.
+
+### Summary Page Behavior
+
+`blueprint_summary` and `bp_summary` render a global overview page for the
+current Blueprint document.
+
+Today that page uses dependency data, completion state, and metadata to provide
+an overview of the document and highlight work that may deserve attention next.
+
+The exact summary layout and ranking policy are still expected to evolve. The
+stable point for authors is that group and statement metadata may influence
+summary organization and prioritization.
+
+<!-- Future inline image: summary page with group rollups and priority cards. -->
+
+### Dependency Graph Behavior
+
+`blueprint_graph` renders a dependency-oriented view of the current Blueprint
+document.
+
+Group metadata may be used to visually organize the graph, but grouping is
+structural metadata only and does not change dependency edges.
+
+<!-- Future inline image: dependency graph with grouped clusters. -->
 
 ## Blueprint Options
 
@@ -59,134 +280,29 @@ Current options:
   - default: `false`
   - enables timing logs for Blueprint directive and code-block elaboration
 
-## Lean Association States
+Project-specific option examples:
 
-Statement headers always show the Lean badge `L∃∀N`.
+- [`test-projects/Noperthedron/Contents.lean`](./test-projects/Noperthedron/Contents.lean)
+- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](./test-projects/Noperthedron/Chapters/Noperthedron.lean)
+- [`test-projects/Noperthedron/OPTIONS.md`](./test-projects/Noperthedron/OPTIONS.md)
 
-There are three meaningful association states for an informal statement:
-
-1. `inline`
-   The statement has an associated labeled Lean code block. The badge links to
-   the rendered code panel for that block.
-2. `external`
-   The statement uses `(lean := "...")` to point at external Lean declarations.
-   The badge summarizes those declarations instead of a local code block.
-3. `userOk`
-   The statement uses `(leanok := true)` as a manual assertion that the Lean
-   side is complete.
-
-If none of those states is present, the header still renders a muted `L∃∀N`
-badge as a stable placeholder for "no associated Lean code or declarations".
-
-The compact header view is derived from a richer internal model:
-
-- provenance/source track:
-  - `inline`
-  - `external`
-  - `userOk`
-  - `none`
-- completion track:
-  - `proved`
-  - `missing`
-  - `axiomLike`
-  - `containsSorry`
-
-The rendered chip vocabulary is intentionally small:
-
-- `✓ L∃∀N`: Lean side is present and complete
-- `⚠ L∃∀N`: Lean side is present but contains `sorry`
-- `! L∃∀N`: external Lean references are missing
-- `A L∃∀N`: Lean side is axiom-like
-- `X L∃∀N`: there is no associated Lean code yet
-
-Tooltip content carries the finer-grained distinction between statement-side and
-proof-side incompleteness.
-
-## Structural Metadata
-
-### Group Labels
-
-Use `:::group` to declare a group label and display header:
-
-```md
-:::group "local_linear_algebra"
-Linear-algebra lemmas for local geometry.
-:::
-```
-
-- the positional argument is the group label used by `parent := "..."`
-- group labels are global in the Blueprint state
-- redeclaring the same group with the same rendered header emits a warning
-- redeclaring a group with a different rendered header emits an error
-
-### Node Metadata
-
-Statement-like Blueprint directives may declare structural and triage metadata:
-
-```md
-:::lemma_ "lem:pythagoras" (parent := "local_linear_algebra") (priority := "high")
-...
-:::
-```
-
-Supported fields:
-
-- `(parent := "...")`
-- `(owner := "...")`
-- `(tags := "analysis, critical")`
-- `(effort := "small" | "medium" | "large")`
-- `(priority := "high" | "medium" | "low")`
-- `(pr_url := "https://github.com/org/repo/pull/123")`
-
-Author metadata is declared separately:
-
-```md
-:::author "alice" (name := "Alice Example") (url := "https://example.com/alice")
-:::
-```
-
-Duplicate handling for `parent` and `priority` is conservative:
-
-- same value: warning, existing value kept
-- different value: error, existing value kept
-
-## Summary and Graph Behavior
-
-The `parent` and metadata fields currently affect two global outputs.
-
-### Blueprint Summary
-
-`blueprint_summary` and `bp_summary` combine dependency data, completion state,
-and metadata into:
-
-- inventory-oriented sections for counts and theorem-like entries by parent
-- triage sections such as actionable priorities, statement/proof reuse, and
-  ranked next steps
-- structure and coverage sections such as informal-only, ready-to-formalize,
-  blocked, root, and leaf views
-- per-parent health rollups, using the declared `:::group` title when available
-
-Explicit `(priority := "...")` metadata acts as an author override in actionable
-ranking and parent-group next-step selection.
-
-### Dependency Graph
-
-`blueprint_graph` renders parent groups as Graphviz clusters:
-
-- the `:::group` header text becomes the cluster label when available
-- groups with only one child are filtered out
-- grouping is structural metadata only and does not change dependency edges
-
-## Shared Preview Manifest
+## Preview Manifest
 
 Blueprint builds emit a shared preview manifest at:
 
 `html-multi/-verso-data/blueprint-preview-manifest.json`
 
-This file is the canonical runtime source for informal statement and proof
-preview bodies. It also carries metadata such as `label`, `facet`, `kind`,
-optional `href`, optional `parent`, dependencies, owner display name, tags,
-priority, effort, and rendered `html`.
+Most authors do not need this file for routine writing. It is mainly
+useful for:
+
+- runtime preview support in generated sites
+- tooling and integration work
+- inspection and debugging
+
+It is the canonical runtime source for informal statement and proof preview
+bodies. It also carries metadata such as `label`, `facet`, `kind`, optional
+`href`, optional `parent`, dependencies, owner display name, tags, priority,
+effort, and rendered `html`.
 
 Useful inspection flags on a Blueprint executable:
 

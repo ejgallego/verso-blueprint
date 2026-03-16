@@ -58,6 +58,8 @@ the package is to build the repository and inspect the in-repo examples:
 For the maintainer validation workflow, linked-worktree behavior, and output
 layout, see
 [`doc/blueprint/USER_MANUAL.md`](./doc/blueprint/USER_MANUAL.md).
+For authoring syntax, metadata, options, and rendering semantics, see
+[`MANUAL.md`](./MANUAL.md).
 
 ## Authoring Model Today
 
@@ -90,6 +92,8 @@ lean_exe noperthedron where
 
 The `lean_lib` owns the Blueprint source modules. The `lean_exe` is the
 renderer you run with `lake exe ...`.
+
+For the author-facing reference surface, see [MANUAL.md](./MANUAL.md).
 
 ## A Small Blueprint Fragment
 
