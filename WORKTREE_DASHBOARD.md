@@ -64,6 +64,18 @@ Last updated: 2026-03-16 (migrated from the old monorepo dashboard; this file is
   - `cd /home/egallego/lean/verso-blueprint/.worktrees/doc-root-cleanup-20260316`
   - `git status --short`
 
+### `feat/doc-polish-20260316`
+
+- Status: `active`
+- Summary: final documentation polish worktree for onboarding split, minimal manual skeleton, terminology cleanup, and upstream TODO compression.
+- Path: `/home/egallego/lean/verso-blueprint/.worktrees/doc-polish-20260316`
+- Branch: `feat/doc-polish-20260316`
+- Validation status:
+  - documentation-only edits; local consistency pass completed
+- Resume commands/notes:
+  - `cd /home/egallego/lean/verso-blueprint/.worktrees/doc-polish-20260316`
+  - `git status --short`
+
 ### `feat/blueprint-data-review-20260312`
 
 - Status: `active` (reconstructed from a legacy snapshot onto the extracted package layout)

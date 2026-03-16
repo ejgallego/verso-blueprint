@@ -45,7 +45,7 @@ cd verso-blueprint
 script/lean-low-priority lake build
 ```
 
-### Evaluate the Current Examples
+### If You Want to Evaluate This Repository
 
 Until the starter template and scaffolding land, the supported way to evaluate
 the package is to build the repository and inspect the in-repo examples:
@@ -61,7 +61,7 @@ layout, see
 For authoring syntax, metadata, options, and rendering semantics, see
 [`doc/MANUAL.md`](./doc/MANUAL.md).
 
-## Authoring Model Today
+### If You Want to Build Your Own Blueprint Project
 
 Blueprint projects currently follow the standard Verso workflow: the project
 owns both the Blueprint source modules and a small `lean_exe` target that
@@ -94,62 +94,6 @@ The `lean_lib` owns the Blueprint source modules. The `lean_exe` is the
 renderer you run with `lake exe ...`.
 
 For the author-facing reference surface, see
-[`doc/MANUAL.md`](./doc/MANUAL.md).
-
-## A Small Blueprint Fragment
-
-The core authoring model already looks like this:
-
-```lean
-import VersoManual
-import VersoBlueprint
-import VersoBlueprint.Commands.Graph
-import VersoBlueprint.Commands.Summary
-import VersoBlueprint.Commands.Bibliography
-
-open Verso
-open Verso.Genre.Manual
-open Informal
-
-#doc (Manual) "Contents" =>
-
-:::definition "def:sample"
-A sample informal definition.
-:::
-
-:::theorem "thm:sample" (lean := "Nat.add")
-This theorem uses {uses "def:sample"}[].
-:::
-
-:::proof "thm:sample"
-Proof sketch.
-:::
-
-{blueprint_graph}
-{bp_summary}
-{bp_bibliography}
-```
-
-The corresponding executable is a small `Main.lean` entry point that writes the
-site output:
-
-```lean
-import VersoManual
-import VersoBlueprint.PreviewManifest
-import Contents
-
-open Verso Doc
-open Verso.Genre Manual
-
-def main (args : List String) : IO UInt32 :=
-  Informal.PreviewManifest.manualMainWithSharedPreviewManifest
-    (%doc Contents)
-    args
-    (extensionImpls := by exact extension_impls%)
-```
-
-Generated sites also include a shared preview manifest. For the manifest
-location, flags, and rendering reference, see
 [`doc/MANUAL.md`](./doc/MANUAL.md).
 
 ## Repository Layout

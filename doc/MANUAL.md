@@ -4,8 +4,8 @@ This document explains the current Blueprint authoring surface in this
 repository.
 
 A Blueprint is a mathematical project document that mixes informal exposition
-with links to Lean declarations, dependency information, and generated overview
-pages.
+with links to Lean declarations, dependency information, and generated summary
+and graph pages.
 
 Verso is the document system used to write and render those documents.
 
@@ -37,6 +37,84 @@ Example source entry points:
 - [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprintMain.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprintMain.lean)
 
 <!-- Future inline image: example document landing page or rendered chapter index. -->
+
+### A Minimal Blueprint File Set
+
+The smallest useful setup usually has three files:
+
+1. one chapter file with the actual Blueprint blocks
+2. one `Contents` file that assembles the document
+3. one `Main` file that renders the site
+
+Minimal chapter example:
+
+```lean
+import Verso
+import VersoManual
+import VersoBlueprint
+
+open Verso.Genre
+open Verso.Genre.Manual
+open Informal
+
+#doc (Manual) "Chapter" =>
+
+:::definition "def:sample"
+A sample informal definition.
+:::
+
+:::theorem "thm:sample" (lean := "Nat.add")
+This theorem uses {uses "def:sample"}[].
+:::
+
+:::proof "thm:sample"
+Proof sketch.
+:::
+```
+
+Minimal `Contents.lean` example:
+
+```lean
+import Verso
+import VersoManual
+import VersoBlueprint
+import VersoBlueprint.Commands.Graph
+import VersoBlueprint.Commands.Summary
+import VersoBlueprint.Commands.Bibliography
+import Chapter
+
+open Verso.Genre
+open Verso.Genre.Manual
+open Informal
+
+#doc (Manual) "Contents" =>
+
+{include 0 Chapter}
+
+{blueprint_graph}
+{bp_summary}
+{bp_bibliography}
+```
+
+Minimal `Main.lean` example:
+
+```lean
+import VersoManual
+import VersoBlueprint.PreviewManifest
+import Contents
+
+open Verso Doc
+open Verso.Genre Manual
+
+def main (args : List String) : IO UInt32 :=
+  Informal.PreviewManifest.manualMainWithSharedPreviewManifest
+    (%doc Contents)
+    args
+    (extensionImpls := by exact extension_impls%)
+```
+
+This three-file shape is the main thing to understand before worrying about the
+larger example projects.
 
 ### Core Content Blocks
 
@@ -176,7 +254,8 @@ How these relationships work:
 
 - `parent := "..."` points at a `:::group`
 - `owner := "..."` points at a `:::author`
-- `priority` expresses author intent and may be used by overview surfaces
+- `priority` expresses author intent and may be used by summary or other
+  overview pages
 - the remaining fields are currently display-oriented metadata
 
 Duplicate handling is conservative:
@@ -215,8 +294,8 @@ still expected to evolve.
 
 ### Summary Page Behavior
 
-`blueprint_summary` and `bp_summary` render a global overview page for the
-current Blueprint document.
+`blueprint_summary` and `bp_summary` render a summary page for the current
+Blueprint document.
 
 Today that page uses dependency data, completion state, and metadata to provide
 an overview of the document and highlight work that may deserve attention next.
