@@ -137,10 +137,9 @@ python3 -m script.blueprint_harness validate --allow-local-build --run-lean-test
 
 - `test-projects/Noperthedron/` is Mathlib-heavy, so linked worktrees should
   normally sync `.lake/` from the root checkout before any local build
-- the in-repo `test-projects/` remain the supported baseline for routine
-  validation during this pre-release phase
-- the Python harness is maintainer tooling for those examples, not the intended
-  long-term end-user interface
+- the in-repo `test-projects/` are the default baseline for routine validation
+- the Python harness is maintainer tooling for those examples, not the main
+  package-facing authoring interface
 
 ## Shared Preview Artifact
 

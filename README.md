@@ -8,18 +8,13 @@ proofs, and Lean code.
 
 ## Status
 
-This repository is close to its first standalone release.
+The intended end-user generation interface is `lake exe blueprint-gen`.
 
-Current pre-release realities:
-
-- the example projects still live in [`test-projects`](./test-projects)
-- the preferred end-user generation interface is `lake exe blueprint-gen`
-- project scaffolding such as `lake exe bp new`, a smaller starter example, and
-  a reusable template are planned but not landed yet
-
-Release-facing documentation should treat `lake exe blueprint-gen` as the
-intended front door. The Python harness in this repository is maintainer
-tooling for the in-repo examples, not the long-term end-user workflow.
+This repository also contains example Blueprint projects under
+[`test-projects`](./test-projects) plus the maintainer harness used to generate
+and validate them. Those repository-local scripts are for example maintenance
+and regression coverage; the package-facing authoring and rendering surface is
+documented in [`doc/MANUAL.md`](./doc/MANUAL.md).
 
 ## What You Get
 
@@ -47,8 +42,8 @@ script/lean-low-priority lake build
 
 ### If You Want to Evaluate This Repository
 
-Until the starter template and scaffolding land, the supported way to evaluate
-the package is to build the repository and inspect the in-repo examples:
+To evaluate the package in this repository, build and inspect the included
+example projects:
 
 ```bash
 ./scripts/generate-example-blueprints.sh
@@ -119,7 +114,7 @@ For the author-facing reference surface, see
 - `browser-tests`: browser-level regression coverage for generated sites
 - `script`: worktree-aware maintainer harness
 - `scripts`: shell wrappers and local helper scripts
-- `test-projects`: current pre-release example blueprints
+- `test-projects`: example blueprints used for validation and reference
 
 ## Documentation Map
 
