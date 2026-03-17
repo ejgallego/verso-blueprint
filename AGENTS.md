@@ -7,9 +7,9 @@
 - Primary work areas:
   - `src/VersoBlueprint`
   - `tests`
-  - `browser-tests`
-  - `script`
-  - `test-projects/` for the current pre-release example blueprints
+  - `tests/browser`
+  - `scripts`
+  - `doc`
 - Primary branch at the repository root: `main`
 
 ## Worktree Policy
@@ -21,13 +21,17 @@
 - If a task starts in the root checkout and requires code changes, stop before
   editing and move the work into a linked worktree unless the user explicitly
   asks to work on the root checkout itself.
-- Create linked worktrees only via `python3 -m script.blueprint_harness create-worktree <name>`.
+- Create linked worktrees only via `python3 -m scripts.blueprint_harness create-worktree <name>`.
 - Do not create sibling checkouts or ad hoc `git worktree add` paths unless you
   are debugging the harness itself.
 - Worktree preview output should be written to the repository-root
   `_out/<worktree>/`.
-- `WORKTREE_DASHBOARD.md` lives at the package root and is the live index of
-  active worktrees.
+- Do not keep a tracked worktree dashboard at the package root.
+- Keep local coordination state untracked under `.worktrees/`.
+- Preferred local coordination files:
+  - `.worktrees/registry.json`
+  - `.worktrees/_meta/_root.json`
+  - `.worktrees/_meta/<name>.json`
 - `/home/egallego/lean/verso-blueprint-old/WORKTREE_DASHBOARD.md` is archival
   only; do not update it unless the user explicitly asks for archival work.
 - Feature and legacy worktree branches are local-only by default. Do not push
@@ -37,8 +41,8 @@
 ## Release Status
 
 - The code is near release.
-- `test-projects/` still lives in this repository today, but those example
-  projects are expected to move to their own repositories.
+- The example projects now live in their own repositories:
+  `ejgallego/verso-noperthedron` and `ejgallego/verso-sphere-packing`.
 - A smaller starter example, a reusable template, and `lake exe bp new` are
   planned but not landed yet.
 - End-user docs should treat `lake exe blueprint-gen` as the preferred
@@ -54,23 +58,30 @@
 ## Commands
 
 - Run long `lake`, `lean`, `elan`, and `.lake/build/bin/*` commands via
-  `script/lean-low-priority ...`.
+  `scripts/lean-low-priority ...`.
 - Preferred user-facing interface:
   - `lake exe blueprint-gen ...`
 - Main build/test commands:
-  - `script/lean-low-priority lake build`
-  - `script/lean-low-priority lake test`
+  - `scripts/lean-low-priority lake build`
+  - `scripts/lean-low-priority lake test`
   - `./scripts/generate-example-blueprints.sh`
   - `./scripts/validate-example-blueprints.sh`
   - `./scripts/validate-example-blueprints.sh --run-lean-tests`
 - Harness commands:
-  - `python3 -m script.blueprint_harness --help`
-  - `python3 -m script.blueprint_harness generate`
-  - `python3 -m script.blueprint_harness validate`
-  - `python3 -m script.blueprint_harness sync-root-lake`
-  - `python3 -m script.blueprint_harness paths`
+  - `python3 -m scripts.blueprint_harness --help`
+  - `python3 -m scripts.blueprint_harness projects`
+  - `python3 -m scripts.blueprint_harness generate`
+  - `python3 -m scripts.blueprint_harness validate`
+  - `python3 -m scripts.blueprint_harness sync-root-lake`
+  - `python3 -m scripts.blueprint_harness paths`
+  - `python3 -m scripts.blueprint_harness worktree-sync`
+  - `python3 -m scripts.blueprint_harness worktree-list`
+  - `python3 -m scripts.blueprint_harness worktree-status`
+  - `python3 -m scripts.blueprint_harness worktree-claim`
+  - `python3 -m scripts.blueprint_harness worktree-release`
 - The Python harness is maintainer tooling for this repository's in-repo
-  examples, not the preferred end-user interface.
+  own tests plus ephemeral checkout validations, not the preferred end-user
+  interface.
 - Default example output in the root checkout:
   - `_out/example-blueprints/{noperthedron,spherepackingblueprint}/`
 - Default example output in a linked worktree:
@@ -78,12 +89,12 @@
 
 ## Mathlib and Worktree Reuse
 
-- `test-projects/Noperthedron/` is Mathlib-heavy and should be handled
+- `ejgallego/verso-noperthedron` is Mathlib-heavy and should be handled
   carefully.
-- In linked worktrees, prefer `python3 -m script.blueprint_harness sync-root-lake`
+- In linked worktrees, prefer `python3 -m scripts.blueprint_harness sync-root-lake`
   before allowing local rebuilds.
 - If Lake starts repopulating Mathlib artifacts unnecessarily, try
-  `script/lean-low-priority lake exe cache get`.
+  `scripts/lean-low-priority lake exe cache get`.
 
 ## Approval Policy
 
@@ -100,6 +111,8 @@
 ## Documentation Map
 
 - `README.md`: user-facing overview and getting-started guide
+- `doc/CONTRIBUTING.md`: branch, commit, PR, and local worktree coordination
+  conventions
 - `doc/MANUAL.md`: feature semantics, options, and rendering notes
 - `doc/MAINTAINER_GUIDE.md`: maintainer-oriented harness workflow
 - `doc/DESIGN_RATIONALE.md`: architecture rationale
@@ -116,3 +129,6 @@
   driving the work, not the AI assistant name.
 - Prefer the documented public harness entry points over ad hoc internal command
   sequences.
+- Prefer branch names of the form `feat/<slug>`, `fix/<slug>`, `docs/<slug>`,
+  `chore/<slug>`, or local-only `wip/<slug>`.
+- Prefer commit subjects of the form `type(scope): summary`.

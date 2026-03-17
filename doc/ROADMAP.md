@@ -101,19 +101,23 @@ Work:
 ### Harness and External Project Support
 
 Goal: keep the maintainer harness direct and repository-local while expanding it
-carefully beyond the in-repo examples.
+carefully beyond the current baseline external example projects.
 
 Work:
 
 1. keep the current shell wrappers thin and ergonomic
-2. keep the Python harness as the single source of truth for orchestration and
-   path logic
-3. validate both root-checkout and linked-worktree flows end to end
-4. stabilize output-path conventions for generation, static checks, and browser
+2. keep the Python harness as the single source of truth for orchestration,
+   path logic, and project catalog loading
+3. keep the project catalog explicit and small, with baseline external examples
+   plus opt-in ephemeral GitHub checkout coverage
+4. validate both root-checkout and linked-worktree flows end to end
+5. stabilize output-path conventions for generation, static checks, and browser
    checks
-5. add the minimum path and dependency override surface needed for testing a
+6. add low-cost Python unit coverage for harness manifest and path logic so
+   every harness change does not require a full example rebuild
+7. add the minimum path and dependency override surface needed for testing a
    local `verso` checkout
-6. add the minimum project override surface needed for Blueprint projects that
+8. add the minimum project override surface needed for Blueprint projects that
    live outside this repository
 
 ## UI Follow-Ups
@@ -135,3 +139,4 @@ These are secondary to semantic consolidation, but still worthwhile:
 2. preview regressions that compile-only checks will not catch
 3. imported duplicate collisions for labels, groups, or authors
 4. workflow drift across long-lived worktrees and branches
+5. tracked local-worktree bookkeeping leaking into the public repository surface

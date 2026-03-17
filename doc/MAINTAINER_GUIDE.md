@@ -10,7 +10,7 @@ It focuses on:
 - generation and validation commands
 - output locations
 - linked-worktree usage
-- repository-local policy for the in-repo example projects
+- repository-local policy for the external example-project validation harness
 
 Syntax and rendering semantics live in
 [`MANUAL.md`](./MANUAL.md). Architecture background lives in
@@ -29,14 +29,24 @@ The supported repository-local entry points are:
 ```bash
 ./scripts/generate-example-blueprints.sh
 ./scripts/validate-example-blueprints.sh
-python3 -m script.blueprint_harness create-worktree <name>
-python3 -m script.blueprint_harness --help
-python3 -m script.blueprint_harness paths
-python3 -m script.blueprint_harness sync-root-lake
+python3 -m scripts.blueprint_harness create-worktree <name>
+python3 -m scripts.blueprint_harness projects
+python3 -m scripts.blueprint_harness --help
+python3 -m scripts.blueprint_harness paths
+python3 -m scripts.blueprint_harness sync-root-lake
+python3 -m scripts.blueprint_harness worktree-sync
+python3 -m scripts.blueprint_harness worktree-list
+python3 -m scripts.blueprint_harness worktree-claim
+python3 -m scripts.blueprint_harness worktree-status
+python3 -m scripts.blueprint_harness worktree-release
 ```
 
 The shell wrappers are the normal front door for day-to-day work. The Python
 module is the single source of truth for orchestration and path resolution.
+
+The default project catalog lives at `tests/harness/projects.json`. It points
+at the external example repositories and is the extension point for future
+ephemeral GitHub checkout validations.
 
 ## Everyday Workflows
 
@@ -46,7 +56,8 @@ module is the single source of truth for orchestration and path resolution.
 ./scripts/generate-example-blueprints.sh
 ```
 
-This builds and renders the current in-repo example sites:
+This clones, overrides, builds, and renders the current external example
+sites:
 
 - `noperthedron`
 - `spherepackingblueprint`
@@ -75,11 +86,17 @@ The harness supports narrowing the example set and forwarding extra pytest
 arguments:
 
 ```bash
-python3 -m script.blueprint_harness generate --example noperthedron
-python3 -m script.blueprint_harness validate --example noperthedron --pytest-arg -k --pytest-arg preview
+python3 -m scripts.blueprint_harness generate --project noperthedron
+python3 -m scripts.blueprint_harness validate --project noperthedron --pytest-arg -k --pytest-arg preview
 ```
 
-Run `python3 -m script.blueprint_harness --help` for the full flag surface.
+Run `python3 -m scripts.blueprint_harness --help` for the full flag surface.
+
+To inspect the active catalog:
+
+```bash
+python3 -m scripts.blueprint_harness projects
+```
 
 ## Output Layout
 
@@ -97,7 +114,7 @@ area:
 To print the resolved paths for the current checkout, run:
 
 ```bash
-python3 -m script.blueprint_harness paths
+python3 -m scripts.blueprint_harness paths
 ```
 
 `paths` prints both the canonical linked-worktree output locations and the
@@ -112,7 +129,7 @@ For implementation work, create a linked worktree under `.worktrees/` and keep
 the root checkout as the stable base:
 
 ```bash
-python3 -m script.blueprint_harness create-worktree <name>
+python3 -m scripts.blueprint_harness create-worktree <name>
 ```
 
 The harness is worktree-aware:
@@ -125,23 +142,95 @@ The harness is worktree-aware:
 Before rebuilding from a linked worktree, prefer:
 
 ```bash
-python3 -m script.blueprint_harness sync-root-lake
+python3 -m scripts.blueprint_harness sync-root-lake
 ```
 
 If local rebuilding is actually required, opt in explicitly:
 
 ```bash
-python3 -m script.blueprint_harness generate --allow-local-build
-python3 -m script.blueprint_harness validate --allow-local-build --run-lean-tests
+python3 -m scripts.blueprint_harness generate --allow-local-build
+python3 -m scripts.blueprint_harness validate --allow-local-build --run-lean-tests
+```
+
+## Parallel Worktree Coordination
+
+The local coordination layer is now machine-readable and untracked.
+
+- `worktree-sync` scans `git worktree list` and refreshes local metadata under
+  `.worktrees/`
+- `worktree-list` shows the current local registry snapshot
+- `worktree-claim` records owner, issue, summary, status, and write scope
+- `worktree-status` shows one worktree record
+- `worktree-release` marks a worktree done or otherwise retired
+
+The live local files are:
+
+- `.worktrees/registry.json`
+- `.worktrees/_meta/_root.json`
+- `.worktrees/_meta/<name>.json`
+
+These files are intentionally ignored by Git and should not be treated as
+repository content.
+
+Recommended workflow:
+
+```bash
+python3 -m scripts.blueprint_harness worktree-sync
+python3 -m scripts.blueprint_harness worktree-claim --owner codex --summary "external harness rework" --scope scripts --scope tests/harness
+python3 -m scripts.blueprint_harness worktree-list
 ```
 
 ## Example Project Notes
 
-- `test-projects/Noperthedron/` is Mathlib-heavy, so linked worktrees should
-  normally sync `.lake/` from the root checkout before any local build
-- the in-repo `test-projects/` are the default baseline for routine validation
-- the Python harness is maintainer tooling for those examples, not the main
+- `ejgallego/verso-noperthedron` is Mathlib-heavy, so linked worktrees should
+  normally sync `.lake/` from the root checkout before external validation
+- the default baseline projects now live in external repositories, not inside
+  this package checkout
+- the Python harness rewrites the cloned project's `lakefile.lean` locally so
+  `VersoBlueprint` resolves to the checkout under test before running
+  `lake update`
+- the Python harness is maintainer tooling for those validations, not the main
   package-facing authoring interface
+
+## External Project Validation Direction
+
+The harness is now project-driven rather than example-hardcoded.
+
+- the default catalog points at `ejgallego/verso-noperthedron` and
+  `ejgallego/verso-sphere-packing`
+- catalog entries can also describe ephemeral `git_checkout` projects hosted
+  outside this repository
+- external entries should declare the repository ref plus the build and
+  generation commands needed after checkout
+- the harness currently rewrites the cloned `lakefile.lean` dependency line so
+  external test projects exercise the local `VersoBlueprint` checkout instead
+  of the committed upstream dependency
+- the current local override injection expects a `lakefile.lean` project that
+  declares `VersoBlueprint` from the official `leanprover/verso-blueprint` Git
+  repository, but it tolerates different official Git refs and URL spellings
+- local worktree bookkeeping is intentionally not tracked in the repository
+
+Minimal external catalog entry shape:
+
+```json
+{
+  "id": "some-user-project",
+  "source": {
+    "kind": "git_checkout",
+    "repository": "https://github.com/org/some-user-project.git",
+    "ref": "main",
+    "project_root": "."
+  },
+  "build_command": ["lake", "build"],
+  "generate_command": ["lake", "exe", "blueprint-gen", "--output", "{output_dir}"],
+  "site_subdir": "html-multi"
+}
+```
+
+That override policy is now the default maintainer behavior: the external
+projects keep their committed dependency pointed at the official upstream repo,
+while the harness swaps in a local path dependency ephemerally during
+validation.
 
 ## Shared Preview Artifact
 
@@ -159,13 +248,15 @@ specific option policy should stay with the project that owns it.
 
 Current example-specific reference:
 
-- [`test-projects/Noperthedron/OPTIONS.md`](../../test-projects/Noperthedron/OPTIONS.md)
+- [`ejgallego/verso-noperthedron/OPTIONS.md`](https://github.com/ejgallego/verso-noperthedron/blob/main/OPTIONS.md)
 
 ## Documentation Reading Order
 
 1. Start here for commands, outputs, and worktree behavior.
 2. Read [`MANUAL.md`](./MANUAL.md) for Blueprint options and rendering
    semantics.
-3. Read [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md) before touching
+3. Read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for branch, commit, PR, and
+   local coordination conventions.
+4. Read [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md) before touching
    architecture boundaries.
-4. Read [`ROADMAP.md`](./ROADMAP.md) before starting structural cleanup.
+5. Read [`ROADMAP.md`](./ROADMAP.md) before starting structural cleanup.

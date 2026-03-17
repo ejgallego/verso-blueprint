@@ -1,3 +1,0 @@
-import SpherePackingBlueprint.Contents
-import SpherePackingBlueprint.Chapters
-import SpherePackingBlueprint.Bibliography

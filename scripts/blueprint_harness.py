@@ -1,0 +1,885 @@
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+from scripts.blueprint_harness_paths import canonical_example_site_dir, default_example_site_dir, detect_harness_layout, resolve_output_root
+from scripts.blueprint_harness_projects import HarnessProject, load_projects_manifest, resolve_manifest_path
+from scripts.blueprint_harness_worktrees import (
+    resolve_worktree_name,
+    sync_worktree_registry,
+    update_worktree_record,
+    worktree_record_map,
+)
+
+OFFICIAL_BLUEPRINT_REQUIRE = 'require VersoBlueprint from git "https://github.com/leanprover/verso-blueprint"@"main"'
+OFFICIAL_BLUEPRINT_URL_PATTERNS = (
+    r"https://github\.com/leanprover/verso-blueprint(?:\.git)?",
+    r"git@github\.com:leanprover/verso-blueprint\.git",
+    r"ssh://git@github\.com/leanprover/verso-blueprint\.git",
+)
+
+
+@dataclass(frozen=True)
+class StepFailure:
+    step: str
+    detail: str
+
+
+def format_command(command: list[str]) -> str:
+    return " ".join(command)
+
+
+def run(command: list[str], *, cwd: Path) -> None:
+    print(f"[blueprint-harness] $ {format_command(command)}")
+    subprocess.run(command, cwd=cwd, check=True)
+
+
+def run_capturing_failure(step: str, command: list[str], *, cwd: Path) -> StepFailure | None:
+    try:
+        run(command, cwd=cwd)
+        return None
+    except subprocess.CalledProcessError as err:
+        return StepFailure(step=step, detail=f"exit code {err.returncode}: {format_command(command)}")
+
+
+def selected_projects(catalog: list[HarnessProject], values: list[str] | None) -> list[HarnessProject]:
+    if not values:
+        return list(catalog)
+    by_id = {project.project_id: project for project in catalog}
+    seen: set[str] = set()
+    result: list[HarnessProject] = []
+    for value in values:
+        if value not in by_id:
+            known = ", ".join(sorted(by_id))
+            raise SystemExit(f"[blueprint-harness] unknown project `{value}`; known projects: {known}")
+        if value not in seen:
+            result.append(by_id[value])
+            seen.add(value)
+    return result
+
+
+def load_project_catalog(manifest_path: Path) -> list[HarnessProject]:
+    try:
+        return load_projects_manifest(manifest_path)
+    except (FileNotFoundError, ValueError) as err:
+        raise SystemExit(f"[blueprint-harness] {err}") from err
+
+
+def lean_low_priority_command(package_root: Path, *args: str) -> list[str]:
+    return [str(package_root / "scripts" / "lean-low-priority"), *args]
+
+
+def should_use_local_build(layout, allow_local_build: bool) -> bool:
+    return (not layout.in_linked_worktree) or allow_local_build
+
+
+def sync_root_worktree_lake(layout) -> None:
+    if not layout.in_linked_worktree:
+        return
+
+    source_lake = layout.repo_root / ".lake"
+    source_bin_dir = source_lake / "build" / "bin"
+    if not source_bin_dir.exists():
+        raise SystemExit(
+            "[blueprint-harness] root worktree has no prepared `.lake/build/bin` to sync. "
+            "Build from the root checkout first; linked worktrees should not bootstrap Mathlib locally."
+        )
+
+    if shutil.which("rsync") is None:
+        raise SystemExit("[blueprint-harness] `rsync` is required for root-worktree sync.")
+
+    destination_lake = layout.package_root / ".lake"
+    destination_lake.mkdir(parents=True, exist_ok=True)
+    run(
+        [
+            "rsync",
+            "-a",
+            "--delete",
+            f"{source_lake}/",
+            f"{destination_lake}/",
+        ],
+        cwd=layout.package_root,
+    )
+
+
+def worktree_path(repo_root: Path, worktree_name: str) -> Path:
+    return repo_root / ".worktrees" / worktree_name
+
+
+def normalize_worktree_name(raw_name: str) -> str:
+    name = raw_name.strip()
+    if not name:
+        raise SystemExit("[blueprint-harness] worktree name must not be empty")
+    if Path(name).name != name or name in {".", ".."}:
+        raise SystemExit(
+            "[blueprint-harness] worktree name must be a single path segment; "
+            "the helper always creates linked worktrees under `.worktrees/<name>`."
+        )
+    return name
+
+
+def default_branch_name(worktree_name: str) -> str:
+    return f"feat/{worktree_name}"
+
+
+def branch_exists(repo_root: Path, branch: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=repo_root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
+def print_failure_summary(failures: list[StepFailure]) -> int:
+    if not failures:
+        print("[blueprint-harness] validation summary: all requested steps passed")
+        return 0
+
+    print("[blueprint-harness] validation summary: failures detected", file=sys.stderr)
+    for failure in failures:
+        print(f"[blueprint-harness]   {failure.step}: {failure.detail}", file=sys.stderr)
+    return 1
+
+
+def executable_path(package_root: Path, exe_name: str) -> Path:
+    return package_root / ".lake" / "build" / "bin" / exe_name
+
+
+def ensure_prebuilt_executable(package_root: Path, exe_name: str) -> Path:
+    path = executable_path(package_root, exe_name)
+    if not path.exists():
+        raise SystemExit(
+            f"[blueprint-harness] missing prebuilt executable `{exe_name}` at {path}. "
+            "Sync from the root worktree after building there, or rerun with `--allow-local-build`."
+        )
+    return path
+
+
+def find_test_driver_binary(package_root: Path) -> Path | None:
+    for candidate in ("verso-tests", "verso-blueprint-tests"):
+        path = executable_path(package_root, candidate)
+        if path.exists():
+            return path
+    return None
+
+
+def resolve_repo_relative_path(package_root: Path, path_text: str) -> Path:
+    path = Path(path_text)
+    if path.is_absolute():
+        return path
+    return package_root / path
+
+
+def output_dir_for(project: HarnessProject, output_root: Path) -> Path:
+    return output_root / project.project_id
+
+
+def site_dir_for(project: HarnessProject, output_root: Path) -> Path:
+    return output_dir_for(project, output_root) / project.site_subdir
+
+
+def build_in_repo_projects(package_root: Path, projects: list[HarnessProject]) -> None:
+    targets = [project.build_target for project in projects if project.build_target is not None]
+    if targets:
+        run(lean_low_priority_command(package_root, "lake", "build", *targets), cwd=package_root)
+
+
+def render_in_repo_projects(package_root: Path, output_root: Path, projects: list[HarnessProject], serial: bool) -> None:
+    output_root.mkdir(parents=True, exist_ok=True)
+    if serial:
+        for project in projects:
+            output_dir = output_dir_for(project, output_root)
+            run(
+                lean_low_priority_command(
+                    package_root,
+                    str(ensure_prebuilt_executable(package_root, project.generator or project.project_id)),
+                    "--output",
+                    str(output_dir),
+                ),
+                cwd=package_root,
+            )
+        return
+
+    procs: list[tuple[str, subprocess.Popen[bytes]]] = []
+    try:
+        for project in projects:
+            output_dir = output_dir_for(project, output_root)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            command = lean_low_priority_command(
+                package_root,
+                str(ensure_prebuilt_executable(package_root, project.generator or project.project_id)),
+                "--output",
+                str(output_dir),
+            )
+            print(f"[blueprint-harness] launching {project.project_id} -> {output_dir}", flush=True)
+            procs.append((project.project_id, subprocess.Popen(command, cwd=package_root)))
+
+        failures: list[str] = []
+        for project_id, proc in procs:
+            if proc.wait() == 0:
+                print(f"[blueprint-harness] finished {project_id}")
+            else:
+                failures.append(project_id)
+        if failures:
+            raise SystemExit(f"[blueprint-harness] project render failed: {', '.join(failures)}")
+    finally:
+        for _, proc in procs:
+            if proc.poll() is None:
+                proc.kill()
+
+
+def format_external_command(
+    command: tuple[str, ...],
+    *,
+    project: HarnessProject,
+    package_root: Path,
+    checkout_root: Path,
+    project_dir: Path,
+    output_dir: Path,
+) -> list[str]:
+    site_dir = site_dir_for(project, output_dir.parent)
+    placeholders = {
+        "checkout_root": str(checkout_root),
+        "package_root": str(package_root),
+        "project_dir": str(project_dir),
+        "output_dir": str(output_dir),
+        "project_id": project.project_id,
+        "site_dir": str(site_dir),
+    }
+    return [part.format(**placeholders) for part in command]
+
+
+def clone_git_project(project: HarnessProject, *, cwd: Path) -> tuple[tempfile.TemporaryDirectory[str], Path]:
+    scratch = tempfile.TemporaryDirectory(prefix=f"verso-blueprint-{project.project_id}-")
+    checkout_root = Path(scratch.name) / "checkout"
+    command = ["git", "clone", "--depth", "1"]
+    if project.ref:
+        command.extend(["--branch", project.ref])
+    command.extend([project.repository or "", str(checkout_root)])
+    run(command, cwd=cwd)
+    return scratch, checkout_root
+
+
+def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) -> Path:
+    lakefile = project_dir / "lakefile.lean"
+    if not lakefile.exists():
+        raise SystemExit(f"[blueprint-harness] missing lakefile for cloned project: {lakefile}")
+
+    relative_path = os.path.relpath(package_root, start=project_dir)
+    replacement = f'require VersoBlueprint from "{relative_path}"'
+    text = lakefile.read_text(encoding="utf-8")
+    # Lake package overrides are not applied during the initial `lake update`
+    # manifest bootstrap path on a fresh clone, so the harness patches the
+    # cloned dependency declaration before the first update.
+    require_pattern = re.compile(
+        r'^\s*require\s+VersoBlueprint\s+from\s+git\s+"(?P<url>[^"]+)"(?:\s*@\s*"[^"]+")?\s*$',
+        re.MULTILINE,
+    )
+    match = next(
+        (
+            candidate
+            for candidate in require_pattern.finditer(text)
+            if any(re.fullmatch(pattern, candidate.group("url")) for pattern in OFFICIAL_BLUEPRINT_URL_PATTERNS)
+        ),
+        None,
+    )
+    if match is None:
+        raise SystemExit(
+            "[blueprint-harness] expected the cloned project to declare `VersoBlueprint` in "
+            "`lakefile.lean` from an official `leanprover/verso-blueprint` Git source; "
+            "cannot inject the local path override automatically."
+        )
+    rewritten = text[: match.start()] + replacement + text[match.end() :]
+    lakefile.write_text(rewritten, encoding="utf-8")
+    return lakefile
+
+
+def generate_git_project(package_root: Path, output_root: Path, project: HarnessProject, *, skip_build: bool) -> None:
+    scratch, checkout_root = clone_git_project(project, cwd=package_root)
+    try:
+        project_dir = checkout_root / project.project_root
+        output_dir = output_dir_for(project, output_root)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        rewritten_lakefile = rewrite_local_blueprint_dependency(project_dir, package_root)
+        print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
+        run(["lake", "update"], cwd=project_dir)
+        if not skip_build and project.build_command is not None:
+            run(
+                format_external_command(
+                    project.build_command,
+                    project=project,
+                    package_root=package_root,
+                    checkout_root=checkout_root,
+                    project_dir=project_dir,
+                    output_dir=output_dir,
+                ),
+                cwd=project_dir,
+            )
+        run(
+            format_external_command(
+                project.generate_command or (),
+                project=project,
+                package_root=package_root,
+                checkout_root=checkout_root,
+                project_dir=project_dir,
+                output_dir=output_dir,
+            ),
+            cwd=project_dir,
+        )
+    finally:
+        scratch.cleanup()
+
+
+def generate_projects(
+    layout,
+    output_root: Path,
+    projects: list[HarnessProject],
+    *,
+    skip_build: bool,
+    serial: bool,
+    allow_local_build: bool,
+    skip_sync: bool = False,
+) -> None:
+    in_repo_projects = [project for project in projects if project.in_repo_example]
+    git_projects = [project for project in projects if project.git_checkout]
+
+    if in_repo_projects:
+        print(f"[blueprint-harness] package root: {layout.package_root}")
+        if not skip_sync:
+            sync_root_worktree_lake(layout)
+        use_local_build = should_use_local_build(layout, allow_local_build)
+        if layout.in_linked_worktree:
+            print(f"[blueprint-harness] linked worktree output root: {output_root}")
+            if not use_local_build:
+                print(
+                    "[blueprint-harness] using synced root executables; local Lake builds are disabled by default in linked worktrees"
+                )
+        else:
+            print(f"[blueprint-harness] output root: {output_root}")
+
+        if not skip_build and use_local_build:
+            build_in_repo_projects(layout.package_root, in_repo_projects)
+        elif not skip_build and not use_local_build:
+            for project in in_repo_projects:
+                ensure_prebuilt_executable(layout.package_root, project.generator or project.project_id)
+        render_in_repo_projects(layout.package_root, output_root, in_repo_projects, serial)
+
+    for project in git_projects:
+        print(f"[blueprint-harness] ephemeral checkout: {project.project_id}")
+        generate_git_project(layout.package_root, output_root, project, skip_build=skip_build)
+
+
+def command_generate(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    output_root = resolve_output_root(args.output_root, Path(__file__))
+    manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
+    projects = selected_projects(load_project_catalog(manifest_path), args.project)
+
+    generate_projects(
+        layout,
+        output_root,
+        projects,
+        skip_build=args.skip_build,
+        serial=args.serial,
+        allow_local_build=args.allow_local_build,
+        skip_sync=getattr(args, "skip_sync", False),
+    )
+
+    print(f"[blueprint-harness] project manifest: {manifest_path}")
+    print("[blueprint-harness] generated project outputs:")
+    for project in projects:
+        print(output_dir_for(project, output_root))
+    return 0
+
+
+def panel_regression_command(package_root: Path, project: HarnessProject, site_dir: Path) -> list[str]:
+    return [
+        sys.executable,
+        str(resolve_repo_relative_path(package_root, project.panel_regression_script or "")),
+        "--site-dir",
+        str(site_dir),
+    ]
+
+
+def browser_test_command(package_root: Path, project: HarnessProject, site_dir: Path, pytest_args: list[str]) -> list[str]:
+    tests_path = resolve_repo_relative_path(package_root, project.browser_tests_path or "")
+    if shutil.which("uv"):
+        command = [
+            "env",
+            "UV_CACHE_DIR=/tmp/verso-blueprint-uv-cache",
+            "uv",
+            "run",
+            "--project",
+            str(tests_path),
+            "--extra",
+            "test",
+            "python",
+            "-m",
+            "pytest",
+        ]
+    else:
+        command = [sys.executable, "-m", "pytest"]
+    return [
+        *command,
+        str(tests_path),
+        "-q",
+        "--browser",
+        "chromium",
+        "--site-dir",
+        str(site_dir),
+        *pytest_args,
+    ]
+
+
+def command_validate(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    output_root = resolve_output_root(args.output_root, Path(__file__))
+    manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
+    projects = selected_projects(load_project_catalog(manifest_path), args.project)
+    failures: list[StepFailure] = []
+
+    print(f"[blueprint-harness] validation output root: {output_root}")
+    use_local_build = should_use_local_build(layout, args.allow_local_build)
+    if args.run_lean_tests:
+        sync_root_worktree_lake(layout)
+        if use_local_build:
+            failure = run_capturing_failure(
+                "lake test",
+                lean_low_priority_command(layout.package_root, "lake", "test"),
+                cwd=layout.package_root,
+            )
+            if failure is not None:
+                failures.append(failure)
+                if args.stop_on_first_failure:
+                    return print_failure_summary(failures)
+        else:
+            test_driver = find_test_driver_binary(layout.package_root)
+            if test_driver is None:
+                failures.append(
+                    StepFailure(
+                        "lean tests",
+                        "no prebuilt test driver found in synced root artifacts; rerun from the root checkout or use --allow-local-build",
+                    )
+                )
+                if args.stop_on_first_failure:
+                    return print_failure_summary(failures)
+            else:
+                failure = run_capturing_failure(
+                    "lean tests",
+                    lean_low_priority_command(layout.package_root, str(test_driver)),
+                    cwd=layout.package_root,
+                )
+                if failure is not None:
+                    failures.append(failure)
+                    if args.stop_on_first_failure:
+                        return print_failure_summary(failures)
+
+    try:
+        generate_projects(
+            layout,
+            output_root,
+            projects,
+            skip_build=False,
+            serial=args.serial,
+            allow_local_build=args.allow_local_build,
+            skip_sync=True,
+        )
+    except SystemExit as err:
+        failures.append(StepFailure("generate projects", str(err)))
+        return print_failure_summary(failures)
+
+    for project in projects:
+        site_dir = site_dir_for(project, output_root)
+        if project.panel_regression_script is not None and not args.skip_panel_regression:
+            failure = run_capturing_failure(
+                f"{project.project_id} panel regression",
+                panel_regression_command(layout.package_root, project, site_dir),
+                cwd=layout.package_root,
+            )
+            if failure is not None:
+                failures.append(failure)
+                if args.stop_on_first_failure:
+                    return print_failure_summary(failures)
+
+        if project.browser_tests_path is not None and not args.skip_browser_tests:
+            failure = run_capturing_failure(
+                f"{project.project_id} browser tests",
+                browser_test_command(layout.package_root, project, site_dir, args.pytest_arg),
+                cwd=layout.package_root,
+            )
+            if failure is not None:
+                failures.append(failure)
+                if args.stop_on_first_failure:
+                    return print_failure_summary(failures)
+
+    return print_failure_summary(failures)
+
+
+def command_sync_root_lake(_: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    if not layout.in_linked_worktree:
+        print("[blueprint-harness] root checkout detected; no worktree sync needed")
+        return 0
+
+    sync_root_worktree_lake(layout)
+    print("[blueprint-harness] synced `.lake/` from root worktree")
+    return 0
+
+
+def command_create_worktree(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    worktree_name = normalize_worktree_name(args.name)
+    destination = worktree_path(layout.repo_root, worktree_name)
+    branch = args.branch or default_branch_name(worktree_name)
+    base_ref = args.base
+
+    if destination.exists():
+        raise SystemExit(f"[blueprint-harness] worktree path already exists: {destination}")
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if branch_exists(layout.repo_root, branch):
+        command = ["git", "worktree", "add", str(destination), branch]
+    else:
+        command = ["git", "worktree", "add", "-b", branch, str(destination), base_ref]
+    run(command, cwd=layout.repo_root)
+
+    new_layout = detect_harness_layout(destination)
+    if not args.skip_sync:
+        sync_root_worktree_lake(new_layout)
+
+    print(f"[blueprint-harness] worktree path: {destination}")
+    print(f"[blueprint-harness] branch: {branch}")
+    print(f"[blueprint-harness] artifact root: {new_layout.artifact_root}")
+    return 0
+
+
+def command_paths(_: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    noperthedron_site = canonical_example_site_dir("noperthedron", Path(__file__))
+    noperthedron_site_resolved = default_example_site_dir("noperthedron", Path(__file__))
+    spherepacking_site = canonical_example_site_dir("spherepackingblueprint", Path(__file__))
+    spherepacking_site_resolved = default_example_site_dir("spherepackingblueprint", Path(__file__))
+    print(f"package_root={layout.package_root}")
+    print(f"repo_root={layout.repo_root}")
+    print(f"worktree_name={layout.worktree_name or ''}")
+    print(f"artifact_root={layout.artifact_root}")
+    print(f"project_manifest={resolve_manifest_path(None, layout.package_root)}")
+    print("local_override_strategy=ephemeral_lakefile_rewrite")
+    print(f"root_lake={layout.repo_root / '.lake'}")
+    print(f"example_output_root={layout.example_output_root}")
+    print(f"noperthedron_site={noperthedron_site}")
+    print(f"noperthedron_site_resolved={noperthedron_site_resolved}")
+    print(f"spherepackingblueprint_site={spherepacking_site}")
+    print(f"spherepackingblueprint_site_resolved={spherepacking_site_resolved}")
+    return 0
+
+
+def command_projects(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
+    projects = load_project_catalog(manifest_path)
+    print(f"project_manifest={manifest_path}")
+    for project in projects:
+        if project.in_repo_example:
+            source = f"in_repo:{project.project_root}"
+        else:
+            source = f"git:{project.repository}@{project.ref}"
+        validations: list[str] = []
+        if project.panel_regression_script is not None:
+            validations.append("panel")
+        if project.browser_tests_path is not None:
+            validations.append("browser")
+        validation_text = ",".join(validations) if validations else "none"
+        print(f"{project.project_id}\tsource={source}\tvalidations={validation_text}")
+    return 0
+
+
+def command_worktree_sync(_: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    records, registry = sync_worktree_registry(layout.repo_root)
+    print(f"worktree_registry={registry}")
+    for record in records:
+        print(f"{record.name}\tbranch={record.branch or ''}\tstatus={record.status}\towner={record.owner or ''}")
+    return 0
+
+
+def command_worktree_list(_: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    records, registry = sync_worktree_registry(layout.repo_root)
+    print(f"worktree_registry={registry}")
+    for record in records:
+        scope = ",".join(record.write_scope) if record.write_scope else ""
+        print(
+            f"{record.name}\tbranch={record.branch or ''}\tstatus={record.status}\t"
+            f"owner={record.owner or ''}\tissue={record.issue or ''}\tscope={scope}"
+        )
+    return 0
+
+
+def command_worktree_status(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    name = resolve_worktree_name(layout.worktree_name, args.name)
+    records, registry = worktree_record_map(layout.repo_root)
+    if name not in records:
+        raise SystemExit(f"[blueprint-harness] unknown worktree `{name}`")
+    record = records[name]
+    print(f"worktree_registry={registry}")
+    print(f"name={record.name}")
+    print(f"path={record.path}")
+    print(f"branch={record.branch or ''}")
+    print(f"status={record.status}")
+    print(f"owner={record.owner or ''}")
+    print(f"issue={record.issue or ''}")
+    print(f"task_id={record.task_id or ''}")
+    print(f"summary={record.summary or ''}")
+    print(f"write_scope={','.join(record.write_scope)}")
+    print(f"updated_at={record.updated_at or ''}")
+    print(f"last_seen_at={record.last_seen_at or ''}")
+    return 0
+
+
+def command_worktree_claim(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    name = resolve_worktree_name(layout.worktree_name, args.name)
+    record, record_path, registry = update_worktree_record(
+        layout.repo_root,
+        name,
+        owner=args.owner,
+        issue=args.issue,
+        task_id=args.task_id,
+        summary=args.summary,
+        status=args.status,
+        write_scope=args.scope,
+    )
+    print(f"worktree_registry={registry}")
+    print(f"worktree_record={record_path}")
+    print(f"name={record.name}")
+    print(f"status={record.status}")
+    print(f"owner={record.owner or ''}")
+    print(f"summary={record.summary or ''}")
+    print(f"write_scope={','.join(record.write_scope)}")
+    return 0
+
+
+def command_worktree_release(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    name = resolve_worktree_name(layout.worktree_name, args.name)
+    record, record_path, registry = update_worktree_record(
+        layout.repo_root,
+        name,
+        status=args.status,
+        summary=args.summary,
+        write_scope=[],
+    )
+    print(f"worktree_registry={registry}")
+    print(f"worktree_record={record_path}")
+    print(f"name={record.name}")
+    print(f"status={record.status}")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="python3 -m scripts.blueprint_harness",
+        description="Worktree-aware local harness for blueprint project generation and validation.",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    generate = subparsers.add_parser(
+        "generate",
+        help="Build the selected blueprint harness projects.",
+    )
+    generate.add_argument("output_root", nargs="?", default=None)
+    generate.add_argument(
+        "--project",
+        "--example",
+        dest="project",
+        action="append",
+        help="Render only the selected project. Repeat to render more than one.",
+    )
+    generate.add_argument(
+        "--manifest",
+        default=None,
+        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
+    )
+    generate.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="Skip project builds and only run already-built or command-only generation steps.",
+    )
+    generate.add_argument(
+        "--serial",
+        action="store_true",
+        help="Render selected projects serially instead of in parallel where supported.",
+    )
+    generate.add_argument(
+        "--allow-local-build",
+        action="store_true",
+        help="Permit `lake build` in a linked worktree instead of requiring synced root executables.",
+    )
+    generate.set_defaults(func=command_generate)
+
+    validate = subparsers.add_parser(
+        "validate",
+        help="Generate selected projects and run configured regressions.",
+    )
+    validate.add_argument("output_root", nargs="?", default=None)
+    validate.add_argument(
+        "--project",
+        "--example",
+        dest="project",
+        action="append",
+        help="Restrict generation to the selected project. Repeat to select more.",
+    )
+    validate.add_argument(
+        "--manifest",
+        default=None,
+        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
+    )
+    validate.add_argument(
+        "--run-lean-tests",
+        action="store_true",
+        help="Also run this repository's Lean tests before project generation.",
+    )
+    validate.add_argument(
+        "--skip-panel-regression",
+        action="store_true",
+        help="Skip configured static panel regression checks.",
+    )
+    validate.add_argument(
+        "--skip-browser-tests",
+        action="store_true",
+        help="Skip configured Playwright browser regression suites.",
+    )
+    validate.add_argument(
+        "--serial",
+        action="store_true",
+        help="Render selected projects serially instead of in parallel where supported.",
+    )
+    validate.add_argument(
+        "--pytest-arg",
+        action="append",
+        default=[],
+        help="Extra argument forwarded to pytest. Repeat for multiple arguments.",
+    )
+    validate.add_argument(
+        "--allow-local-build",
+        action="store_true",
+        help="Permit `lake build` and `lake test` in a linked worktree instead of requiring synced root artifacts.",
+    )
+    validate.add_argument(
+        "--stop-on-first-failure",
+        action="store_true",
+        help="Stop validation as soon as one phase fails instead of collecting later failures.",
+    )
+    validate.set_defaults(func=command_validate)
+
+    sync_root_lake = subparsers.add_parser(
+        "sync-root-lake",
+        help="Sync `.lake/` from the root checkout into the current linked worktree.",
+    )
+    sync_root_lake.set_defaults(func=command_sync_root_lake)
+
+    create_worktree = subparsers.add_parser(
+        "create-worktree",
+        help="Create a linked worktree under `.worktrees/<name>` and sync root artifacts into it.",
+    )
+    create_worktree.add_argument("name", help="Worktree directory name under `.worktrees/`.")
+    create_worktree.add_argument(
+        "--branch",
+        default=None,
+        help="Branch to attach to the new worktree. Defaults to `feat/<name>`.",
+    )
+    create_worktree.add_argument(
+        "--base",
+        default="main",
+        help="Base ref used when creating a new branch. Ignored if `--branch` already exists.",
+    )
+    create_worktree.add_argument(
+        "--skip-sync",
+        action="store_true",
+        help="Do not sync `.lake/` from the root checkout after creating the worktree.",
+    )
+    create_worktree.set_defaults(func=command_create_worktree)
+
+    projects = subparsers.add_parser(
+        "projects",
+        help="List the configured harness projects from the active manifest.",
+    )
+    projects.add_argument(
+        "--manifest",
+        default=None,
+        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
+    )
+    projects.set_defaults(func=command_projects)
+
+    worktree_sync = subparsers.add_parser(
+        "worktree-sync",
+        help="Sync local worktree coordination metadata under .worktrees/.",
+    )
+    worktree_sync.set_defaults(func=command_worktree_sync)
+
+    worktree_list = subparsers.add_parser(
+        "worktree-list",
+        help="List local worktree coordination metadata.",
+    )
+    worktree_list.set_defaults(func=command_worktree_list)
+
+    worktree_status = subparsers.add_parser(
+        "worktree-status",
+        help="Show local coordination metadata for one worktree.",
+    )
+    worktree_status.add_argument("name", nargs="?", default=None, help="Worktree name. Defaults to the current worktree.")
+    worktree_status.set_defaults(func=command_worktree_status)
+
+    worktree_claim = subparsers.add_parser(
+        "worktree-claim",
+        help="Set or update local coordination metadata for one worktree.",
+    )
+    worktree_claim.add_argument("name", nargs="?", default=None, help="Worktree name. Defaults to the current worktree.")
+    worktree_claim.add_argument("--owner", default=None, help="Owner or agent responsible for the worktree.")
+    worktree_claim.add_argument("--issue", default=None, help="GitHub issue number or identifier.")
+    worktree_claim.add_argument("--task-id", default=None, help="Local task identifier.")
+    worktree_claim.add_argument("--summary", default=None, help="Short summary of the worktree purpose.")
+    worktree_claim.add_argument("--status", default="active", help="Status label such as active, blocked, review, done, or wip.")
+    worktree_claim.add_argument("--scope", action="append", default=None, help="Writable scope path. Repeat for multiple scopes.")
+    worktree_claim.set_defaults(func=command_worktree_claim)
+
+    worktree_release = subparsers.add_parser(
+        "worktree-release",
+        help="Mark a worktree as done or otherwise retired in local coordination metadata.",
+    )
+    worktree_release.add_argument("name", nargs="?", default=None, help="Worktree name. Defaults to the current worktree.")
+    worktree_release.add_argument("--status", default="done", help="Final status label.")
+    worktree_release.add_argument("--summary", default=None, help="Optional final summary.")
+    worktree_release.set_defaults(func=command_worktree_release)
+
+    paths = subparsers.add_parser(
+        "paths",
+        help="Print canonical and resolved worktree-aware harness paths.",
+    )
+    paths.set_defaults(func=command_paths)
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

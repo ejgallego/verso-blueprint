@@ -31,10 +31,10 @@ A Blueprint project currently has three main pieces:
 
 Example source entry points:
 
-- [`test-projects/Noperthedron/Contents.lean`](../../test-projects/Noperthedron/Contents.lean)
-- [`test-projects/Noperthedron/Main.lean`](../../test-projects/Noperthedron/Main.lean)
-- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Contents.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Contents.lean)
-- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprintMain.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprintMain.lean)
+- [`verso-noperthedron/Contents.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Contents.lean)
+- [`verso-noperthedron/Main.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Main.lean)
+- [`verso-sphere-packing/SpherePackingBlueprint/Contents.lean`](https://github.com/ejgallego/verso-sphere-packing/blob/main/SpherePackingBlueprint/Contents.lean)
+- [`verso-sphere-packing/SpherePackingBlueprintMain.lean`](https://github.com/ejgallego/verso-sphere-packing/blob/main/SpherePackingBlueprintMain.lean)
 
 <!-- Future inline image: example document landing page or rendered chapter index. -->
 
@@ -148,8 +148,8 @@ label.
 
 Example source modules:
 
-- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](../../test-projects/Noperthedron/Chapters/Noperthedron.lean)
-- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean)
+- [`verso-noperthedron/Chapters/Noperthedron.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Chapters/Noperthedron.lean)
+- [`verso-sphere-packing/SpherePackingBlueprint/Chapters/SpherePackings.lean`](https://github.com/ejgallego/verso-sphere-packing/blob/main/SpherePackingBlueprint/Chapters/SpherePackings.lean)
 
 <!-- Future inline image: one rendered theorem block with its attached proof. -->
 
@@ -199,8 +199,8 @@ Notes:
 
 Example source modules:
 
-- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](../../test-projects/Noperthedron/Chapters/Noperthedron.lean)
-- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/ModularForms.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/ModularForms.lean)
+- [`verso-noperthedron/Chapters/Noperthedron.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Chapters/Noperthedron.lean)
+- [`verso-sphere-packing/SpherePackingBlueprint/Chapters/ModularForms.lean`](https://github.com/ejgallego/verso-sphere-packing/blob/main/SpherePackingBlueprint/Chapters/ModularForms.lean)
 
 <!-- Future inline image: local block header showing Lean badge and code-panel link. -->
 
@@ -226,8 +226,8 @@ Group labels and author ids are global within the document state.
 
 Example source modules:
 
-- [`test-projects/Noperthedron/Authors.lean`](../../test-projects/Noperthedron/Authors.lean)
-- [`test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean`](../../test-projects/Sphere-Packing-Lean/SpherePackingBlueprint/Chapters/SpherePackings.lean)
+- [`verso-noperthedron/Authors.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Authors.lean)
+- [`verso-sphere-packing/SpherePackingBlueprint/Chapters/SpherePackings.lean`](https://github.com/ejgallego/verso-sphere-packing/blob/main/SpherePackingBlueprint/Chapters/SpherePackings.lean)
 
 <!-- Future inline image: author panel or grouped summary section. -->
 
@@ -360,9 +360,9 @@ Current options:
 
 Project-specific option examples:
 
-- [`test-projects/Noperthedron/Contents.lean`](../../test-projects/Noperthedron/Contents.lean)
-- [`test-projects/Noperthedron/Chapters/Noperthedron.lean`](../../test-projects/Noperthedron/Chapters/Noperthedron.lean)
-- [`test-projects/Noperthedron/OPTIONS.md`](../../test-projects/Noperthedron/OPTIONS.md)
+- [`verso-noperthedron/Contents.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Contents.lean)
+- [`verso-noperthedron/Chapters/Noperthedron.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Chapters/Noperthedron.lean)
+- [`verso-noperthedron/OPTIONS.md`](https://github.com/ejgallego/verso-noperthedron/blob/main/OPTIONS.md)
 
 ## Preview Manifest
 

@@ -14,6 +14,21 @@ Items to upstream to `verso` once the blueprint split is stabilized.
 - [ ] Decide whether page-level KaTeX preludes belong in core `verso`, and if
   so upstream a generic hook instead of keeping a Blueprint-owned mechanism.
 
+- [ ] Ask Lake maintainers to honor package overrides during `lake update`
+  bootstrap, not only during manifest-based materialization.
+  - confirmed on Lean `v4.29.0-rc6`
+  - `loadWorkspace` passes `packageOverrides` only to `materializeDeps`, while
+    `updateManifest` calls `updateAndMaterialize` without threading overrides
+  - practical effect:
+    `.lake/package-overrides.json` and `lake --packages ... update` do not stop
+    an initial upstream clone when a fresh external project has no manifest yet
+  - desired behavior:
+    `lake update` should apply workspace and CLI package overrides during the
+    initial dependency-resolution/materialization path as well
+  - local workaround in `verso-blueprint`:
+    the harness rewrites the cloned `lakefile.lean` dependency on
+    `VersoBlueprint` before running `lake update`
+
 ## Hover and Rendering Follow-Ups
 
 - [ ] Upstream the `Verso.Code.Highlighted` docstring rerender needed for

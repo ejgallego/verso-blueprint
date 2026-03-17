@@ -21,7 +21,7 @@ Statement body.
 :::
 
 ```lean "inline.theorem.helper"
-def helper_inline_proof_gap : Nat := by
+def helper_inline_proof_gap : True := by
   sorry
 
 theorem inline_main_complete : True := by

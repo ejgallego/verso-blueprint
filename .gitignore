@@ -1,4 +1,7 @@
 *~
+__pycache__/
+*.py[cod]
+.codex-worktree.json
 .lake
 .runat/
 .worktrees/

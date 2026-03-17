@@ -19,28 +19,6 @@ lean_lib VersoBlueprint where
   srcDir := "src"
   roots := #[`VersoBlueprint]
 
--- An example of a "math blueprint" project built in Verso.
-lean_lib Noperthedron where
-  srcDir := "test-projects/Noperthedron"
-  roots := #[`Authors, `Contents, `Chapters, `Noperthedron, `Bibliography, `Macros]
-
-@[default_target]
-lean_exe noperthedron where
-  srcDir := "test-projects/Noperthedron"
-  root := `Main
-  supportInterpreter := true
-
--- Port of the Sphere Packing TeX blueprint to Verso Blueprints.
-lean_lib SpherePackingBlueprint where
-  srcDir := "test-projects/Sphere-Packing-Lean"
-  roots := #[`SpherePackingBlueprint]
-
-@[default_target]
-lean_exe spherepackingblueprint where
-  srcDir := "test-projects/Sphere-Packing-Lean"
-  root := `SpherePackingBlueprintMain
-  supportInterpreter := true
-
 @[default_target]
 lean_lib VersoBlueprintTests where
   srcDir := "tests"

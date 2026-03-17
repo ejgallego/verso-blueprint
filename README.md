@@ -17,7 +17,7 @@ It lets you write project documents that combine:
 ```bash
 git clone https://github.com/leanprover/verso-blueprint.git
 cd verso-blueprint
-script/lean-low-priority lake build
+scripts/lean-low-priority lake build
 ```
 
 ### Learn the Authoring Model
@@ -47,8 +47,10 @@ Verso Blueprint builds on:
   Blueprint projects depend on
 
 This repository also includes larger example Blueprint projects under
-[`test-projects`](./test-projects), including Noperthedron and
-Sphere-Packing-Lean.
+external repositories:
+
+- [`ejgallego/verso-noperthedron`](https://github.com/ejgallego/verso-noperthedron)
+- [`ejgallego/verso-sphere-packing`](https://github.com/ejgallego/verso-sphere-packing)
 
 ## Documentation
 
@@ -56,9 +58,10 @@ Sphere-Packing-Lean.
   options
 - [doc/MAINTAINER_GUIDE.md](./doc/MAINTAINER_GUIDE.md): repository-local
   workflow for example generation, validation, and linked worktrees
+- [doc/CONTRIBUTING.md](./doc/CONTRIBUTING.md): branch, commit, PR, and local
+  worktree coordination conventions
 - [doc/DESIGN_RATIONALE.md](./doc/DESIGN_RATIONALE.md): architecture and design
   rationale
 - [doc/ROADMAP.md](./doc/ROADMAP.md): active cleanup and follow-up work
 - [doc/UPSTREAM_TODO.md](./doc/UPSTREAM_TODO.md): items intended to move back
   into `verso`
-- [WORKTREE_DASHBOARD.md](./WORKTREE_DASHBOARD.md): linked-worktree inventory

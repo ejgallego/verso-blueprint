@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "projects": [
+    {
+      "id": "noperthedron",
+      "description": "Mathlib-heavy external blueprint example with browser and panel regressions.",
+      "source": {
+        "kind": "git_checkout",
+        "repository": "https://github.com/ejgallego/verso-noperthedron.git",
+        "ref": "main",
+        "project_root": "."
+      },
+      "build_command": ["lake", "build"],
+      "generate_command": ["lake", "exe", "blueprint-gen", "--output", "{output_dir}"],
+      "site_subdir": "html-multi",
+      "validation": {
+        "panel_regression_script": "tests/harness/noperthedron/check_blueprint_code_panels.py",
+        "browser_tests_path": "tests/browser"
+      }
+    },
+    {
+      "id": "spherepackingblueprint",
+      "description": "External blueprint example without project-specific browser regressions.",
+      "source": {
+        "kind": "git_checkout",
+        "repository": "https://github.com/ejgallego/verso-sphere-packing.git",
+        "ref": "main",
+        "project_root": "."
+      },
+      "build_command": ["lake", "build"],
+      "generate_command": ["lake", "exe", "blueprint-gen", "--output", "{output_dir}"],
+      "site_subdir": "html-multi"
+    }
+  ]
+}
