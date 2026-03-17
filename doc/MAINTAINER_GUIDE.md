@@ -235,11 +235,19 @@ python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
 
 ## CI and Pages
 
-The repository includes a GitHub Actions workflow at:
+The repository includes these GitHub Actions workflows:
 
+- `.github/workflows/ci.yml`
 - `.github/workflows/reference-blueprints.yml`
 
-On pushes to `main`, it:
+`ci.yml` is the main verification workflow. It splits checks into four jobs:
+
+- `Blueprint Build`
+- `Blueprint Tests`
+- `Harness Tests`
+- `Reference Blueprint Build`
+
+`reference-blueprints.yml` is the publication workflow. On pushes to `main`, it:
 
 - runs the reference blueprint generation flow
 - stages a Pages artifact under `_site/`
