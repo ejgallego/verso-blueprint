@@ -32,7 +32,7 @@ def hover.cite : Verso.Genre.Manual.Bibliography.Citable := .arXiv
 Using {uses "lem:hover.link"}[], see {Informal.citet hover.cite (kind := lemma) (index := 3)}[].
 :::
 
-{bp_bibliography}
+{blueprint_bibliography}
 :::::::
 
 #docs (Genre.Manual) hoverUsesDedupDoc "Hover Uses Dedup Doc" :=
@@ -51,7 +51,7 @@ Using {uses "lem:hover.base"}[] and again {uses "lem:hover.base"}[].
 Cite once {Informal.citet hover.cite (kind := lemma) (index := 3)}[] and cite twice
 {Informal.citet hover.cite (kind := lemma) (index := 3)}[].
 
-{bp_bibliography}
+{blueprint_bibliography}
 :::::::
 
 /-- info: true -/

@@ -16,19 +16,19 @@ Core statements about addition on natural numbers.
 :::
 
 :::definition "addition_spec" (parent := "addition_core")
-We write $`a + b`$ for the result of adding $`b`$ to $`a`$.
+We write $`a + b` for the result of adding $`b` to $`a`.
 This starter Blueprint begins with the most basic sanity checks around that
 operation.
 :::
 
 :::theorem "addition_zero_right" (parent := "addition_core") (owner := "project_author") (tags := "starter, arithmetic") (effort := "small") (priority := "high")
-For every natural number $`n`$, adding zero on the right leaves it unchanged:
-$`n + 0 = n`$.
+For every natural number $`n`, adding zero on the right leaves it unchanged:
+$`n + 0 = n`.
 This is the first sanity check for {uses "addition_spec"}[].
 :::
 
 :::proof "addition_zero_right"
-Induct on $`n`$. The base case is immediate and the inductive step unfolds one
+Induct on $`n`. The base case is immediate and the inductive step unfolds one
 successor on each side.
 :::
 
@@ -38,8 +38,8 @@ theorem addition_zero_right (n : Nat) : n + 0 = n := by
 ```
 
 :::theorem "addition_assoc" (parent := "addition_core") (lean := "Nat.add_assoc")
-For all natural numbers $`a`$, $`b`$, and $`c`$, addition is associative:
-$`(a + b) + c = a + (b + c)`$.
+For all natural numbers $`a`, $`b`, and $`c`, addition is associative:
+$`(a + b) + c = a + (b + c)`.
 This is another consequence of {uses "addition_spec"}[].
 :::
 

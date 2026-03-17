@@ -19,7 +19,7 @@ If you are starting a first project, read
 - [Groups, Authors, and Metadata](#groups-authors-and-metadata)
 - [Rendering Surface](#rendering-surface)
 - [Metadata Export and Preview Manifest](#metadata-export-and-preview-manifest)
-- [The `blueprint-gen` Executable](#the-blueprint-gen-executable)
+- [The Generator Executable](#the-generator-executable)
 - [Blueprint Options](#blueprint-options)
 - [Experimental Widget](#experimental-widget)
 - [Current Limits](#current-limits)
@@ -30,7 +30,7 @@ A Blueprint project usually owns three things:
 
 - chapter modules containing the mathematical content
 - a Blueprint top-level file that assembles the document
-- a `blueprint-gen` executable that renders the site
+- a generator executable that renders the site
 
 The Blueprint top-level file is often called `Contents.lean` in existing
 projects, but the filename is not special. What matters is that one module
@@ -79,7 +79,7 @@ The role of each file is:
   pattern
 - `ProjectTemplate/Blueprint.lean`: the Blueprint top-level file
 - `ProjectTemplateMain.lean`: the renderer entry point
-- `lakefile.lean`: the package definition and the `blueprint-gen` executable
+- `lakefile.lean`: the package definition and the generator executable
 
 ## The Blueprint Top-Level File
 
@@ -143,18 +143,18 @@ Core statements about addition on natural numbers.
 :::
 
 :::definition "addition_spec" (parent := "addition_core")
-We write $`a + b`$ for the result of adding $`b`$ to $`a`$.
+We write $`a + b` for the result of adding $`b` to $`a`.
 This Blueprint starts with the most basic sanity checks around that operation.
 :::
 
 :::theorem "addition_zero_right" (parent := "addition_core") (owner := "project_author") (tags := "starter, arithmetic") (effort := "small") (priority := "high")
-For every natural number $`n`$, adding zero on the right leaves it unchanged:
-$`n + 0 = n`$.
+For every natural number $`n`, adding zero on the right leaves it unchanged:
+$`n + 0 = n`.
 This is the first sanity check for {uses "addition_spec"}[].
 :::
 
 :::proof "addition_zero_right"
-Induct on $`n`$. The base case is immediate and the inductive step unfolds one
+Induct on $`n`. The base case is immediate and the inductive step unfolds one
 successor on each side.
 :::
 
@@ -164,8 +164,8 @@ theorem addition_zero_right (n : Nat) : n + 0 = n := by
 ```
 
 :::theorem "addition_assoc" (parent := "addition_core") (lean := "Nat.add_assoc")
-For all natural numbers $`a`$, $`b`$, and $`c`$, addition is associative:
-$`(a + b) + c = a + (b + c)`$.
+For all natural numbers $`a`, $`b`, and $`c`, addition is associative:
+$`(a + b) + c = a + (b + c)`.
 This is another consequence of {uses "addition_spec"}[].
 :::
 
@@ -204,7 +204,7 @@ Attach a labeled Lean code block to the same Blueprint label:
 
 ````md
 :::theorem "addition_zero_right"
-For every natural number $`n`$, $`n + 0 = n`$.
+For every natural number $`n`, $`n + 0 = n`.
 :::
 
 ```lean "addition_zero_right"
@@ -231,6 +231,12 @@ theorem addition_assoc_compiled (a b c : Nat) : (a + b) + c = a + (b + c) := by
 This mode is useful when the formal declaration already exists as ordinary Lean
 code and you want to register it as a Blueprint node.
 
+If the declaration has a docstring, Blueprint tries to reuse it as the informal
+statement body for that Lean-owned node. Plain docstrings are parsed through the
+manual Markdown path when possible, and richer internal docstring structures are
+converted into Manual blocks directly. If no docstring is available, the node is
+still registered, but there is no imported informal statement body.
+
 ### Existing Lean declarations
 
 Use `(lean := "Nat.add_assoc")` when Lean already owns the declaration and you
@@ -238,7 +244,7 @@ want an informal Blueprint node to point at it:
 
 ```md
 :::theorem "addition_assoc" (lean := "Nat.add_assoc")
-For all natural numbers $`a`$, $`b`$, and $`c`$, addition is associative.
+For all natural numbers $`a`, $`b`, and $`c`, addition is associative.
 :::
 ```
 
@@ -248,6 +254,7 @@ the declaration body into the chapter.
 Notes:
 
 - `(lean := "Nat.add_assoc")` points at Lean-owned declaration names
+- `(lean := "Nat.add, Nat.succ")` supports comma-separated declaration lists
 - `@[blueprint "addition_assoc_compiled"]` registers a Lean-owned Blueprint node
 - Blueprint labels are Blueprint-owned metadata
 - Blueprint label conventions do not rewrite external Lean names
@@ -258,8 +265,12 @@ Blueprint supports ordinary Verso math syntax inside the informal text.
 
 Examples:
 
-- inline math: `$`n + 0 = n`$`
-- display math: `$$(a + b) + c = a + (b + c)$$`
+```md
+Inline math: $`n + 0 = n`
+
+Display math:
+$$`\sum_{i=0}^{n} i = \frac{n(n+1)}{2}`
+```
 
 Projects can also define reusable TeX macros:
 
@@ -270,7 +281,7 @@ tex_prelude r#"\newcommand{\NatAdd}{\mathbin{+}}"#
 After that, Blueprint math can use the macro in rendered pages:
 
 ```md
-We write $`a \NatAdd b`$ for addition on natural numbers.
+We write $`a \NatAdd b` for addition on natural numbers.
 ```
 
 Blueprint also supports best-effort KaTeX linting during elaboration. KaTeX is
@@ -335,7 +346,7 @@ That page uses dependency data, metadata, and Lean status to present:
 
 ### Bibliography page
 
-`bp_bibliography` and `blueprint_bibliography` render the bibliography entries
+`blueprint_bibliography` renders the bibliography entries
 registered in the document.
 
 Projects that do not use citations can omit this page entirely.
@@ -362,9 +373,9 @@ for:
 Useful inspection flags on a Blueprint executable:
 
 ```bash
-lake exe blueprint-gen --dump-schema
-lake exe blueprint-gen --dump-manifest
-lake exe blueprint-gen --help
+lake exe <generator> --dump-schema
+lake exe <generator> --dump-manifest
+lake exe <generator> --help
 ```
 
 - `--dump-schema` prints the JSON Schema for the manifest
@@ -373,10 +384,12 @@ lake exe blueprint-gen --help
 - `--help` includes these manifest-related flags alongside the usual rendering
   options
 
-## The `blueprint-gen` Executable
+## The Generator Executable
 
-The recommended project-facing interface is an executable named
-`blueprint-gen`.
+Blueprint projects normally expose a small generator executable.
+
+In the commands below, `<generator>` stands for whatever executable name the
+project chooses.
 
 Minimal example:
 
@@ -398,7 +411,7 @@ def main (args : List String) : IO UInt32 :=
 Typical usage:
 
 ```bash
-lake exe blueprint-gen --output _out/site
+lake exe <generator> --output _out/site
 ```
 
 ## Blueprint Options

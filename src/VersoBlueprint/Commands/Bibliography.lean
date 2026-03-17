@@ -154,11 +154,7 @@ def mkBibliographyPart (stx : Syntax) (endPos : String.Pos.Raw) : PartElabM Fini
 
 open Verso Doc Elab Syntax PartElabM in
 @[part_command Lean.Doc.Syntax.command]
-public meta def bpBibliographyCmd : PartCommand
-  | stx@`(block|command{bp_bibliography}) => do
-    let endPos := stx.getTailPos?.get!
-    closePartsUntil 1 endPos
-    addPart (← mkBibliographyPart stx endPos)
+public meta def blueprintBibliographyCmd : PartCommand
   | stx@`(block|command{blueprint_bibliography}) => do
     let endPos := stx.getTailPos?.get!
     closePartsUntil 1 endPos

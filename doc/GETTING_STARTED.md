@@ -12,7 +12,7 @@ A Blueprint project usually has three moving parts:
 
 1. one or more chapter modules with the mathematical content
 2. one Blueprint top-level file that assembles the document
-3. one `blueprint-gen` executable that renders the site
+3. one site-generation executable that renders the site
 
 Many older examples call the top-level file `Contents.lean`. In this doc set we
 refer to it as the Blueprint top-level file because the role matters more than
@@ -38,6 +38,10 @@ Those labels are the key to the whole system. They are used to:
 If you pick stable labels early, the rest of the project structure becomes much
 easier to maintain.
 
+Unlike Lean code references, `{uses "addition_spec"}[]` can refer to a label
+before its final use sites are elaborated. Blueprint resolves those forward
+references when building the document.
+
 ## Start from the template
 
 Use [project_template/](../project_template/) as the starting point.
@@ -48,7 +52,7 @@ Its key files are:
 - `ProjectTemplate/Chapters/Multiplication.lean`: the second chapter
 - `ProjectTemplate/Blueprint.lean`: the Blueprint top-level file
 - `ProjectTemplateMain.lean`: the generator entry point
-- `lakefile.lean`: package configuration, including `blueprint-gen`
+- `lakefile.lean`: package configuration, including the generator executable
 
 The template is intentionally small. It is meant to teach the shape of a
 Blueprint project before you scale it up.
@@ -106,7 +110,8 @@ The entry point in
 [project_template/ProjectTemplateMain.lean](../project_template/ProjectTemplateMain.lean)
 is the executable you run to generate the site.
 
-The template names it `blueprint-gen`, so the normal workflow stays simple:
+In this guide, we assume that executable is named `blueprint-gen`, because that
+keeps the examples short and easy to follow:
 
 ```bash
 lake update
@@ -123,8 +128,8 @@ After copying the template:
 1. rename `ProjectTemplate` to your project name
 2. change the document title in the Blueprint top-level file
 3. replace the addition and multiplication chapters with your own first chapters
-4. keep the `blueprint-gen` executable and top-level file structure until your
-   project is stable
+4. keep the generator executable and top-level file structure until your project
+   is stable
 
 ## What to read next
 
