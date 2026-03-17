@@ -4,7 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Emilio J. Gallego Arias
 -/
 
+import Lean.Data.Options
+
 namespace Informal.Commands
+
+open Lean
+
+register_option verso.blueprint.debug.commands : Bool := {
+  defValue := false
+  descr := "Emit debug info logs for blueprint graph, summary, and bibliography commands"
+}
 
 def blueprintTokensCss : String := r##"
 :root {

@@ -39,7 +39,6 @@ import VersoBlueprint.PreviewCache
 import VersoBlueprint.PreviewManifest
 import VersoBlueprint.Resolve
 import VersoBlueprint.StyleSwitcher
-import VersoBlueprint.Widget
 import VersoBlueprint.Profiling
 
 set_option doc.verso true

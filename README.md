@@ -7,8 +7,8 @@ A Blueprint project combines:
 
 - informal mathematical exposition
 - links to local Lean code or existing Lean declarations
-- rendered overview pages such as dependency graphs and summaries
-- HTML output with previews and navigation
+- rendered overview pages such as dependency graphs and progress summaries
+- HTML output with previews, navigation, and exported metadata
 
 ## Start Here
 
@@ -18,80 +18,80 @@ If you want to start a Blueprint project today, read these in order:
 2. [doc/GETTING_STARTED.md](./doc/GETTING_STARTED.md)
 3. [doc/MANUAL.md](./doc/MANUAL.md)
 
-The repository's Python harness and maintainer scripts are not part of the
-normal end-user workflow.
-
 ## Current Project Shape
 
 Today a Blueprint project usually owns three things:
 
-- chapter modules containing the actual mathematical content
+- chapter modules containing the mathematical content
 - a Blueprint top-level file that assembles chapters and rendered overview pages
-- a small `lean_exe` named `blueprint-gen` that writes the generated site to
-  `_out/`
+- an executable named `blueprint-gen` that resolves forward references,
+  computes metadata, and writes the generated output under `_out/`
 
 `verso-blueprint` provides the Blueprint directives, rendering commands, preview
-runtime, and support library code. The `blueprint-gen` executable belongs to
-the Blueprint project itself. The starter layout in
+runtime, and support library code. The starter layout in
 [project_template/](./project_template/) shows the recommended shape.
 
 ## Core Features
 
-### Writing the document
+### Labelled nodes and rich directives
 
-Blueprint chapters are written with directives such as:
+Every Blueprint node is identified by a label such as `addition_spec` or
+`addition_zero_right`. Those labels drive cross-references, graph nodes,
+summary entries, code associations, and metadata export.
 
-- `:::definition`
-- `:::lemma_`
-- `:::theorem`
-- `:::corollary`
-- `:::proof`
+Typical directives look like:
 
-These blocks are designed to keep the informal mathematical story close to the
-formal Lean side.
+- `:::definition "addition_spec" (lean := "Nat.add, Nat.succ")`
+- `:::theorem "addition_zero_right" (owner := "jason") (priority := "high")`
+- `:::proof "addition_zero_right"`
 
-### Connecting statements to Lean
+### Connecting to Lean
 
-A statement can connect to Lean in three main ways:
+Blueprint supports three main ways to connect informal nodes to Lean:
 
-- a labeled local Lean code block
-- an existing Lean declaration via `(lean := "...")`
-- a manual completion marker via `(leanok := true)`
+- inline code with a labeled Lean code block
+- compiled code tagged with `@[blueprint "addition_zero_right"]`
+- existing declarations referenced with `(lean := "Nat.add_assoc")`
 
-This lets one project mix already-formalized results, local formalization work,
-and still-planned material.
+### Math and TeX
 
-### Rendering
+Blueprint supports inline math such as $`n + 0 = n`$, display math, TeX
+preludes via `tex_prelude`, and best-effort KaTeX linting during elaboration.
+KaTeX is the renderer used by the generated HTML.
+
+### Rendering to HTML
 
 Blueprint can render:
 
 - chapter pages
 - a dependency graph with `blueprint_graph`
-- a summary page with `bp_summary` or `blueprint_summary`
+- a progress summary view with `blueprint_summary`
 - a bibliography page with `bp_bibliography` or `blueprint_bibliography`
-- math-enabled HTML with shared previews
+- math-enabled previews and cross-links
 
-For normal Blueprint project usage, this does not require the repository's
-Python helper scripts or a system Graphviz installation.
+Progress is computed automatically from the status of the associated Lean code
+and declarations, so the HTML summary and graph views stay aligned with the
+formal side.
 
-### Metadata and organization
+### Metadata export
 
-Statements can carry groups, owners, tags, effort estimates, priorities, and
-related metadata. The rendered summary and graph pages use that data to present
-the project structure.
+Blueprint can dump structured metadata for other tools, including the shared
+preview manifest and its schema. The main entry points are `--dump-manifest` and
+`--dump-schema`.
 
 ### Widget
 
-Blueprint also has a widget-based graph panel surface. It is currently
-experimental and should be treated as a developer-facing feature rather than the
-main website-generation workflow.
+The widget surface is experimental. Import `VersoBlueprint.Widget` explicitly if
+you want to enable it.
 
-## Larger Examples
+## Reference Blueprints
 
-The repository also validates and publishes larger reference Blueprint projects:
+The repository also tracks larger reference blueprints.
 
-- [`ejgallego/verso-noperthedron`](https://github.com/ejgallego/verso-noperthedron)
-- [`ejgallego/verso-sphere-packing`](https://github.com/ejgallego/verso-sphere-packing)
+- [`ejgallego/verso-noperthedron`](https://github.com/ejgallego/verso-noperthedron),
+  [CI publication](https://github.com/leanprover/verso-blueprint/actions/workflows/reference-blueprints.yml)
+- [`ejgallego/verso-sphere-packing`](https://github.com/ejgallego/verso-sphere-packing),
+  [CI publication](https://github.com/leanprover/verso-blueprint/actions/workflows/reference-blueprints.yml)
 
 ## Documentation
 
@@ -119,3 +119,6 @@ Verso Blueprint builds on:
   write and render Blueprint documents
 - [Lean 4](https://lean-lang.org/), the language and tooling used to elaborate
   the document and connect it to formal code
+- Patrick Massot's Lean blueprints
+- LeanArchitect
+- Eric's Vergo side-to-side blueprints

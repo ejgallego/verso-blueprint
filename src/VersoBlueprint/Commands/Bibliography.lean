@@ -142,7 +142,8 @@ def mkBibliographyPart (stx : Syntax) (endPos : String.Pos.Raw) : PartElabM Fini
   let expandedTitle ← #[titleInlines].mapM (elabInline ·)
   let metadata : Option (TSyntax `term) := some (← `(term| { number := false }))
   let entries := Informal.Cite.allBibEntries (← getEnv)
-  logInfo m!"Blueprint bibliography for {entries.length} entries"
+  if verso.blueprint.debug.commands.get (← Lean.getOptions) then
+    logInfo m!"Blueprint bibliography for {entries.length} entries"
   let refs : Array (TSyntax `term) ← entries.toArray.mapM fun (label, decl) =>
     `(BibliographyEntry.mk $(quote label) $(mkIdent decl))
   let block ← ``(Verso.Doc.Block.other

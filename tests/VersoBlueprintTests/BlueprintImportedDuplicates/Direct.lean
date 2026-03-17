@@ -24,13 +24,11 @@ error: Duplicate imported blueprint node label '«dup.imported.node»'
 error: Duplicate imported blueprint group label '«dup.imported.group»'
 ---
 error: Duplicate imported blueprint author id '«dup.imported.author»'
----
-info: Blueprint summary for 1 entries
 -/
 #guard_msgs in
 #docs (Genre.Manual) directImportedDuplicateDoc "Direct Imported Duplicates" :=
 :::::::
-{bp_summary}
+{blueprint_summary}
 :::::::
 
 /-- info: true -/

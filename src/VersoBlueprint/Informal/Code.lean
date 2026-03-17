@@ -14,7 +14,6 @@ import VersoBlueprint.LabelNameParsing
 import VersoBlueprint.Lean
 import VersoBlueprint.Profiling
 import VersoBlueprint.Resolve
-import VersoBlueprint.Widget
 
 open Verso Doc Elab
 open Verso.Genre Manual
@@ -141,7 +140,6 @@ private def leanImpl : CodeBlockExpanderOf CodeConfig
     }
     let codeRef ← getRef
     Environment.registerCode cfg.label codeRef res.definedDefs res.definedTheorems
-    activateForLabelDoc cfg.label codeRef
     ``(Block.other (Block.informalCode $(quote data)) #[$codeBlock])
 
 @[code_block]

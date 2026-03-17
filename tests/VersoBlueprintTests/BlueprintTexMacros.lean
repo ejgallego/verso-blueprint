@@ -6,6 +6,7 @@ Author: Emilio J. Gallego Arias
 
 import VersoBlueprintTests.BlueprintTexMacros.Root
 import VersoBlueprintTests.Blueprint.Support
+import VersoBlueprint.Widget
 
 namespace Verso.VersoBlueprintTests.BlueprintTexMacros
 

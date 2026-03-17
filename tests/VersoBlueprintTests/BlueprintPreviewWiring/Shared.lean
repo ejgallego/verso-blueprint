@@ -32,7 +32,7 @@ Depends on {uses "def:preview.base"}[].
 
 {blueprint_graph}
 
-{bp_summary}
+{blueprint_summary}
 :::::::
 
 #docs (Genre.Manual) usedByPreviewDoc "Blueprint Used-By Preview Wiring" :=
@@ -107,7 +107,7 @@ Statement without Lean code.
 Statement with an associated Lean declaration link in the summary.
 :::
 
-{bp_summary}
+{blueprint_summary}
 :::::::
 
 #docs (Genre.Manual) groupPreviewDoc "Blueprint Group Preview Wiring" :=

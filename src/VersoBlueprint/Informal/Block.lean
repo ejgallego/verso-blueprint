@@ -27,7 +27,6 @@ import VersoBlueprint.PreviewCache
 import VersoBlueprint.PreviewRender
 import VersoBlueprint.Resolve
 import VersoBlueprint.StyleSwitcher
-import VersoBlueprint.Widget
 import VersoBlueprint.Profiling
 
 set_option doc.verso true
@@ -1986,8 +1985,6 @@ private def expanderImpl (kind : Data.NodeKind) (isProof : Bool := false) : Dire
       match owner with
       | some owner => Environment.getAuthor? owner
       | none => pure none
-    -- Make the blueprint widget available when selecting this labeled block.
-    activateForLabelDoc label blockRef
     let data : BlockData := {
       kind := blockKind
       codeData

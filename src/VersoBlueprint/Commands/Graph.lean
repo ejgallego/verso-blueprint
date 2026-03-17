@@ -566,7 +566,8 @@ def mkGraphPart (stx : Syntax) (endPos : String.Pos.Raw) (direction : GraphDirec
   let expandedTitle ← #[titleInlines].mapM (elabInline ·)
   let metadata : Option (TSyntax `term) := some (← `(term| { number := false }))
   let (graph, groupTitles) ← buildAll
-  logInfo m!"Adding {graph.size} nodes"
+  if verso.blueprint.debug.commands.get (← Lean.getOptions) then
+    logInfo m!"Adding {graph.size} nodes"
   let graphData : GraphBlockData := { graph, direction, groupTitles }
   let block ← ``(Verso.Doc.Block.other (Informal.Commands.Block.graph $(quote graphData)) #[])
   let subParts := #[]

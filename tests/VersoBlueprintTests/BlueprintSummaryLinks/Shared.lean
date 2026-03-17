@@ -22,13 +22,11 @@ def manualImpls : ExtensionImpls := extension_impls%
 External declaration wiring test.
 :::
 
-{bp_summary}
+{blueprint_summary}
 :::::::
 
 /--
 warning: Label «def:blocker.missing»: external Lean name 'Nat.nope' could not be resolved in current namespace/open declarations; keeping parsed name
----
-info: Blueprint summary for 3 entries
 -/
 #guard_msgs in
 #docs (Genre.Manual) summaryBlockersDoc "Summary Blockers" :=
@@ -46,7 +44,7 @@ theorem summaryBlockerSorry : True := by
   sorry
 ```
 
-{bp_summary}
+{blueprint_summary}
 :::::::
 
 #docs (Genre.Manual) summaryTriageDoc "Summary Triage" :=
@@ -133,7 +131,7 @@ Proof-only dependency sample.
 Proof uses {uses "def:triage.01"}[] and {uses "def:triage.02"}[].
 :::
 
-{bp_summary}
+{blueprint_summary}
 :::::::
 
 end Verso.VersoBlueprintTests.BlueprintSummaryLinks.Shared

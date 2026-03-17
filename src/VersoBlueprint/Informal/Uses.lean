@@ -12,7 +12,6 @@ import VersoBlueprint.Lib.HoverRender
 import VersoBlueprint.Lib.PreviewSource
 import VersoBlueprint.PreviewCache
 import VersoBlueprint.Profiling
-import VersoBlueprint.Widget
 
 open Verso Doc Elab
 open Verso.Genre Manual
@@ -176,9 +175,6 @@ private def usesImpl : RoleExpanderOf Config
     let node ← Environment.getNode? label
     let useRef ← getRef
     Environment.addDep useRef label
-    -- Activate the widget if we can resolve the reference
-    if node.isSome then
-      activateForLabelDoc label useRef
     let data : InlineData := { label, block := node.map (fun n => n.toBlockInfo label) }
     ``(Inline.other (Inline.informal $(quote data)) #[$contents,*])
 

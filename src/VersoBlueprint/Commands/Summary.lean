@@ -1837,18 +1837,15 @@ def mkSummaryPart (stx : Syntax) (endPos : String.Pos.Raw) : PartElabM FinishedP
   let expandedTitle ← #[titleInlines].mapM (elabInline ·)
   let metadata : Option (TSyntax `term) := some (← `(term| { number := false }))
   let summary ← buildSummary
-  logInfo m!"Blueprint summary for {summary.totalEntries} entries"
+  if verso.blueprint.debug.commands.get (← Lean.getOptions) then
+    logInfo m!"Blueprint summary for {summary.totalEntries} entries"
   let block ← ``(Verso.Doc.Block.other (Informal.Commands.Block.summary $(quote summary)) #[])
   let subParts := #[]
   pure <| FinishedPart.mk stx expandedTitle titlePreview metadata #[block] subParts endPos
 
 open Verso Doc Elab Syntax PartElabM in
 @[part_command Lean.Doc.Syntax.command]
-public meta def bpSummaryCmd : PartCommand
-  | stx@`(block|command{bp_summary}) => do
-    let endPos := stx.getTailPos?.get!
-    closePartsUntil 1 endPos
-    addPart (← mkSummaryPart stx endPos)
+public meta def blueprintSummaryCmd : PartCommand
   | stx@`(block|command{blueprint_summary}) => do
     let endPos := stx.getTailPos?.get!
     closePartsUntil 1 endPos
