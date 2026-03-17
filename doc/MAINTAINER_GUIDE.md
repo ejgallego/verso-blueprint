@@ -101,8 +101,10 @@ python3 -m script.blueprint_harness paths
 ```
 
 `paths` prints both the canonical linked-worktree output locations and the
-resolved existing site directories, so stale local `_out/` artifacts cannot be
-mistaken for the intended shared worktree output root.
+resolved existing site directories. Resolution prefers the canonical current
+layout and only falls back to the older shared repo-root layout kept for
+pre-split migration compatibility; it does not reuse worktree-local `_out/`
+artifacts.
 
 ## Working from Linked Worktrees
 

@@ -202,15 +202,20 @@ def render_examples(package_root: Path, output_root: Path, examples: list[str], 
                 proc.kill()
 
 
-def command_generate(args: argparse.Namespace) -> int:
-    layout = detect_harness_layout(Path(__file__))
-    output_root = resolve_output_root(args.output_root, Path(__file__))
-    examples = selected_examples(args.example)
-
+def generate_examples(
+    layout,
+    output_root: Path,
+    examples: list[str],
+    *,
+    skip_build: bool,
+    serial: bool,
+    allow_local_build: bool,
+    skip_sync: bool = False,
+) -> None:
     print(f"[blueprint-harness] package root: {layout.package_root}")
-    if not getattr(args, "skip_sync", False):
+    if not skip_sync:
         sync_root_worktree_lake(layout)
-    use_local_build = should_use_local_build(layout, args.allow_local_build)
+    use_local_build = should_use_local_build(layout, allow_local_build)
     if layout.in_linked_worktree:
         print(f"[blueprint-harness] linked worktree output root: {output_root}")
         if not use_local_build:
@@ -220,12 +225,28 @@ def command_generate(args: argparse.Namespace) -> int:
     else:
         print(f"[blueprint-harness] output root: {output_root}")
 
-    if not args.skip_build and use_local_build:
+    if not skip_build and use_local_build:
         build_examples(layout.package_root, examples)
-    elif not args.skip_build and not use_local_build:
+    elif not skip_build and not use_local_build:
         for example in examples:
             ensure_prebuilt_executable(layout.package_root, example)
-    render_examples(layout.package_root, output_root, examples, args.serial)
+    render_examples(layout.package_root, output_root, examples, serial)
+
+
+def command_generate(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    output_root = resolve_output_root(args.output_root, Path(__file__))
+    examples = selected_examples(args.example)
+
+    generate_examples(
+        layout,
+        output_root,
+        examples,
+        skip_build=args.skip_build,
+        serial=args.serial,
+        allow_local_build=args.allow_local_build,
+        skip_sync=getattr(args, "skip_sync", False),
+    )
 
     print("[blueprint-harness] generated sites:")
     for example in examples:
@@ -314,15 +335,14 @@ def command_validate(args: argparse.Namespace) -> int:
                         return print_failure_summary(failures)
 
     try:
-        command_generate(
-            argparse.Namespace(
-                output_root=str(output_root),
-                example=examples,
-                skip_build=False,
-                serial=args.serial,
-                allow_local_build=args.allow_local_build,
-                skip_sync=True,
-            )
+        generate_examples(
+            layout,
+            output_root,
+            examples,
+            skip_build=False,
+            serial=args.serial,
+            allow_local_build=args.allow_local_build,
+            skip_sync=True,
         )
     except SystemExit as err:
         failures.append(StepFailure("generate examples", str(err)))

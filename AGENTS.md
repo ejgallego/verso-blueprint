@@ -112,5 +112,7 @@
 - Keep one source of truth for each data point.
 - Prefer descriptive names over abbreviations.
 - Do not introduce new inductives unless strictly necessary.
+- When adding or updating file authorship headers, prefer the name of the human
+  driving the work, not the AI assistant name.
 - Prefer the documented public harness entry points over ad hoc internal command
   sequences.

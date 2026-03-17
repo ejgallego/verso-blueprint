@@ -69,13 +69,16 @@ def canonical_example_site_dir(example: str, start: Path | None = None) -> Path:
     return layout.example_output_root / example / "html-multi"
 
 
-def example_site_candidates(example: str, start: Path | None = None) -> list[Path]:
+def legacy_shared_example_site_dir(example: str, start: Path | None = None) -> Path:
     layout = detect_harness_layout(start)
+    return layout.artifact_root / example / "html-multi"
+
+
+def example_site_candidates(example: str, start: Path | None = None) -> list[Path]:
     candidates = [
         canonical_example_site_dir(example, start),
-        layout.artifact_root / example / "html-multi",
-        layout.package_root / "_out" / "example-blueprints" / example / "html-multi",
-        layout.package_root / "_out" / example / "html-multi",
+        # Retain the older shared repo-root layout during the verso -> verso-blueprint migration.
+        legacy_shared_example_site_dir(example, start),
     ]
     unique: list[Path] = []
     seen: set[Path] = set()
