@@ -82,6 +82,7 @@
   - `python3 -m scripts.blueprint_harness worktree-claim`
   - `python3 -m scripts.blueprint_harness worktree-release`
   - `python3 -m scripts.blueprint_harness worktree-prune-candidates`
+  - `python3 -m scripts.blueprint_harness worktree-retire`
 - The Python harness is maintainer tooling for this repository's in-repo
   own tests plus ephemeral checkout validations, not the preferred end-user
   interface.

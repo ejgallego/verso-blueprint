@@ -458,6 +458,33 @@ def merged_clean_worktree_candidates(repo_root: Path, current_path: Path) -> lis
     return candidates
 
 
+def git_worktree_map(repo_root: Path) -> dict[str, tuple[Path, str | None, bool]]:
+    return {
+        worktree.name: (worktree.path, worktree.branch, worktree.root_checkout)
+        for worktree in git_worktrees(repo_root)
+    }
+
+
+def branch_merged_into_main(repo_root: Path, branch: str) -> bool:
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", branch, "main"],
+        cwd=repo_root,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def worktree_is_clean(path: Path) -> bool:
+    status = subprocess.run(
+        ["git", "status", "--short"],
+        cwd=path,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+    return not status
+
+
 def generate_projects(
     layout,
     output_root: Path,
@@ -779,6 +806,49 @@ def command_worktree_prune_candidates(_: argparse.Namespace) -> int:
     return 0
 
 
+def command_worktree_retire(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    name = resolve_worktree_name(layout.worktree_name, args.name)
+    worktrees = git_worktree_map(layout.repo_root)
+    if name not in worktrees:
+        raise SystemExit(f"[blueprint-harness] unknown worktree `{name}`")
+    path, branch, root_checkout = worktrees[name]
+    if root_checkout or branch is None or branch == "main":
+        raise SystemExit("[blueprint-harness] cannot retire the root checkout")
+    if path.resolve() == layout.package_root.resolve():
+        raise SystemExit("[blueprint-harness] cannot retire the current active worktree from inside itself")
+    if not branch_merged_into_main(layout.repo_root, branch):
+        raise SystemExit(f"[blueprint-harness] branch `{branch}` is not merged into `main`")
+    if not worktree_is_clean(path):
+        raise SystemExit(f"[blueprint-harness] worktree `{name}` has local modifications")
+
+    print(f"name={name}")
+    print(f"path={path}")
+    print(f"branch={branch}")
+    if args.dry_run:
+        return 0
+
+    run(["git", "worktree", "remove", str(path)], cwd=layout.repo_root)
+    run(["git", "branch", "-d", branch], cwd=layout.repo_root)
+
+    manifest_path = resolve_manifest_path(None, layout.package_root)
+    projects = load_project_catalog(manifest_path)
+    active_names = {worktree.name for worktree in git_worktrees(layout.repo_root)}
+    project_ids = {project.project_id for project in projects if project.git_checkout}
+    removals = reference_prune_plan(
+        active_names,
+        project_ids,
+        layout.reference_project_cache_root,
+        layout.reference_project_root / "by-worktree",
+    )
+    for stale_path in removals:
+        shutil.rmtree(stale_path)
+    print(f"[blueprint-harness] retired worktree `{name}`")
+    if removals:
+        print(f"[blueprint-harness] removed {len(removals)} stale reference path(s)")
+    return 0
+
+
 def command_worktree_sync(_: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
     records, registry = sync_worktree_registry(layout.repo_root)
@@ -1051,6 +1121,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="List merged clean linked worktrees that are good prune candidates.",
     )
     worktree_prune_candidates.set_defaults(func=command_worktree_prune_candidates)
+
+    worktree_retire = subparsers.add_parser(
+        "worktree-retire",
+        help="Retire one merged clean linked worktree and prune its stale reference clones.",
+    )
+    worktree_retire.add_argument("name", nargs="?", default=None, help="Worktree name. Defaults to the current worktree.")
+    worktree_retire.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the target worktree without deleting it.",
+    )
+    worktree_retire.set_defaults(func=command_worktree_retire)
 
     worktree_sync = subparsers.add_parser(
         "worktree-sync",

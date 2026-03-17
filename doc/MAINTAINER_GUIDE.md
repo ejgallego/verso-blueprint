@@ -43,6 +43,7 @@ python3 -m scripts.blueprint_harness worktree-claim
 python3 -m scripts.blueprint_harness worktree-status
 python3 -m scripts.blueprint_harness worktree-release
 python3 -m scripts.blueprint_harness worktree-prune-candidates
+python3 -m scripts.blueprint_harness worktree-retire
 ```
 
 The shell wrappers are the normal front door for day-to-day work. The Python
@@ -190,6 +191,8 @@ The local coordination layer is now machine-readable and untracked.
 - `worktree-release` marks a worktree done or otherwise retired
 - `worktree-prune-candidates` lists merged clean linked worktrees that are good
   manual prune candidates
+- `worktree-retire` removes one merged clean linked worktree, deletes its local
+  branch, and prunes its stale reference clones
 
 The live local files are:
 
@@ -207,6 +210,7 @@ python3 -m scripts.blueprint_harness worktree-sync
 python3 -m scripts.blueprint_harness worktree-claim --owner codex --summary "external harness rework" --scope scripts --scope tests/harness
 python3 -m scripts.blueprint_harness worktree-list
 python3 -m scripts.blueprint_harness worktree-prune-candidates
+python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
 ```
 
 ## Reference Blueprint Notes
