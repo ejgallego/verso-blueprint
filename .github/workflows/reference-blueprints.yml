@@ -32,7 +32,7 @@ jobs:
           lean --version
           lake --version
           python3 --version
-      - name: Generate reference blueprints
+      - name: Generate reference blueprints and starter template
         run: ./scripts/generate-reference-blueprints.sh
       - name: Prepare Pages artifact
         run: python3 ./scripts/prepare_reference_blueprints_pages.py

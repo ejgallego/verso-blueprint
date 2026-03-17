@@ -2,6 +2,17 @@
   "version": 1,
   "projects": [
     {
+      "id": "project-template",
+      "description": "In-repo starter Blueprint template rendered as a small reference site.",
+      "source": {
+        "kind": "in_repo_example",
+        "project_root": "project_template"
+      },
+      "build_command": ["lake", "build"],
+      "generate_command": ["lake", "exe", "blueprint-gen", "--output", "{output_dir}"],
+      "site_subdir": "html-multi"
+    },
+    {
       "id": "noperthedron",
       "description": "Mathlib-heavy external blueprint example with browser and panel regressions.",
       "source": {

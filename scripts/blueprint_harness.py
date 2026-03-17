@@ -254,6 +254,67 @@ def render_in_repo_projects(package_root: Path, output_root: Path, projects: lis
                 proc.kill()
 
 
+def maybe_rewrite_in_repo_blueprint_dependency(project_dir: Path, package_root: Path) -> tuple[Path | None, str | None]:
+    lakefile = project_dir / "lakefile.lean"
+    if not lakefile.exists():
+        return None, None
+
+    text = lakefile.read_text(encoding="utf-8")
+    if 'require VersoBlueprint from "' in text:
+        return None, None
+    if "require VersoBlueprint from git" not in text:
+        return None, None
+
+    rewrite_local_blueprint_dependency(project_dir, package_root)
+    return lakefile, text
+
+
+def generate_in_repo_command_project(layout, output_root: Path, project: HarnessProject, *, skip_build: bool) -> None:
+    project_dir = resolve_repo_relative_path(layout.package_root, project.project_root)
+    if not project_dir.exists():
+        raise SystemExit(f"[blueprint-harness] missing in-repo project root for `{project.project_id}`: {project_dir}")
+
+    output_dir = output_dir_for(project, output_root)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    rewritten_lakefile, original_lakefile_text = maybe_rewrite_in_repo_blueprint_dependency(project_dir, layout.package_root)
+    if rewritten_lakefile is not None:
+        print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
+    try:
+        run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
+        if not skip_build and project.build_command is not None:
+            run(
+                lean_low_priority_command(
+                    layout.package_root,
+                    *format_external_command(
+                        project.build_command,
+                        project=project,
+                        package_root=layout.package_root,
+                        checkout_root=project_dir,
+                        project_dir=project_dir,
+                        output_dir=output_dir,
+                    ),
+                ),
+                cwd=project_dir,
+            )
+        run(
+            lean_low_priority_command(
+                layout.package_root,
+                *format_external_command(
+                    project.generate_command or (),
+                    project=project,
+                    package_root=layout.package_root,
+                    checkout_root=project_dir,
+                    project_dir=project_dir,
+                    output_dir=output_dir,
+                ),
+            ),
+            cwd=project_dir,
+        )
+    finally:
+        if rewritten_lakefile is not None and original_lakefile_text is not None:
+            rewritten_lakefile.write_text(original_lakefile_text, encoding="utf-8")
+
+
 def format_external_command(
     command: tuple[str, ...],
     *,
@@ -505,9 +566,11 @@ def generate_projects(
     skip_sync: bool = False,
 ) -> None:
     in_repo_projects = [project for project in projects if project.in_repo_example]
+    in_repo_target_projects = [project for project in in_repo_projects if project.in_repo_target_project]
+    in_repo_command_projects = [project for project in in_repo_projects if project.in_repo_command_project]
     git_projects = [project for project in projects if project.git_checkout]
 
-    if in_repo_projects:
+    if in_repo_target_projects:
         print(f"[blueprint-harness] package root: {layout.package_root}")
         if not skip_sync:
             sync_root_worktree_lake(layout)
@@ -522,11 +585,21 @@ def generate_projects(
             print(f"[blueprint-harness] output root: {output_root}")
 
         if not skip_build and use_local_build:
-            build_in_repo_projects(layout.package_root, in_repo_projects)
+            build_in_repo_projects(layout.package_root, in_repo_target_projects)
         elif not skip_build and not use_local_build:
-            for project in in_repo_projects:
+            for project in in_repo_target_projects:
                 ensure_prebuilt_executable(layout.package_root, project.generator or project.project_id)
-        render_in_repo_projects(layout.package_root, output_root, in_repo_projects, serial)
+        render_in_repo_projects(layout.package_root, output_root, in_repo_target_projects, serial)
+
+    if in_repo_command_projects:
+        print(f"[blueprint-harness] package root: {layout.package_root}")
+        if layout.in_linked_worktree:
+            print(f"[blueprint-harness] linked worktree output root: {output_root}")
+        else:
+            print(f"[blueprint-harness] output root: {output_root}")
+        for project in in_repo_command_projects:
+            print(f"[blueprint-harness] in-repo project: {project.project_id} ({project.project_root})")
+            generate_in_repo_command_project(layout, output_root, project, skip_build=skip_build)
 
     for project in git_projects:
         print(f"[blueprint-harness] reference checkout: {project.project_id}")
@@ -723,10 +796,8 @@ def command_create_worktree(args: argparse.Namespace) -> int:
 
 def command_paths(_: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
-    noperthedron_site = canonical_example_site_dir("noperthedron", Path(__file__))
-    noperthedron_site_resolved = default_example_site_dir("noperthedron", Path(__file__))
-    spherepacking_site = canonical_example_site_dir("spherepackingblueprint", Path(__file__))
-    spherepacking_site_resolved = default_example_site_dir("spherepackingblueprint", Path(__file__))
+    manifest_path = resolve_manifest_path(None, layout.package_root)
+    projects = load_project_catalog(manifest_path)
     print(f"package_root={layout.package_root}")
     print(f"repo_root={layout.repo_root}")
     print(f"worktree_name={layout.worktree_name or ''}")
@@ -737,10 +808,11 @@ def command_paths(_: argparse.Namespace) -> int:
     print(f"reference_output_root={layout.reference_output_root}")
     print(f"reference_cache_root={layout.reference_project_cache_root}")
     print(f"reference_checkout_root={layout.reference_project_checkout_root}")
-    print(f"noperthedron_site={noperthedron_site}")
-    print(f"noperthedron_site_resolved={noperthedron_site_resolved}")
-    print(f"spherepackingblueprint_site={spherepacking_site}")
-    print(f"spherepackingblueprint_site_resolved={spherepacking_site_resolved}")
+    for project in projects:
+        canonical_site = canonical_example_site_dir(project.project_id, Path(__file__))
+        resolved_site = default_example_site_dir(project.project_id, Path(__file__))
+        print(f"{project.project_id}_site={canonical_site}")
+        print(f"{project.project_id}_site_resolved={resolved_site}")
     return 0
 
 

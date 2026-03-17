@@ -21,11 +21,18 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
         manifest = default_project_manifest(PACKAGE_ROOT)
         projects = load_projects_manifest(manifest)
 
-        self.assertEqual([project.project_id for project in projects], ["noperthedron", "spherepackingblueprint"])
-        self.assertTrue(projects[0].git_checkout)
-        self.assertEqual(projects[0].repository, "https://github.com/ejgallego/verso-noperthedron.git")
-        self.assertEqual(projects[0].browser_tests_path, "tests/browser")
-        self.assertEqual(projects[0].panel_regression_script, "tests/harness/noperthedron/check_blueprint_code_panels.py")
+        self.assertEqual(
+            [project.project_id for project in projects],
+            ["project-template", "noperthedron", "spherepackingblueprint"],
+        )
+        self.assertTrue(projects[0].in_repo_example)
+        self.assertTrue(projects[0].in_repo_command_project)
+        self.assertEqual(projects[0].project_root, "project_template")
+        self.assertEqual(projects[0].generate_command, ("lake", "exe", "blueprint-gen", "--output", "{output_dir}"))
+        self.assertTrue(projects[1].git_checkout)
+        self.assertEqual(projects[1].repository, "https://github.com/ejgallego/verso-noperthedron.git")
+        self.assertEqual(projects[1].browser_tests_path, "tests/browser")
+        self.assertEqual(projects[1].panel_regression_script, "tests/harness/noperthedron/check_blueprint_code_panels.py")
 
     def test_git_checkout_project_is_supported(self) -> None:
         manifest_data = {
@@ -53,6 +60,35 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
         self.assertEqual(len(projects), 1)
         self.assertTrue(projects[0].git_checkout)
+        self.assertEqual(projects[0].generate_command, ("lake", "exe", "blueprint-gen", "--output", "{output_dir}"))
+
+    def test_in_repo_command_project_is_supported(self) -> None:
+        manifest_data = {
+            "version": 1,
+            "projects": [
+                {
+                    "id": "project-template",
+                    "source": {
+                        "kind": "in_repo_example",
+                        "project_root": "project_template",
+                    },
+                    "build_command": ["lake", "build"],
+                    "generate_command": ["lake", "exe", "blueprint-gen", "--output", "{output_dir}"],
+                    "site_subdir": "html-multi",
+                }
+            ],
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp) / "projects.json"
+            manifest.write_text(json.dumps(manifest_data), encoding="utf-8")
+            projects = load_projects_manifest(manifest)
+
+        self.assertEqual(len(projects), 1)
+        self.assertTrue(projects[0].in_repo_example)
+        self.assertTrue(projects[0].in_repo_command_project)
+        self.assertEqual(projects[0].project_root, "project_template")
+        self.assertEqual(projects[0].build_command, ("lake", "build"))
         self.assertEqual(projects[0].generate_command, ("lake", "exe", "blueprint-gen", "--output", "{output_dir}"))
 
     def test_duplicate_project_ids_are_rejected(self) -> None:

@@ -1,6 +1,6 @@
 # Blueprint Maintainer Guide
 
-Last updated: 2026-03-16
+Last updated: 2026-03-17
 
 This document is the repository-level workflow guide for maintaining Blueprint
 support in `verso-blueprint` and its published reference blueprints.
@@ -13,15 +13,16 @@ It focuses on:
 - linked-worktree usage
 - repository-local policy for the external reference-blueprint validation harness
 
-Syntax and rendering semantics live in
-[`MANUAL.md`](./MANUAL.md). Architecture background lives in
-[`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md). Planned cleanup and follow-up
-work live in [`ROADMAP.md`](./ROADMAP.md).
+End-user onboarding lives in
+[`../project_template/README.md`](../project_template/README.md),
+[`GETTING_STARTED.md`](./GETTING_STARTED.md), and [`MANUAL.md`](./MANUAL.md).
+Architecture background lives in [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md).
+Planned cleanup and follow-up work live in [`ROADMAP.md`](./ROADMAP.md).
 
 ## Scope
 
 This is a maintainer document for this repository. It is not the end-user guide
-for authoring every Blueprint directive.
+for starting a Blueprint project or learning every Blueprint directive.
 
 ## Current Command Surface
 
@@ -49,9 +50,9 @@ python3 -m scripts.blueprint_harness worktree-retire
 The shell wrappers are the normal front door for day-to-day work. The Python
 module is the single source of truth for orchestration and path resolution.
 
-The default project catalog lives at `tests/harness/projects.json`. It points
-at the external reference blueprint repositories and is the extension point for
-future ephemeral GitHub checkout validations.
+The default project catalog lives at `tests/harness/projects.json`. It includes
+the in-repo starter template plus the external reference blueprint repositories,
+and it is the extension point for future ephemeral GitHub checkout validations.
 
 ## Everyday Workflows
 
@@ -61,9 +62,9 @@ future ephemeral GitHub checkout validations.
 ./scripts/generate-reference-blueprints.sh
 ```
 
-This clones, overrides, builds, and renders the current external reference
-blueprints:
+This builds and renders the current reference blueprint projects:
 
+- `project-template`
 - `noperthedron`
 - `spherepackingblueprint`
 
@@ -121,12 +122,14 @@ python3 -m scripts.blueprint_harness reference-prune
 
 In the root checkout, generated artifacts go under:
 
+- `_out/reference-blueprints/project-template/`
 - `_out/reference-blueprints/noperthedron/`
 - `_out/reference-blueprints/spherepackingblueprint/`
 
 In a linked worktree, generated artifacts go under the shared repo-root preview
 area:
 
+- `_out/<worktree>/reference-blueprints/project-template/`
 - `_out/<worktree>/reference-blueprints/noperthedron/`
 - `_out/<worktree>/reference-blueprints/spherepackingblueprint/`
 
@@ -163,7 +166,7 @@ The harness is worktree-aware:
 - each checkout uses its own local reference blueprint clones under
   `.worktrees/_reference-blueprints/by-worktree/<checkout>/`
 - local `lake build` and `lake test` in a linked worktree are disabled by
-  default to avoid unnecessary Mathlib rebuilds
+  default to avoid unnecessary dependency rebuilds
 
 Before rebuilding from a linked worktree, prefer:
 
@@ -215,16 +218,16 @@ python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
 
 ## Reference Blueprint Notes
 
-- `ejgallego/verso-noperthedron` is Mathlib-heavy, so linked worktrees should
-  normally sync `.lake/` from the root checkout before external validation
+- `ejgallego/verso-noperthedron` has a heavy dependency footprint, so linked
+  worktrees should normally sync `.lake/` from the root checkout before
+  external validation
 - the default baseline projects now live in external repositories, not inside
   this package checkout
 - the harness warms shared reference blueprint checkouts once under
   `.worktrees/_reference-blueprints/cache/`
 - each checkout gets its own local clone under
   `.worktrees/_reference-blueprints/by-worktree/<checkout>/`, seeded from the
-  shared cache so Mathlib and transitive build artifacts stay warm across
-  worktrees
+  shared cache so transitive build artifacts stay warm across worktrees
 - `reference-prune` cleans up stale project caches and local clones when
   worktrees or manifest entries disappear
 - the Python harness rewrites the cloned project's `lakefile.lean` locally so
@@ -325,11 +328,13 @@ Current example-specific reference:
 
 ## Documentation Reading Order
 
-1. Start here for commands, outputs, and worktree behavior.
-2. Read [`MANUAL.md`](./MANUAL.md) for Blueprint options and rendering
-   semantics.
-3. Read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for branch, commit, PR, and
+1. Read [`../project_template/README.md`](../project_template/README.md) and
+   [`GETTING_STARTED.md`](./GETTING_STARTED.md) for the user-facing project
+   shape.
+2. Read [`MANUAL.md`](./MANUAL.md) for authoring, rendering, and options.
+3. Return here for repository-local commands, outputs, and worktree behavior.
+4. Read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for branch, commit, PR, and
    local coordination conventions.
-4. Read [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md) before touching
+5. Read [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md) before touching
    architecture boundaries.
-5. Read [`ROADMAP.md`](./ROADMAP.md) before starting structural cleanup.
+6. Read [`ROADMAP.md`](./ROADMAP.md) before starting structural cleanup.

@@ -1,125 +1,146 @@
 # Blueprint Manual
 
-This document explains the current Blueprint authoring surface in this
-repository.
+This document is the current reference for Blueprint authoring and rendering.
 
-A Blueprint is a mathematical project document that mixes informal exposition
-with links to Lean declarations, dependency information, and generated summary
-and graph pages.
+If you are starting a first project, read
+[project_template/README.md](../project_template/README.md) and
+[GETTING_STARTED.md](./GETTING_STARTED.md) before this manual.
 
-Verso is the document system used to write and render those documents.
+## Mental Model
 
-It is organized around two reader questions:
+A Blueprint project usually owns three things:
 
-1. what can I write in a Blueprint source file?
-2. what does that source render into?
+- chapter modules containing the mathematical content
+- a Blueprint top-level file that assembles the document
+- a small `blueprint-gen` executable that renders the site
 
-Operational workflow lives in
-[`MAINTAINER_GUIDE.md`](./MAINTAINER_GUIDE.md). Architecture background and planned
-cleanup live in [`DESIGN_RATIONALE.md`](./DESIGN_RATIONALE.md) and
-[`ROADMAP.md`](./ROADMAP.md).
+The Blueprint top-level file is often called `Contents.lean` in existing
+projects, but the filename is not special. What matters is that one module
+assembles the chapters and chooses the rendered overview pages.
 
-## What You Can Write
+## Minimal Project Shape
 
-### Document Skeleton
+The starter template in [project_template/](../project_template/) uses this
+layout:
 
-A Blueprint project currently has three main pieces:
-
-- a `Contents` module that assembles the document
-- one or more chapter modules containing the document content
-- a small `Main` executable that renders the site
-
-Example source entry points:
-
-- [`verso-noperthedron/Contents.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Contents.lean)
-- [`verso-noperthedron/Main.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Main.lean)
-- [`verso-sphere-packing/SpherePackingBlueprint/Contents.lean`](https://github.com/ejgallego/verso-sphere-packing/blob/main/SpherePackingBlueprint/Contents.lean)
-- [`verso-sphere-packing/SpherePackingBlueprintMain.lean`](https://github.com/ejgallego/verso-sphere-packing/blob/main/SpherePackingBlueprintMain.lean)
-
-<!-- Future inline image: example document landing page or rendered chapter index. -->
-
-### A Minimal Blueprint File Set
-
-The smallest useful setup usually has three files:
-
-1. one chapter file with the actual Blueprint blocks
-2. one `Contents` file that assembles the document
-3. one `Main` file that renders the site
-
-Minimal chapter example:
-
-```lean
-import Verso
-import VersoManual
-import VersoBlueprint
-
-open Verso.Genre
-open Verso.Genre.Manual
-open Informal
-
-#doc (Manual) "Chapter" =>
-
-:::definition "def:sample"
-A sample informal definition.
-:::
-
-:::theorem "thm:sample" (lean := "Nat.add")
-This theorem uses {uses "def:sample"}[].
-:::
-
-:::proof "thm:sample"
-Proof sketch.
-:::
+```text
+ProjectTemplate/
+  Blueprint.lean
+  Chapters/
+    Addition.lean
+ProjectTemplate.lean
+ProjectTemplateMain.lean
+lakefile.lean
 ```
 
-Minimal `Contents.lean` example:
+The role of each file is:
 
-```lean
+- `ProjectTemplate/Chapters/Addition.lean`: a chapter with Blueprint blocks
+- `ProjectTemplate/Blueprint.lean`: the Blueprint top-level file
+- `ProjectTemplateMain.lean`: the renderer entry point
+- `lakefile.lean`: the package definition and the `blueprint-gen` executable
+
+## The Blueprint Top-Level File
+
+The Blueprint top-level file assembles the rendered document.
+
+Example:
+
+`````lean
 import Verso
 import VersoManual
 import VersoBlueprint
 import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
-import VersoBlueprint.Commands.Bibliography
-import Chapter
+import ProjectTemplate.Chapters.Addition
 
 open Verso.Genre
 open Verso.Genre.Manual
 open Informal
 
-#doc (Manual) "Contents" =>
+#doc (Manual) "Starter Blueprint" =>
 
-{include 0 Chapter}
+This small Blueprint tracks a few basic facts about addition on natural numbers.
+
+{include 0 ProjectTemplate.Chapters.Addition}
 
 {blueprint_graph}
 {bp_summary}
-{bp_bibliography}
 ```
 
-Minimal `Main.lean` example:
+This file decides:
 
-```lean
+- which chapter modules are included
+- whether the dependency graph is rendered
+- whether the summary page is rendered
+- whether other global pages such as the bibliography are rendered
+
+## A First Chapter
+
+The following chapter example uses descriptive labels and a real mathematical
+story about addition.
+
+`````
+import Verso
 import VersoManual
-import VersoBlueprint.PreviewManifest
-import Contents
+import VersoBlueprint
 
-open Verso Doc
-open Verso.Genre Manual
+open Verso.Genre
+open Verso.Genre.Manual
+open Informal
 
-def main (args : List String) : IO UInt32 :=
-  Informal.PreviewManifest.manualMainWithSharedPreviewManifest
-    (%doc Contents)
-    args
-    (extensionImpls := by exact extension_impls%)
+#doc (Manual) "Addition" =>
+
+:::group "addition.core"
+Core statements about addition on natural numbers.
+:::
+
+:::author "starter.author" (name := "Project Author")
+:::
+
+:::definition "addition.spec" (parent := "addition.core")
+We write $`a + b`$ for the result of adding $`b`$ to $`a`$.
+This Blueprint starts with the most basic sanity checks around that operation.
+:::
+
+:::theorem "addition.zero_right" (parent := "addition.core") (owner := "starter.author") (tags := "starter, arithmetic") (effort := "small") (priority := "high")
+For every natural number $`n`$, adding zero on the right leaves it unchanged:
+$`n + 0 = n`$.
+This is the first sanity check for {uses "addition.spec"}[].
+:::
+
+:::proof "addition.zero_right"
+Induct on $`n`$. The base case is immediate and the inductive step unfolds one
+successor on each side.
+:::
+
+```lean "addition.zero_right"
+theorem addition_zero_right (n : Nat) : n + 0 = n := by
+  simp
 ```
 
-This three-file shape is the main thing to understand before worrying about the
-larger reference blueprints.
+:::theorem "addition.assoc" (parent := "addition.core") (lean := "Nat.add_assoc")
+For all natural numbers $`a`$, $`b`$, and $`c`$, addition is associative:
+$`(a + b) + c = a + (b + c)`$.
+This is another consequence of {uses "addition.spec"}[].
+:::
 
-### Core Content Blocks
+:::proof "addition.assoc"
+Lean already provides this theorem as `Nat.add_assoc`, so this Blueprint entry
+links to an existing declaration instead of restating the code locally.
+:::
+`````
 
-Blueprint chapters use block directives for mathematical content. The main ones
-used in the current examples are:
+This example shows the core pattern:
+
+- define an informal mathematical object
+- attach later statements to it with `uses`
+- keep informal proofs close to the statement
+- connect to Lean either locally or through an existing declaration
+
+## Core Block Forms
+
+Blueprint chapters commonly use:
 
 - `:::definition "..."`
 - `:::lemma_ "..."`
@@ -127,121 +148,78 @@ used in the current examples are:
 - `:::corollary "..."`
 - `:::proof "..."`
 
-Typical usage:
+`:::proof "label"` attaches to the earlier statement with the same label.
 
-```md
-:::definition "def:sample"
-A sample informal definition.
-:::
+## Connecting Blocks to Lean
 
-:::theorem "thm:sample" (lean := "Nat.add")
-This theorem uses {uses "def:sample"}[].
-:::
+Statement-like blocks can connect to Lean in three main ways.
 
-:::proof "thm:sample"
-Proof sketch.
-:::
-```
+### Local Lean code
 
-The `:::proof "..."` block attaches to the earlier statement with the same
-label.
-
-Example source modules:
-
-- [`verso-noperthedron/Chapters/Noperthedron.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Chapters/Noperthedron.lean)
-- [`verso-sphere-packing/SpherePackingBlueprint/Chapters/SpherePackings.lean`](https://github.com/ejgallego/verso-sphere-packing/blob/main/SpherePackingBlueprint/Chapters/SpherePackings.lean)
-
-<!-- Future inline image: one rendered theorem block with its attached proof. -->
-
-### How Blocks Connect to Lean
-
-Statement-like blocks can connect to Lean in three main ways:
-
-1. inline labeled Lean code blocks
-2. external declarations via `(lean := "...")`
-3. manual completion via `(leanok := true)`
-
-Inline example:
+Attach a labeled Lean code block to the same Blueprint label:
 
 ````md
-:::lemma_ "lem:sample"
-Informal statement.
+:::theorem "addition.zero_right"
+For every natural number $`n`$, $`n + 0 = n`$.
 :::
 
-```lean "lem:sample"
-theorem sample : True := by
-  trivial
+```lean "addition.zero_right"
+theorem addition_zero_right (n : Nat) : n + 0 = n := by
+  simp
 ```
 ````
 
-External declaration example:
+This is the clearest way to connect a Blueprint entry to local formalization
+work in the same project.
+
+### Existing Lean declarations
+
+Use `(lean := "...")` when Lean already owns the declaration:
 
 ```md
-:::theorem "thm:sample" (lean := "Nat.add")
-...
+:::theorem "addition.assoc" (lean := "Nat.add_assoc")
+For all natural numbers $`a`$, $`b`$, and $`c`$, addition is associative.
 :::
 ```
 
-Manual completion example:
+This links the Blueprint entry to an existing Lean declaration without copying
+the declaration body into the chapter.
+
+### Manual completion markers
+
+Use `(leanok := true)` when you want to record that the Lean side is complete
+without attaching a local code block or an explicit external declaration:
 
 ```md
-:::theorem "thm:planned" (leanok := true)
-...
+:::theorem "addition.plan.complete" (leanok := true)
+This entry is manually marked as complete on the Lean side.
 :::
 ```
 
 Notes:
 
 - `(lean := "...")` points at Lean-owned declaration names
+- Blueprint labels are Blueprint-owned metadata
 - Blueprint label conventions do not rewrite external Lean names
-- current examples include both single-name and comma-separated external
-  declaration strings
 
-Example source modules:
+## Groups, Authors, and Metadata
 
-- [`verso-noperthedron/Chapters/Noperthedron.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Chapters/Noperthedron.lean)
-- [`verso-sphere-packing/SpherePackingBlueprint/Chapters/ModularForms.lean`](https://github.com/ejgallego/verso-sphere-packing/blob/main/SpherePackingBlueprint/Chapters/ModularForms.lean)
-
-<!-- Future inline image: local block header showing Lean badge and code-panel link. -->
-
-### Groups and Authors
-
-Use `:::group` to declare a reusable group label and the text shown for that
-group:
+Use `:::group` to define reusable group metadata:
 
 ```md
-:::group "local_linear_algebra"
-Linear-algebra lemmas for local geometry.
+:::group "addition.core"
+Core statements about addition on natural numbers.
 :::
 ```
 
-Use `:::author` to declare author metadata:
+Use `:::author` to define author metadata:
 
 ```md
-:::author "alice" (name := "Alice Example") (url := "https://example.com/alice")
+:::author "starter.author" (name := "Project Author")
 :::
 ```
 
-Group labels and author ids are global within the document state.
-
-Example source modules:
-
-- [`verso-noperthedron/Authors.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Authors.lean)
-- [`verso-sphere-packing/SpherePackingBlueprint/Chapters/SpherePackings.lean`](https://github.com/ejgallego/verso-sphere-packing/blob/main/SpherePackingBlueprint/Chapters/SpherePackings.lean)
-
-<!-- Future inline image: author panel or grouped summary section. -->
-
-### Statement Metadata
-
-Statement-like directives may also declare extra metadata:
-
-```md
-:::lemma_ "lem:pythagoras" (parent := "local_linear_algebra") (priority := "high")
-...
-:::
-```
-
-Current metadata fields:
+Statement-like directives can carry:
 
 - `(parent := "...")`
 - `(owner := "...")`
@@ -250,71 +228,90 @@ Current metadata fields:
 - `(priority := "high" | "medium" | "low")`
 - `(pr_url := "https://github.com/org/repo/pull/123")`
 
-How these relationships work:
+These fields are primarily used by rendered overview pages and project triage
+views.
 
-- `parent := "..."` points at a `:::group`
-- `owner := "..."` points at a `:::author`
-- `priority` expresses author intent and may be used by summary or other
-  overview pages
-- the remaining fields are currently display-oriented metadata
+## Rendering Surface
 
-Duplicate handling is conservative:
+### Rendered statement blocks
 
-- same `parent` or `priority` value: warning, existing value kept
-- different `parent` or `priority` value: error, existing value kept
+Rendered statement headers show a stable Lean status badge. That badge indicates
+whether the statement is connected to:
 
-## What It Renders
+1. local labeled Lean code
+2. an external Lean declaration
+3. a manual completion marker
 
-### Rendered Statement Blocks
+When local or external Lean material is available, the rendered page links or
+previews the associated content.
 
-Statement headers always show the Lean badge `L∃∀N`.
-
-There are three main ways an informal statement can be associated with Lean:
-
-1. `inline`
-   The statement has an associated labeled Lean code block. The badge links to
-   the rendered code panel for that block.
-2. `external`
-   The statement uses `(lean := "...")` to point at external Lean declarations.
-   The badge summarizes those declarations instead of a local code block.
-3. `userOk`
-   The statement uses `(leanok := true)` as a manual assertion that the Lean
-   side is complete.
-
-If none of those states is present, the header still renders a muted `L∃∀N`
-badge as a stable placeholder for "no associated Lean code or declarations".
-
-The exact chip vocabulary and presentation details are still provisional. The
-stable point for authors is that the local block header indicates whether Lean
-content is present, missing, or incomplete, and links into the associated Lean
-material when available.
-
-More detailed distinctions, including tooltip wording and status refinement, are
-still expected to evolve.
-
-### Summary Page Behavior
-
-`blueprint_summary` and `bp_summary` render a summary page for the current
-Blueprint document.
-
-Today that page uses dependency data, completion state, and metadata to provide
-an overview of the document and highlight work that may deserve attention next.
-
-The exact summary layout and ranking policy are still expected to evolve. The
-stable point for authors is that group and statement metadata may influence
-summary organization and prioritization.
-
-<!-- Future inline image: summary page with group rollups and priority cards. -->
-
-### Dependency Graph Behavior
+### Dependency graph
 
 `blueprint_graph` renders a dependency-oriented view of the current Blueprint
 document.
 
-Group metadata may be used to visually organize the graph, but grouping is
-structural metadata only and does not change dependency edges.
+Group metadata may be used to organize the presentation, but grouping does not
+change dependency edges.
 
-<!-- Future inline image: dependency graph with grouped clusters. -->
+### Summary page
+
+`bp_summary` and `blueprint_summary` render a summary page for the current
+Blueprint document.
+
+That page uses dependency data, completion state, and metadata to present:
+
+- coverage information
+- blockers
+- project triage information
+- grouped rollups by parent, owner, and tags
+
+### Bibliography page
+
+`bp_bibliography` and `blueprint_bibliography` render the bibliography entries
+registered in the document.
+
+Projects that do not use citations can omit this page entirely.
+
+### Math rendering and previews
+
+Blueprint pages support math rendering and shared previews in generated HTML.
+
+The stable point for authors is simple:
+
+- write the informal mathematics directly in the chapter
+- render the site through `blueprint-gen`
+- let the generated site provide the preview and navigation behavior
+
+## The `blueprint-gen` Executable
+
+The recommended project-facing interface is a small executable named
+`blueprint-gen`.
+
+Minimal example:
+
+```lean
+import VersoManual
+import VersoBlueprint.PreviewManifest
+import ProjectTemplate.Blueprint
+
+open Verso Doc
+open Verso.Genre Manual
+
+def main (args : List String) : IO UInt32 :=
+  Informal.PreviewManifest.manualMainWithSharedPreviewManifest
+    (%doc ProjectTemplate.Blueprint)
+    args
+    (extensionImpls := by exact extension_impls%)
+```
+
+This executable belongs to the Blueprint project, not to the `verso-blueprint`
+package checkout.
+
+Typical usage:
+
+```bash
+lake exe blueprint-gen --output _out/site
+```
 
 ## Blueprint Options
 
@@ -358,12 +355,6 @@ Current options:
   - default: `false`
   - enables timing logs for Blueprint directive and code-block elaboration
 
-Project-specific option examples:
-
-- [`verso-noperthedron/Contents.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Contents.lean)
-- [`verso-noperthedron/Chapters/Noperthedron.lean`](https://github.com/ejgallego/verso-noperthedron/blob/main/Chapters/Noperthedron.lean)
-- [`verso-noperthedron/OPTIONS.md`](https://github.com/ejgallego/verso-noperthedron/blob/main/OPTIONS.md)
-
 ## Preview Manifest
 
 Blueprint builds emit a shared preview manifest at:
@@ -377,24 +368,32 @@ for:
 - tooling and integration work
 - inspection and debugging
 
-It is the canonical runtime source for informal statement and proof preview
-bodies. It also carries metadata such as `label`, `facet`, `kind`, optional
-`href`, optional `parent`, dependencies, owner display name, tags, priority,
-effort, and rendered `html`.
-
 Useful inspection flags on a Blueprint executable:
 
 ```bash
-lake exe noperthedron --dump-schema
-lake exe noperthedron --dump-manifest
-lake exe noperthedron --help
+lake exe blueprint-gen --dump-schema
+lake exe blueprint-gen --dump-manifest
+lake exe blueprint-gen --help
 ```
 
 - `--dump-schema` prints the JSON Schema for the manifest
 - `--dump-manifest` prints the generated manifest JSON instead of writing the
   site and then reading the file
-- `--help` includes these manifest-related flags alongside the usual manual
-  rendering options
+- `--help` includes these manifest-related flags alongside the usual rendering
+  options
+
+## Experimental Widget
+
+Blueprint also has a widget-based graph panel surface driven by
+`#show_graph "label"`.
+
+This feature is currently experimental.
+
+Treat it as:
+
+- useful for developer workflows and exploration
+- separate from the normal `blueprint-gen` site-generation path
+- likely to evolve faster than the core authoring surface
 
 ## Current Limits
 
@@ -403,6 +402,5 @@ lake exe noperthedron --help
 - group labels are metadata, not first-class reference targets
 - unresolved Blueprint references currently degrade locally at the call site;
   they are not accumulated into a global diagnostics report
-- the local block-header group chip is shown only when a parent is shared by
-  multiple entries, or when a `parent := "..."` label is present without a
-  matching `:::group`
+- some rendering details and summary ranking policies are still expected to
+  evolve

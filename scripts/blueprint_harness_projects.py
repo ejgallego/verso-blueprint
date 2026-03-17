@@ -29,6 +29,14 @@ class HarnessProject:
     def git_checkout(self) -> bool:
         return self.source_kind == "git_checkout"
 
+    @property
+    def in_repo_target_project(self) -> bool:
+        return self.in_repo_example and self.build_target is not None and self.generator is not None
+
+    @property
+    def in_repo_command_project(self) -> bool:
+        return self.in_repo_example and self.generate_command is not None
+
 
 def default_project_manifest(package_root: Path) -> Path:
     return package_root / "tests" / "harness" / "projects.json"
@@ -112,13 +120,39 @@ def load_projects_manifest(manifest_path: Path) -> list[HarnessProject]:
         site_subdir = _optional_string(entry, "site_subdir") or "html-multi"
 
         if source_kind == "in_repo_example":
-            if build_target is None or generator is None:
+            target_mode = build_target is not None or generator is not None
+            command_mode = build_command is not None or generate_command is not None
+            if target_mode and command_mode:
                 raise ValueError(
-                    f"{context}: in-repo examples must declare both `build_target` and `generator`"
+                    f"{context}: in-repo examples must use either `build_target`/`generator` or "
+                    "`build_command`/`generate_command`, not both"
                 )
-            if repository is not None or build_command is not None or generate_command is not None:
+            if target_mode:
+                if build_target is None or generator is None:
+                    raise ValueError(
+                        f"{context}: in-repo examples using root-package targets must declare both "
+                        "`build_target` and `generator`"
+                    )
+                if repository is not None or build_command is not None or generate_command is not None:
+                    raise ValueError(
+                        f"{context}: in-repo examples using root-package targets must not declare "
+                        "`repository`, `build_command`, or `generate_command`"
+                    )
+            elif command_mode:
+                if generate_command is None:
+                    raise ValueError(
+                        f"{context}: in-repo examples using nested project commands must declare "
+                        "`generate_command`"
+                    )
+                if repository is not None or build_target is not None or generator is not None:
+                    raise ValueError(
+                        f"{context}: in-repo examples using nested project commands must not declare "
+                        "`repository`, `build_target`, or `generator`"
+                    )
+            else:
                 raise ValueError(
-                    f"{context}: in-repo examples must use `build_target`/`generator`, not git command fields"
+                    f"{context}: in-repo examples must declare either `build_target`/`generator` "
+                    "or `generate_command`"
                 )
         elif source_kind == "git_checkout":
             if repository is None:
