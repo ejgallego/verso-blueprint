@@ -75,11 +75,13 @@
   - `python3 -m scripts.blueprint_harness sync-root-lake`
   - `python3 -m scripts.blueprint_harness paths`
   - `python3 -m scripts.blueprint_harness reference-sync`
+  - `python3 -m scripts.blueprint_harness reference-prune`
   - `python3 -m scripts.blueprint_harness worktree-sync`
   - `python3 -m scripts.blueprint_harness worktree-list`
   - `python3 -m scripts.blueprint_harness worktree-status`
   - `python3 -m scripts.blueprint_harness worktree-claim`
   - `python3 -m scripts.blueprint_harness worktree-release`
+  - `python3 -m scripts.blueprint_harness worktree-prune-candidates`
 - The Python harness is maintainer tooling for this repository's in-repo
   own tests plus ephemeral checkout validations, not the preferred end-user
   interface.

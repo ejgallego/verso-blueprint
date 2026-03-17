@@ -13,6 +13,7 @@ from pathlib import Path
 from scripts.blueprint_harness_paths import canonical_example_site_dir, default_example_site_dir, detect_harness_layout, resolve_output_root
 from scripts.blueprint_harness_projects import HarnessProject, load_projects_manifest, resolve_manifest_path
 from scripts.blueprint_harness_worktrees import (
+    git_worktrees,
     resolve_worktree_name,
     sync_worktree_registry,
     update_worktree_record,
@@ -286,6 +287,9 @@ def update_git_checkout(project: HarnessProject, checkout_root: Path) -> None:
         return
     run(["git", "fetch", "--depth", "1", "origin", project.ref], cwd=checkout_root)
     run(["git", "checkout", "--detach", "FETCH_HEAD"], cwd=checkout_root)
+    # Harness-managed clones are disposable; keep them clean even if a previous
+    # run rewrote tracked files such as `lakefile.lean`.
+    run(["git", "reset", "--hard", "FETCH_HEAD"], cwd=checkout_root)
 
 
 def sync_reference_cache_checkout(layout, project: HarnessProject, *, warm_build: bool) -> Path:
@@ -407,6 +411,51 @@ def sync_reference_blueprints(layout, projects: list[HarnessProject], *, warm_bu
         if prepare_local_checkout:
             local_dir = sync_reference_local_checkout(layout, project, cache_dir)
             print(f"[blueprint-harness] prepared local reference checkout: {local_dir}")
+
+
+def reference_prune_plan(active_worktree_names: set[str], project_ids: set[str], cache_root: Path, checkout_root: Path) -> list[Path]:
+    removals: list[Path] = []
+    if cache_root.exists():
+        for path in sorted(child for child in cache_root.iterdir() if child.is_dir()):
+            if path.name not in project_ids:
+                removals.append(path)
+    if checkout_root.exists():
+        for namespace_dir in sorted(child for child in checkout_root.iterdir() if child.is_dir()):
+            if namespace_dir.name not in active_worktree_names:
+                removals.append(namespace_dir)
+                continue
+            for project_dir in sorted(child for child in namespace_dir.iterdir() if child.is_dir()):
+                if project_dir.name not in project_ids:
+                    removals.append(project_dir)
+    return removals
+
+
+def merged_clean_worktree_candidates(repo_root: Path, current_path: Path) -> list[tuple[str, Path, str]]:
+    merged = subprocess.run(
+        ["git", "branch", "--format=%(refname:short)", "--merged", "main"],
+        cwd=repo_root,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.splitlines()
+    merged_set = {branch.strip() for branch in merged if branch.strip() and branch.strip() != "main"}
+    candidates: list[tuple[str, Path, str]] = []
+    for worktree in git_worktrees(repo_root):
+        if worktree.root_checkout or worktree.path.resolve() == current_path.resolve():
+            continue
+        if worktree.branch is None or worktree.branch not in merged_set:
+            continue
+        status = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=worktree.path,
+            check=True,
+            text=True,
+            capture_output=True,
+        ).stdout.strip()
+        if status:
+            continue
+        candidates.append((worktree.name, worktree.path, worktree.branch))
+    return candidates
 
 
 def generate_projects(
@@ -694,6 +743,42 @@ def command_reference_sync(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_reference_prune(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
+    projects = load_project_catalog(manifest_path)
+    active_names = {worktree.name for worktree in git_worktrees(layout.repo_root)}
+    project_ids = {project.project_id for project in projects if project.git_checkout}
+    removals = reference_prune_plan(
+        active_names,
+        project_ids,
+        layout.reference_project_cache_root,
+        layout.reference_project_root / "by-worktree",
+    )
+    if not removals:
+        print("[blueprint-harness] reference prune: no stale cached checkouts found")
+        return 0
+    for path in removals:
+        print(path)
+    if args.dry_run:
+        return 0
+    for path in removals:
+        shutil.rmtree(path)
+    print(f"[blueprint-harness] reference prune: removed {len(removals)} path(s)")
+    return 0
+
+
+def command_worktree_prune_candidates(_: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    candidates = merged_clean_worktree_candidates(layout.repo_root, layout.package_root)
+    if not candidates:
+        print("[blueprint-harness] worktree prune candidates: none")
+        return 0
+    for name, path, branch in candidates:
+        print(f"{name}\tbranch={branch}\tpath={path}")
+    return 0
+
+
 def command_worktree_sync(_: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
     records, registry = sync_worktree_registry(layout.repo_root)
@@ -944,6 +1029,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="Warm only the shared cache checkout and skip preparing the current checkout's local clones.",
     )
     reference_sync.set_defaults(func=command_reference_sync)
+
+    reference_prune = subparsers.add_parser(
+        "reference-prune",
+        help="Remove stale harness-managed reference blueprint caches and checkout clones.",
+    )
+    reference_prune.add_argument(
+        "--manifest",
+        default=None,
+        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
+    )
+    reference_prune.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List stale paths without deleting them.",
+    )
+    reference_prune.set_defaults(func=command_reference_prune)
+
+    worktree_prune_candidates = subparsers.add_parser(
+        "worktree-prune-candidates",
+        help="List merged clean linked worktrees that are good prune candidates.",
+    )
+    worktree_prune_candidates.set_defaults(func=command_worktree_prune_candidates)
 
     worktree_sync = subparsers.add_parser(
         "worktree-sync",

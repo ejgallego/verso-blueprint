@@ -129,6 +129,35 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "official `leanprover/verso-blueprint` Git source"):
                 rewrite_local_blueprint_dependency(project_dir, PACKAGE_ROOT)
 
+    def test_reference_prune_plan_finds_stale_cache_and_checkout_paths(self) -> None:
+        from scripts.blueprint_harness import reference_prune_plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cache_root = root / "cache"
+            checkout_root = root / "by-worktree"
+            (cache_root / "noperthedron").mkdir(parents=True)
+            (cache_root / "oldproject").mkdir(parents=True)
+            (checkout_root / "main" / "noperthedron").mkdir(parents=True)
+            (checkout_root / "main" / "oldproject").mkdir(parents=True)
+            (checkout_root / "stale-worktree" / "noperthedron").mkdir(parents=True)
+
+            removals = reference_prune_plan(
+                {"main", "cleanup-automation"},
+                {"noperthedron"},
+                cache_root,
+                checkout_root,
+            )
+
+            self.assertEqual(
+                {path.relative_to(root).as_posix() for path in removals},
+                {
+                    "cache/oldproject",
+                    "by-worktree/main/oldproject",
+                    "by-worktree/stale-worktree",
+                },
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

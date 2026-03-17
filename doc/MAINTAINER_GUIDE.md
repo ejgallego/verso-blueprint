@@ -33,6 +33,7 @@ The supported repository-local entry points are:
 python3 -m scripts.blueprint_harness create-worktree <name>
 python3 -m scripts.blueprint_harness projects
 python3 -m scripts.blueprint_harness reference-sync
+python3 -m scripts.blueprint_harness reference-prune
 python3 -m scripts.blueprint_harness --help
 python3 -m scripts.blueprint_harness paths
 python3 -m scripts.blueprint_harness sync-root-lake
@@ -41,6 +42,7 @@ python3 -m scripts.blueprint_harness worktree-list
 python3 -m scripts.blueprint_harness worktree-claim
 python3 -m scripts.blueprint_harness worktree-status
 python3 -m scripts.blueprint_harness worktree-release
+python3 -m scripts.blueprint_harness worktree-prune-candidates
 ```
 
 The shell wrappers are the normal front door for day-to-day work. The Python
@@ -105,6 +107,13 @@ current checkout:
 
 ```bash
 python3 -m scripts.blueprint_harness reference-sync
+```
+
+To remove stale harness-managed reference caches and orphaned local clones:
+
+```bash
+python3 -m scripts.blueprint_harness reference-prune --dry-run
+python3 -m scripts.blueprint_harness reference-prune
 ```
 
 ## Output Layout
@@ -179,6 +188,8 @@ The local coordination layer is now machine-readable and untracked.
 - `worktree-claim` records owner, issue, summary, status, and write scope
 - `worktree-status` shows one worktree record
 - `worktree-release` marks a worktree done or otherwise retired
+- `worktree-prune-candidates` lists merged clean linked worktrees that are good
+  manual prune candidates
 
 The live local files are:
 
@@ -195,6 +206,7 @@ Recommended workflow:
 python3 -m scripts.blueprint_harness worktree-sync
 python3 -m scripts.blueprint_harness worktree-claim --owner codex --summary "external harness rework" --scope scripts --scope tests/harness
 python3 -m scripts.blueprint_harness worktree-list
+python3 -m scripts.blueprint_harness worktree-prune-candidates
 ```
 
 ## Reference Blueprint Notes
@@ -209,6 +221,8 @@ python3 -m scripts.blueprint_harness worktree-list
   `.worktrees/_reference-blueprints/by-worktree/<checkout>/`, seeded from the
   shared cache so Mathlib and transitive build artifacts stay warm across
   worktrees
+- `reference-prune` cleans up stale project caches and local clones when
+  worktrees or manifest entries disappear
 - the Python harness rewrites the cloned project's `lakefile.lean` locally so
   `VersoBlueprint` resolves to the checkout under test before running
   `lake update`
