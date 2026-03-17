@@ -74,6 +74,7 @@
   - `python3 -m scripts.blueprint_harness validate`
   - `python3 -m scripts.blueprint_harness sync-root-lake`
   - `python3 -m scripts.blueprint_harness paths`
+  - `python3 -m scripts.blueprint_harness reference-sync`
   - `python3 -m scripts.blueprint_harness worktree-sync`
   - `python3 -m scripts.blueprint_harness worktree-list`
   - `python3 -m scripts.blueprint_harness worktree-status`
@@ -86,6 +87,10 @@
   - `_out/reference-blueprints/{noperthedron,spherepackingblueprint}/`
 - Default reference blueprint output in a linked worktree:
   - `_out/<worktree>/reference-blueprints/{noperthedron,spherepackingblueprint}/`
+- Shared warmed reference blueprint cache:
+  - `.worktrees/_reference-blueprints/cache/{noperthedron,spherepackingblueprint}/`
+- Current-checkout local reference blueprint clones:
+  - `.worktrees/_reference-blueprints/by-worktree/<checkout>/{noperthedron,spherepackingblueprint}/`
 
 ## Mathlib and Worktree Reuse
 

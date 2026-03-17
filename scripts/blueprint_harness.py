@@ -191,6 +191,14 @@ def site_dir_for(project: HarnessProject, output_root: Path) -> Path:
     return output_dir_for(project, output_root) / project.site_subdir
 
 
+def reference_cache_checkout_dir(layout, project: HarnessProject) -> Path:
+    return layout.reference_project_cache_root / project.project_id
+
+
+def reference_local_checkout_dir(layout, project: HarnessProject) -> Path:
+    return layout.reference_project_checkout_root / project.project_id
+
+
 def build_in_repo_projects(package_root: Path, projects: list[HarnessProject]) -> None:
     targets = [project.build_target for project in projects if project.build_target is not None]
     if targets:
@@ -262,15 +270,56 @@ def format_external_command(
     return [part.format(**placeholders) for part in command]
 
 
-def clone_git_project(project: HarnessProject, *, cwd: Path) -> tuple[tempfile.TemporaryDirectory[str], Path]:
-    scratch = tempfile.TemporaryDirectory(prefix=f"verso-blueprint-{project.project_id}-")
-    checkout_root = Path(scratch.name) / "checkout"
-    command = ["git", "clone", "--depth", "1"]
-    if project.ref:
+def clone_git_project(project: HarnessProject, destination: Path, *, cwd: Path, source: str | None = None) -> Path:
+    command = ["git", "clone"]
+    if source is None:
+        command.extend(["--depth", "1"])
+    if project.ref and source is None:
         command.extend(["--branch", project.ref])
-    command.extend([project.repository or "", str(checkout_root)])
+    command.extend([source or project.repository or "", str(destination)])
     run(command, cwd=cwd)
-    return scratch, checkout_root
+    return destination
+
+
+def update_git_checkout(project: HarnessProject, checkout_root: Path) -> None:
+    if project.ref is None:
+        return
+    run(["git", "fetch", "--depth", "1", "origin", project.ref], cwd=checkout_root)
+    run(["git", "checkout", "--detach", "FETCH_HEAD"], cwd=checkout_root)
+
+
+def sync_reference_cache_checkout(layout, project: HarnessProject, *, warm_build: bool) -> Path:
+    cache_dir = reference_cache_checkout_dir(layout, project)
+    cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    if not cache_dir.exists():
+        clone_git_project(project, cache_dir, cwd=layout.package_root)
+    else:
+        update_git_checkout(project, cache_dir)
+    project_dir = cache_dir / project.project_root
+    cache_lakefile = project_dir / "lakefile.lean"
+    original_text = cache_lakefile.read_text(encoding="utf-8")
+    rewrite_local_blueprint_dependency(project_dir, layout.repo_root)
+    try:
+        run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
+        if warm_build and project.build_command is not None:
+            run(lean_low_priority_command(layout.package_root, *project.build_command), cwd=project_dir)
+    finally:
+        cache_lakefile.write_text(original_text, encoding="utf-8")
+    return cache_dir
+
+
+def sync_reference_local_checkout(layout, project: HarnessProject, cache_dir: Path) -> Path:
+    local_dir = reference_local_checkout_dir(layout, project)
+    local_dir.parent.mkdir(parents=True, exist_ok=True)
+    if not local_dir.exists():
+        clone_git_project(project, local_dir, cwd=layout.package_root, source=str(cache_dir))
+    else:
+        update_git_checkout(project, local_dir)
+
+    cache_lake = cache_dir / ".lake"
+    if cache_lake.exists():
+        run(["rsync", "-a", "--delete", f"{cache_lake}/", f"{local_dir / '.lake'}/"], cwd=layout.package_root)
+    return local_dir
 
 
 def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) -> Path:
@@ -307,40 +356,57 @@ def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) ->
     return lakefile
 
 
-def generate_git_project(package_root: Path, output_root: Path, project: HarnessProject, *, skip_build: bool) -> None:
-    scratch, checkout_root = clone_git_project(project, cwd=package_root)
-    try:
-        project_dir = checkout_root / project.project_root
-        output_dir = output_dir_for(project, output_root)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        rewritten_lakefile = rewrite_local_blueprint_dependency(project_dir, package_root)
-        print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
-        run(["lake", "update"], cwd=project_dir)
-        if not skip_build and project.build_command is not None:
-            run(
-                format_external_command(
+def generate_git_project(layout, output_root: Path, project: HarnessProject, *, skip_build: bool) -> None:
+    cache_dir = sync_reference_cache_checkout(layout, project, warm_build=not skip_build)
+    checkout_root = sync_reference_local_checkout(layout, project, cache_dir)
+    project_dir = checkout_root / project.project_root
+    output_dir = output_dir_for(project, output_root)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    rewritten_lakefile = rewrite_local_blueprint_dependency(project_dir, layout.package_root)
+    print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
+    run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
+    if not skip_build and project.build_command is not None:
+        run(
+            lean_low_priority_command(
+                layout.package_root,
+                *format_external_command(
                     project.build_command,
                     project=project,
-                    package_root=package_root,
+                    package_root=layout.package_root,
                     checkout_root=checkout_root,
                     project_dir=project_dir,
                     output_dir=output_dir,
                 ),
-                cwd=project_dir,
-            )
-        run(
-            format_external_command(
+            ),
+            cwd=project_dir,
+        )
+    run(
+        lean_low_priority_command(
+            layout.package_root,
+            *format_external_command(
                 project.generate_command or (),
                 project=project,
-                package_root=package_root,
+                package_root=layout.package_root,
                 checkout_root=checkout_root,
                 project_dir=project_dir,
                 output_dir=output_dir,
             ),
-            cwd=project_dir,
-        )
-    finally:
-        scratch.cleanup()
+        ),
+        cwd=project_dir,
+    )
+
+
+def sync_reference_blueprints(layout, projects: list[HarnessProject], *, warm_build: bool, prepare_local_checkout: bool) -> None:
+    git_projects = [project for project in projects if project.git_checkout]
+    if not git_projects:
+        return
+    if shutil.which("rsync") is None:
+        raise SystemExit("[blueprint-harness] `rsync` is required for reference blueprint cache sync.")
+    for project in git_projects:
+        cache_dir = sync_reference_cache_checkout(layout, project, warm_build=warm_build)
+        if prepare_local_checkout:
+            local_dir = sync_reference_local_checkout(layout, project, cache_dir)
+            print(f"[blueprint-harness] prepared local reference checkout: {local_dir}")
 
 
 def generate_projects(
@@ -378,8 +444,8 @@ def generate_projects(
         render_in_repo_projects(layout.package_root, output_root, in_repo_projects, serial)
 
     for project in git_projects:
-        print(f"[blueprint-harness] ephemeral checkout: {project.project_id}")
-        generate_git_project(layout.package_root, output_root, project, skip_build=skip_build)
+        print(f"[blueprint-harness] reference checkout: {project.project_id}")
+        generate_git_project(layout, output_root, project, skip_build=skip_build)
 
 
 def command_generate(args: argparse.Namespace) -> int:
@@ -559,6 +625,10 @@ def command_create_worktree(args: argparse.Namespace) -> int:
     new_layout = detect_harness_layout(destination)
     if not args.skip_sync:
         sync_root_worktree_lake(new_layout)
+    if not args.skip_reference_sync:
+        manifest_path = resolve_manifest_path(None, new_layout.package_root)
+        projects = load_project_catalog(manifest_path)
+        sync_reference_blueprints(new_layout, projects, warm_build=True, prepare_local_checkout=True)
 
     print(f"[blueprint-harness] worktree path: {destination}")
     print(f"[blueprint-harness] branch: {branch}")
@@ -580,6 +650,8 @@ def command_paths(_: argparse.Namespace) -> int:
     print("local_override_strategy=ephemeral_lakefile_rewrite")
     print(f"root_lake={layout.repo_root / '.lake'}")
     print(f"reference_output_root={layout.reference_output_root}")
+    print(f"reference_cache_root={layout.reference_project_cache_root}")
+    print(f"reference_checkout_root={layout.reference_project_checkout_root}")
     print(f"noperthedron_site={noperthedron_site}")
     print(f"noperthedron_site_resolved={noperthedron_site_resolved}")
     print(f"spherepackingblueprint_site={spherepacking_site}")
@@ -604,6 +676,21 @@ def command_projects(args: argparse.Namespace) -> int:
             validations.append("browser")
         validation_text = ",".join(validations) if validations else "none"
         print(f"{project.project_id}\tsource={source}\tvalidations={validation_text}")
+    return 0
+
+
+def command_reference_sync(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
+    projects = selected_projects(load_project_catalog(manifest_path), args.project)
+    sync_reference_blueprints(
+        layout,
+        projects,
+        warm_build=not args.skip_build,
+        prepare_local_checkout=not args.skip_local_checkout,
+    )
+    print(f"[blueprint-harness] reference cache root: {layout.reference_project_cache_root}")
+    print(f"[blueprint-harness] reference checkout root: {layout.reference_project_checkout_root}")
     return 0
 
 
@@ -813,6 +900,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not sync `.lake/` from the root checkout after creating the worktree.",
     )
+    create_worktree.add_argument(
+        "--skip-reference-sync",
+        action="store_true",
+        help="Do not warm the shared and per-worktree reference blueprint clones after creating the worktree.",
+    )
     create_worktree.set_defaults(func=command_create_worktree)
 
     projects = subparsers.add_parser(
@@ -825,6 +917,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to the project manifest. Defaults to tests/harness/projects.json.",
     )
     projects.set_defaults(func=command_projects)
+
+    reference_sync = subparsers.add_parser(
+        "reference-sync",
+        help="Warm shared reference blueprint caches and prepare local clones for the current checkout.",
+    )
+    reference_sync.add_argument(
+        "--manifest",
+        default=None,
+        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
+    )
+    reference_sync.add_argument(
+        "--project",
+        action="append",
+        default=None,
+        help="Restrict sync to the selected project. Repeat to select more.",
+    )
+    reference_sync.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="Update and clone the reference projects without warming their build artifacts.",
+    )
+    reference_sync.add_argument(
+        "--skip-local-checkout",
+        action="store_true",
+        help="Warm only the shared cache checkout and skip preparing the current checkout's local clones.",
+    )
+    reference_sync.set_defaults(func=command_reference_sync)
 
     worktree_sync = subparsers.add_parser(
         "worktree-sync",

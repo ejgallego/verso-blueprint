@@ -32,6 +32,7 @@ The supported repository-local entry points are:
 ./scripts/validate-reference-blueprints.sh
 python3 -m scripts.blueprint_harness create-worktree <name>
 python3 -m scripts.blueprint_harness projects
+python3 -m scripts.blueprint_harness reference-sync
 python3 -m scripts.blueprint_harness --help
 python3 -m scripts.blueprint_harness paths
 python3 -m scripts.blueprint_harness sync-root-lake
@@ -99,6 +100,13 @@ To inspect the active catalog:
 python3 -m scripts.blueprint_harness projects
 ```
 
+To warm the shared reference blueprint cache and prepare local clones for the
+current checkout:
+
+```bash
+python3 -m scripts.blueprint_harness reference-sync
+```
+
 ## Output Layout
 
 In the root checkout, generated artifacts go under:
@@ -124,6 +132,9 @@ layout and only falls back to the older shared repo-root layout kept for
 pre-split migration compatibility; it does not reuse worktree-local `_out/`
 artifacts.
 
+It also prints the shared reference blueprint cache root and the current
+checkout's local clone root.
+
 ## Working from Linked Worktrees
 
 For implementation work, create a linked worktree under `.worktrees/` and keep
@@ -137,6 +148,10 @@ The harness is worktree-aware:
 
 - in a linked worktree it writes artifacts to `_out/<worktree>/...`
 - by default it prefers reusing the root checkout's prepared `.lake` artifacts
+- it also keeps shared warmed reference blueprint caches under
+  `.worktrees/_reference-blueprints/cache/`
+- each checkout uses its own local reference blueprint clones under
+  `.worktrees/_reference-blueprints/by-worktree/<checkout>/`
 - local `lake build` and `lake test` in a linked worktree are disabled by
   default to avoid unnecessary Mathlib rebuilds
 
@@ -144,6 +159,7 @@ Before rebuilding from a linked worktree, prefer:
 
 ```bash
 python3 -m scripts.blueprint_harness sync-root-lake
+python3 -m scripts.blueprint_harness reference-sync
 ```
 
 If local rebuilding is actually required, opt in explicitly:
@@ -187,6 +203,12 @@ python3 -m scripts.blueprint_harness worktree-list
   normally sync `.lake/` from the root checkout before external validation
 - the default baseline projects now live in external repositories, not inside
   this package checkout
+- the harness warms shared reference blueprint checkouts once under
+  `.worktrees/_reference-blueprints/cache/`
+- each checkout gets its own local clone under
+  `.worktrees/_reference-blueprints/by-worktree/<checkout>/`, seeded from the
+  shared cache so Mathlib and transitive build artifacts stay warm across
+  worktrees
 - the Python harness rewrites the cloned project's `lakefile.lean` locally so
   `VersoBlueprint` resolves to the checkout under test before running
   `lake update`

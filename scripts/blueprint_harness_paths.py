@@ -27,6 +27,22 @@ class HarnessLayout:
     def example_output_root(self) -> Path:
         return self.reference_output_root
 
+    @property
+    def reference_project_root(self) -> Path:
+        return self.repo_root / ".worktrees" / "_reference-blueprints"
+
+    @property
+    def reference_project_cache_root(self) -> Path:
+        return self.reference_project_root / "cache"
+
+    @property
+    def reference_project_checkout_namespace(self) -> str:
+        return self.worktree_name or "main"
+
+    @property
+    def reference_project_checkout_root(self) -> Path:
+        return self.reference_project_root / "by-worktree" / self.reference_project_checkout_namespace
+
 
 def find_package_root(start: Path | None = None) -> Path:
     current = (start or Path.cwd()).resolve()
