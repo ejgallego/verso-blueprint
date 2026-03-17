@@ -20,8 +20,12 @@ class HarnessLayout:
         return self.worktree_name is not None
 
     @property
+    def reference_output_root(self) -> Path:
+        return self.artifact_root / "reference-blueprints"
+
+    @property
     def example_output_root(self) -> Path:
-        return self.artifact_root / "example-blueprints"
+        return self.reference_output_root
 
 
 def find_package_root(start: Path | None = None) -> Path:
@@ -61,12 +65,17 @@ def resolve_cli_path(path_text: str) -> Path:
 def resolve_output_root(path_text: str | None, start: Path | None = None) -> Path:
     if path_text is not None:
         return resolve_cli_path(path_text)
-    return detect_harness_layout(start).example_output_root
+    return detect_harness_layout(start).reference_output_root
 
 
 def canonical_example_site_dir(example: str, start: Path | None = None) -> Path:
     layout = detect_harness_layout(start)
-    return layout.example_output_root / example / "html-multi"
+    return layout.reference_output_root / example / "html-multi"
+
+
+def previous_canonical_example_site_dir(example: str, start: Path | None = None) -> Path:
+    layout = detect_harness_layout(start)
+    return layout.artifact_root / "example-blueprints" / example / "html-multi"
 
 
 def legacy_shared_example_site_dir(example: str, start: Path | None = None) -> Path:
@@ -77,6 +86,7 @@ def legacy_shared_example_site_dir(example: str, start: Path | None = None) -> P
 def example_site_candidates(example: str, start: Path | None = None) -> list[Path]:
     candidates = [
         canonical_example_site_dir(example, start),
+        previous_canonical_example_site_dir(example, start),
         # Retain the older shared repo-root layout during the verso -> verso-blueprint migration.
         legacy_shared_example_site_dir(example, start),
     ]

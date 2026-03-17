@@ -41,7 +41,7 @@
 ## Release Status
 
 - The code is near release.
-- The example projects now live in their own repositories:
+- The reference blueprints now live in their own repositories:
   `ejgallego/verso-noperthedron` and `ejgallego/verso-sphere-packing`.
 - A smaller starter example, a reusable template, and `lake exe bp new` are
   planned but not landed yet.
@@ -64,9 +64,9 @@
 - Main build/test commands:
   - `scripts/lean-low-priority lake build`
   - `scripts/lean-low-priority lake test`
-  - `./scripts/generate-example-blueprints.sh`
-  - `./scripts/validate-example-blueprints.sh`
-  - `./scripts/validate-example-blueprints.sh --run-lean-tests`
+  - `./scripts/generate-reference-blueprints.sh`
+  - `./scripts/validate-reference-blueprints.sh`
+  - `./scripts/validate-reference-blueprints.sh --run-lean-tests`
 - Harness commands:
   - `python3 -m scripts.blueprint_harness --help`
   - `python3 -m scripts.blueprint_harness projects`
@@ -82,10 +82,10 @@
 - The Python harness is maintainer tooling for this repository's in-repo
   own tests plus ephemeral checkout validations, not the preferred end-user
   interface.
-- Default example output in the root checkout:
-  - `_out/example-blueprints/{noperthedron,spherepackingblueprint}/`
-- Default example output in a linked worktree:
-  - `_out/<worktree>/example-blueprints/{noperthedron,spherepackingblueprint}/`
+- Default reference blueprint output in the root checkout:
+  - `_out/reference-blueprints/{noperthedron,spherepackingblueprint}/`
+- Default reference blueprint output in a linked worktree:
+  - `_out/<worktree>/reference-blueprints/{noperthedron,spherepackingblueprint}/`
 
 ## Mathlib and Worktree Reuse
 

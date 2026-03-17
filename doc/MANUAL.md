@@ -114,7 +114,7 @@ def main (args : List String) : IO UInt32 :=
 ```
 
 This three-file shape is the main thing to understand before worrying about the
-larger example projects.
+larger reference blueprints.
 
 ### Core Content Blocks
 

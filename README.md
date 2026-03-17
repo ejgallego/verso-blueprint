@@ -33,7 +33,8 @@ That document covers:
 
 The intended package-facing generation interface is `lake exe blueprint-gen`.
 
-If you want to inspect or maintain the example projects in this repository, see
+If you want to inspect or maintain the reference blueprints used by this
+repository, see
 [doc/MAINTAINER_GUIDE.md](./doc/MAINTAINER_GUIDE.md).
 
 ## Acknowledgements and Related Work
@@ -46,7 +47,7 @@ Verso Blueprint builds on:
 - [mathlib4](https://github.com/leanprover-community/mathlib4), which many real
   Blueprint projects depend on
 
-This repository also includes larger example Blueprint projects under
+This repository validates and publishes larger reference Blueprint projects from
 external repositories:
 
 - [`ejgallego/verso-noperthedron`](https://github.com/ejgallego/verso-noperthedron)
@@ -57,7 +58,8 @@ external repositories:
 - [doc/MANUAL.md](./doc/MANUAL.md): authoring surface, rendering semantics, and
   options
 - [doc/MAINTAINER_GUIDE.md](./doc/MAINTAINER_GUIDE.md): repository-local
-  workflow for example generation, validation, and linked worktrees
+  workflow for reference blueprint generation, validation, CI publication, and
+  linked worktrees
 - [doc/CONTRIBUTING.md](./doc/CONTRIBUTING.md): branch, commit, PR, and local
   worktree coordination conventions
 - [doc/DESIGN_RATIONALE.md](./doc/DESIGN_RATIONALE.md): architecture and design

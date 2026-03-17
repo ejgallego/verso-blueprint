@@ -94,22 +94,22 @@ Work:
 
 1. add targeted regression coverage for graph previews, summary previews,
    bibliography citations/backrefs, and widget statement preview rendering
-2. keep generating example sites after boundary changes
+2. keep generating reference blueprint sites after boundary changes
 3. prefer behavior-preserving refactors until the regression surface is broader
 4. add direct regression coverage for preview-cache keying and JSON roundtrips
 
 ### Harness and External Project Support
 
 Goal: keep the maintainer harness direct and repository-local while expanding it
-carefully beyond the current baseline external example projects.
+carefully beyond the current baseline external reference blueprints.
 
 Work:
 
 1. keep the current shell wrappers thin and ergonomic
 2. keep the Python harness as the single source of truth for orchestration,
    path logic, and project catalog loading
-3. keep the project catalog explicit and small, with baseline external examples
-   plus opt-in ephemeral GitHub checkout coverage
+3. keep the project catalog explicit and small, with baseline external
+   reference blueprints plus opt-in ephemeral GitHub checkout coverage
 4. validate both root-checkout and linked-worktree flows end to end
 5. stabilize output-path conventions for generation, static checks, and browser
    checks

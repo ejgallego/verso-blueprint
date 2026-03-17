@@ -3,14 +3,15 @@
 Last updated: 2026-03-16
 
 This document is the repository-level workflow guide for maintaining Blueprint
-support in `verso-blueprint`.
+support in `verso-blueprint` and its published reference blueprints.
 
 It focuses on:
 
 - generation and validation commands
 - output locations
+- CI and GitHub Pages publication for the reference blueprints
 - linked-worktree usage
-- repository-local policy for the external example-project validation harness
+- repository-local policy for the external reference-blueprint validation harness
 
 Syntax and rendering semantics live in
 [`MANUAL.md`](./MANUAL.md). Architecture background lives in
@@ -27,8 +28,8 @@ for authoring every Blueprint directive.
 The supported repository-local entry points are:
 
 ```bash
-./scripts/generate-example-blueprints.sh
-./scripts/validate-example-blueprints.sh
+./scripts/generate-reference-blueprints.sh
+./scripts/validate-reference-blueprints.sh
 python3 -m scripts.blueprint_harness create-worktree <name>
 python3 -m scripts.blueprint_harness projects
 python3 -m scripts.blueprint_harness --help
@@ -45,19 +46,19 @@ The shell wrappers are the normal front door for day-to-day work. The Python
 module is the single source of truth for orchestration and path resolution.
 
 The default project catalog lives at `tests/harness/projects.json`. It points
-at the external example repositories and is the extension point for future
-ephemeral GitHub checkout validations.
+at the external reference blueprint repositories and is the extension point for
+future ephemeral GitHub checkout validations.
 
 ## Everyday Workflows
 
-### Generate the Example Sites
+### Generate the Reference Blueprints
 
 ```bash
-./scripts/generate-example-blueprints.sh
+./scripts/generate-reference-blueprints.sh
 ```
 
-This clones, overrides, builds, and renders the current external example
-sites:
+This clones, overrides, builds, and renders the current external reference
+blueprints:
 
 - `noperthedron`
 - `spherepackingblueprint`
@@ -65,22 +66,22 @@ sites:
 ### Run the Default Validation Flow
 
 ```bash
-./scripts/validate-example-blueprints.sh
+./scripts/validate-reference-blueprints.sh
 ```
 
 The default validation path:
 
-- generates the example sites
+- generates the reference blueprint sites
 - runs the static Noperthedron code-panel regression check
 - runs the browser regression suite
 
 Lean tests are intentionally opt-in:
 
 ```bash
-./scripts/validate-example-blueprints.sh --run-lean-tests
+./scripts/validate-reference-blueprints.sh --run-lean-tests
 ```
 
-### Select Examples or Forward Test Flags
+### Select Projects or Forward Test Flags
 
 The harness supports narrowing the example set and forwarding extra pytest
 arguments:
@@ -102,14 +103,14 @@ python3 -m scripts.blueprint_harness projects
 
 In the root checkout, generated artifacts go under:
 
-- `_out/example-blueprints/noperthedron/`
-- `_out/example-blueprints/spherepackingblueprint/`
+- `_out/reference-blueprints/noperthedron/`
+- `_out/reference-blueprints/spherepackingblueprint/`
 
 In a linked worktree, generated artifacts go under the shared repo-root preview
 area:
 
-- `_out/<worktree>/example-blueprints/noperthedron/`
-- `_out/<worktree>/example-blueprints/spherepackingblueprint/`
+- `_out/<worktree>/reference-blueprints/noperthedron/`
+- `_out/<worktree>/reference-blueprints/spherepackingblueprint/`
 
 To print the resolved paths for the current checkout, run:
 
@@ -180,7 +181,7 @@ python3 -m scripts.blueprint_harness worktree-claim --owner codex --summary "ext
 python3 -m scripts.blueprint_harness worktree-list
 ```
 
-## Example Project Notes
+## Reference Blueprint Notes
 
 - `ejgallego/verso-noperthedron` is Mathlib-heavy, so linked worktrees should
   normally sync `.lake/` from the root checkout before external validation
@@ -191,6 +192,28 @@ python3 -m scripts.blueprint_harness worktree-list
   `lake update`
 - the Python harness is maintainer tooling for those validations, not the main
   package-facing authoring interface
+
+## CI and Pages
+
+The repository includes a GitHub Actions workflow at:
+
+- `.github/workflows/reference-blueprints.yml`
+
+On pushes to `main`, it:
+
+- runs the reference blueprint generation flow
+- stages a Pages artifact under `_site/`
+- uploads and deploys that artifact to GitHub Pages
+
+The staged Pages artifact layout is:
+
+- `_site/index.html`
+- `_site/reference-blueprints/noperthedron/`
+- `_site/reference-blueprints/spherepackingblueprint/`
+
+The staging helper is:
+
+- `python3 ./scripts/prepare_reference_blueprints_pages.py`
 
 ## External Project Validation Direction
 

@@ -579,7 +579,7 @@ def command_paths(_: argparse.Namespace) -> int:
     print(f"project_manifest={resolve_manifest_path(None, layout.package_root)}")
     print("local_override_strategy=ephemeral_lakefile_rewrite")
     print(f"root_lake={layout.repo_root / '.lake'}")
-    print(f"example_output_root={layout.example_output_root}")
+    print(f"reference_output_root={layout.reference_output_root}")
     print(f"noperthedron_site={noperthedron_site}")
     print(f"noperthedron_site_resolved={noperthedron_site_resolved}")
     print(f"spherepackingblueprint_site={spherepacking_site}")
