@@ -14,6 +14,7 @@ namespace Informal.Environment
 open Lean
 open Informal.Data
 
+-- TODO: Consolidate with Data.Node
 structure InProgress where
   label : Label
   kind : Data.InProgressKind := .proof
@@ -40,6 +41,7 @@ structure ImportedConflict where
   label : Name
 deriving Inhabited, Repr, DecidableEq
 
+-- TODO: Consolidate with traversal information
 structure State where
   data : Data := Data.empty
   localData : NameMap Node := {}
