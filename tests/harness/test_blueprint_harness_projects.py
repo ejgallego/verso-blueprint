@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -9,7 +10,7 @@ from scripts.blueprint_harness_projects import (
     default_project_manifest,
     load_projects_manifest,
 )
-from scripts.blueprint_harness import OFFICIAL_BLUEPRINT_REQUIRE, rewrite_local_blueprint_dependency
+from scripts.blueprint_harness import OFFICIAL_BLUEPRINT_REQUIRE, rewrite_local_blueprint_dependency, use_shared_reference_checkout
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
@@ -128,6 +129,19 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
             with self.assertRaisesRegex(SystemExit, "official `leanprover/verso-blueprint` Git source"):
                 rewrite_local_blueprint_dependency(project_dir, PACKAGE_ROOT)
+
+    def test_use_shared_reference_checkout_env_switch(self) -> None:
+        old = os.environ.get("BP_REFERENCE_CHECKOUT_MODE")
+        try:
+            os.environ.pop("BP_REFERENCE_CHECKOUT_MODE", None)
+            self.assertFalse(use_shared_reference_checkout())
+            os.environ["BP_REFERENCE_CHECKOUT_MODE"] = "shared"
+            self.assertTrue(use_shared_reference_checkout())
+        finally:
+            if old is None:
+                os.environ.pop("BP_REFERENCE_CHECKOUT_MODE", None)
+            else:
+                os.environ["BP_REFERENCE_CHECKOUT_MODE"] = old
 
     def test_reference_prune_plan_finds_stale_cache_and_checkout_paths(self) -> None:
         from scripts.blueprint_harness import reference_prune_plan

@@ -56,6 +56,8 @@ jobs:
   reference-blueprints:
     name: Reference Blueprint Build
     runs-on: ubuntu-latest
+    env:
+      BP_REFERENCE_CHECKOUT_MODE: shared
     steps:
       - uses: actions/checkout@v4
       - name: Install elan

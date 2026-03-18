@@ -200,6 +200,10 @@ def reference_local_checkout_dir(layout, project: HarnessProject) -> Path:
     return layout.reference_project_checkout_root / project.project_id
 
 
+def use_shared_reference_checkout() -> bool:
+    return os.getenv("BP_REFERENCE_CHECKOUT_MODE") == "shared"
+
+
 def build_in_repo_projects(package_root: Path, projects: list[HarnessProject]) -> None:
     targets = [project.build_target for project in projects if project.build_target is not None]
     if targets:
@@ -362,19 +366,35 @@ def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) ->
 
 def generate_git_project(layout, output_root: Path, project: HarnessProject, *, skip_build: bool) -> None:
     cache_dir = sync_reference_cache_checkout(layout, project, warm_build=not skip_build)
-    checkout_root = sync_reference_local_checkout(layout, project, cache_dir)
+    checkout_root = cache_dir if use_shared_reference_checkout() else sync_reference_local_checkout(layout, project, cache_dir)
     project_dir = checkout_root / project.project_root
     output_dir = output_dir_for(project, output_root)
     output_dir.mkdir(parents=True, exist_ok=True)
-    rewritten_lakefile = rewrite_local_blueprint_dependency(project_dir, layout.package_root)
-    print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
-    run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
-    if not skip_build and project.build_command is not None:
+    original_text = (project_dir / "lakefile.lean").read_text(encoding="utf-8") if use_shared_reference_checkout() else None
+    try:
+        rewritten_lakefile = rewrite_local_blueprint_dependency(project_dir, layout.package_root)
+        print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
+        run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
+        if not skip_build and project.build_command is not None:
+            run(
+                lean_low_priority_command(
+                    layout.package_root,
+                    *format_external_command(
+                        project.build_command,
+                        project=project,
+                        package_root=layout.package_root,
+                        checkout_root=checkout_root,
+                        project_dir=project_dir,
+                        output_dir=output_dir,
+                    ),
+                ),
+                cwd=project_dir,
+            )
         run(
             lean_low_priority_command(
                 layout.package_root,
                 *format_external_command(
-                    project.build_command,
+                    project.generate_command or (),
                     project=project,
                     package_root=layout.package_root,
                     checkout_root=checkout_root,
@@ -384,20 +404,9 @@ def generate_git_project(layout, output_root: Path, project: HarnessProject, *, 
             ),
             cwd=project_dir,
         )
-    run(
-        lean_low_priority_command(
-            layout.package_root,
-            *format_external_command(
-                project.generate_command or (),
-                project=project,
-                package_root=layout.package_root,
-                checkout_root=checkout_root,
-                project_dir=project_dir,
-                output_dir=output_dir,
-            ),
-        ),
-        cwd=project_dir,
-    )
+    finally:
+        if original_text is not None:
+            (project_dir / "lakefile.lean").write_text(original_text, encoding="utf-8")
 
 
 def sync_reference_blueprints(layout, projects: list[HarnessProject], *, warm_build: bool, prepare_local_checkout: bool) -> None:

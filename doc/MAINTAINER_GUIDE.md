@@ -252,6 +252,8 @@ The repository includes these GitHub Actions workflows:
 - runs the reference blueprint generation flow
 - stages a Pages artifact under `_site/`
 - uploads and deploys that artifact to GitHub Pages
+- uses the shared reference-checkout mode in CI to avoid duplicating warmed
+  `.lake/` trees on the GitHub runner
 
 The staged Pages artifact layout is:
 
