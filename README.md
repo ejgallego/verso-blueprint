@@ -130,12 +130,17 @@ The repository also tracks larger reference blueprints.
 
 ## Documentation
 
-Read the docs in this order:
+### User Documentation
+
+Read these in order:
 
 1. [project_template/README.md](./project_template/README.md): copyable starter
    project and file layout
 2. [doc/GETTING_STARTED.md](./doc/GETTING_STARTED.md): first Blueprint walkthrough
 3. [doc/MANUAL.md](./doc/MANUAL.md): authoring and rendering reference
+
+### Developer Documentation
+
 4. [doc/CONTRIBUTING.md](./doc/CONTRIBUTING.md): contribution conventions for
    this repository
 5. [doc/MAINTAINER_GUIDE.md](./doc/MAINTAINER_GUIDE.md): repository-local
@@ -148,12 +153,15 @@ Read the docs in this order:
 
 ## Acknowledgements
 
-Verso Blueprint builds on:
+Verso Blueprint builds directly on:
 
 - [Verso](https://github.com/leanprover/verso), the document system used to
   write and render Blueprint documents
 - [Lean 4](https://lean-lang.org/), the language and tooling used to elaborate
   the document and connect it to formal code
+
+Verso Blueprint has also been greatly inspired by:
+
 - [Patrick Massot's Lean blueprints](https://github.com/PatrickMassot/leanblueprint)
 - [LeanArchitect](https://github.com/hanwenzhu/LeanArchitect)
 - Side to side blueprints by Eric Vergo
