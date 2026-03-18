@@ -42,7 +42,7 @@ Blueprint nodes are identified by labels chosen by the author.
 
 Examples:
 
-- statement labels such as `addition_spec` and `addition_zero_right`
+- statement labels such as `addition_spec` and `addition_right_identity`
 - group labels such as `addition_core`
 - author ids such as `jason`
 
@@ -55,6 +55,10 @@ These identifiers are used by:
 - preview lookup and exported metadata
 
 Choose labels early and treat them as stable project identifiers.
+
+If a role such as `{uses "addition_spec"}[]` or a citation has an empty
+payload, Blueprint can generate the visible text automatically, for example
+`Theorem N`.
 
 ## Minimal Project Shape
 
@@ -147,19 +151,19 @@ We write $`a + b` for the result of adding $`b` to $`a`.
 This Blueprint starts with the most basic sanity checks around that operation.
 :::
 
-:::theorem "addition_zero_right" (parent := "addition_core") (owner := "project_author") (tags := "starter, arithmetic") (effort := "small") (priority := "high")
+:::theorem "addition_right_identity" (parent := "addition_core") (owner := "project_author") (tags := "starter, arithmetic") (effort := "small") (priority := "high")
 For every natural number $`n`, adding zero on the right leaves it unchanged:
 $`n + 0 = n`.
 This is the first sanity check for {uses "addition_spec"}[].
 :::
 
-:::proof "addition_zero_right"
+:::proof "addition_right_identity"
 Induct on $`n`. The base case is immediate and the inductive step unfolds one
 successor on each side.
 :::
 
-```lean "addition_zero_right"
-theorem addition_zero_right (n : Nat) : n + 0 = n := by
+```lean "addition_right_identity"
+theorem nat_add_zero_right (n : Nat) : n + 0 = n := by
   simp
 ```
 
@@ -203,12 +207,12 @@ Statement-like blocks can connect to Lean in three main ways.
 Attach a labeled Lean code block to the same Blueprint label:
 
 ````md
-:::theorem "addition_zero_right"
+:::theorem "addition_right_identity"
 For every natural number $`n`, $`n + 0 = n`.
 :::
 
-```lean "addition_zero_right"
-theorem addition_zero_right (n : Nat) : n + 0 = n := by
+```lean "addition_right_identity"
+theorem nat_add_zero_right (n : Nat) : n + 0 = n := by
   simp
 ```
 ````

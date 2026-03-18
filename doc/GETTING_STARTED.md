@@ -25,7 +25,7 @@ Blueprint blocks are identified by labels chosen by the author.
 Examples:
 
 - `addition_spec`
-- `addition_zero_right`
+- `addition_right_identity`
 - `multiplication_assoc`
 
 Those labels are the key to the whole system. They are used to:
@@ -41,6 +41,9 @@ easier to maintain.
 Unlike Lean code references, `{uses "addition_spec"}[]` can refer to a label
 before its final use sites are elaborated. Blueprint resolves those forward
 references when building the document.
+
+If the payload of `{uses "addition_spec"}[]` is empty, Blueprint can generate
+the visible text automatically, for example `Theorem N`.
 
 ## Start from the template
 

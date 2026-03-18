@@ -21,19 +21,19 @@ This starter Blueprint begins with the most basic sanity checks around that
 operation.
 :::
 
-:::theorem "addition_zero_right" (parent := "addition_core") (owner := "project_author") (tags := "starter, arithmetic") (effort := "small") (priority := "high")
+:::theorem "addition_right_identity" (parent := "addition_core") (owner := "project_author") (tags := "starter, arithmetic") (effort := "small") (priority := "high")
 For every natural number $`n`, adding zero on the right leaves it unchanged:
 $`n + 0 = n`.
 This is the first sanity check for {uses "addition_spec"}[].
 :::
 
-:::proof "addition_zero_right"
+:::proof "addition_right_identity"
 Induct on $`n`. The base case is immediate and the inductive step unfolds one
 successor on each side.
 :::
 
-```lean "addition_zero_right"
-theorem addition_zero_right (n : Nat) : n + 0 = n := by
+```lean "addition_right_identity"
+theorem nat_add_zero_right (n : Nat) : n + 0 = n := by
   simp
 ```
 

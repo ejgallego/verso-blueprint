@@ -38,27 +38,30 @@ runtime, and support library code. The starter layout in
 ### Labelled nodes and rich directives
 
 Every Blueprint node is identified by a label such as `addition_spec` or
-`addition_zero_right`. Those labels drive cross-references, graph nodes,
+`addition_right_identity`. Those labels drive cross-references, graph nodes,
 summary entries, code associations, and metadata export.
+
+When roles such as `{uses "foo"}[]` or citations have an empty payload,
+Blueprint can automatically render text such as `Theorem N`.
 
 Typical directives look like:
 
 - `:::definition "addition_spec" (lean := "Nat.add, Nat.succ")`
-- `:::theorem "addition_zero_right" (owner := "jason") (priority := "high")`
-- `:::proof "addition_zero_right"`
+- `:::theorem "addition_right_identity" (owner := "jason") (priority := "high")`
+- `:::proof "addition_right_identity"`
 
 ````md
 :::definition "addition_spec" (lean := "Nat.add, Nat.succ")
 We write $`a + b` for the result of adding $`b` to $`a`.
 :::
 
-:::theorem "addition_zero_right" (owner := "jason") (priority := "high")
+:::theorem "addition_right_identity" (owner := "jason") (priority := "high")
 For every natural number $`n`, adding zero on the right leaves it unchanged:
 $`n + 0 = n`.
 :::
 
-```lean "addition_zero_right"
-theorem addition_zero_right (n : Nat) : n + 0 = n := by
+```lean "addition_right_identity"
+theorem nat_add_zero_right (n : Nat) : n + 0 = n := by
   simp
 ```
 ````
@@ -68,12 +71,12 @@ theorem addition_zero_right (n : Nat) : n + 0 = n := by
 Blueprint supports three main ways to connect informal nodes to Lean:
 
 - inline code with a labeled Lean code block
-- compiled code tagged with `@[blueprint "addition_zero_right"]`
+- compiled code tagged with `@[blueprint "addition_right_identity"]`
 - existing declarations referenced with `(lean := "Nat.add_assoc")`
 
 ```lean
-@[blueprint "addition_zero_right"]
-theorem addition_zero_right (n : Nat) : n + 0 = n := by
+@[blueprint "addition_right_identity"]
+theorem nat_add_zero_right (n : Nat) : n + 0 = n := by
   simp
 ```
 
@@ -153,4 +156,4 @@ Verso Blueprint builds on:
   the document and connect it to formal code
 - [Patrick Massot's Lean blueprints](https://github.com/PatrickMassot/leanblueprint)
 - [LeanArchitect](https://github.com/hanwenzhu/LeanArchitect)
-- [Eric Wieser](https://github.com/eric-wieser)'s Vergo side-to-side blueprints
+- Side to side blueprints by Eric Vergo
