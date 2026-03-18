@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-spherepacking-and-template:
-    name: Build Sphere Packing and Starter Template
+  build-project-template:
+    name: Build Project Template
     runs-on: ubuntu-latest
     env:
       BP_REFERENCE_CHECKOUT_MODE: shared
@@ -41,18 +41,46 @@ jobs:
           lean --version
           lake --version
           python3 --version
-      - name: Generate sphere packing and starter template
-        run: ./scripts/generate-reference-blueprints.sh --project project-template --project spherepackingblueprint
-      - name: Upload sphere packing artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: reference-blueprint-spherepacking
-          path: _out/reference-blueprints/spherepackingblueprint
+      - name: Generate starter template
+        run: ./scripts/generate-reference-blueprints.sh --project project-template
       - name: Upload starter template artifact
         uses: actions/upload-artifact@v4
         with:
           name: reference-blueprint-project-template
           path: _out/reference-blueprints/project-template
+
+  build-spherepacking:
+    name: Build Sphere Packing
+    runs-on: ubuntu-latest
+    env:
+      BP_REFERENCE_CHECKOUT_MODE: shared
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Restore Lake dependency cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/packages/mathlib/.lake/build
+            .lake/packages/verso/.lake/build
+          key: ${{ runner.os }}-lake-deps-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+          restore-keys: |
+            ${{ runner.os }}-lake-deps-
+      - name: Show tool versions
+        run: |
+          lean --version
+          lake --version
+          python3 --version
+      - name: Generate sphere packing
+        run: ./scripts/generate-reference-blueprints.sh --project spherepackingblueprint
+      - name: Upload sphere packing artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-blueprint-spherepacking
+          path: _out/reference-blueprints/spherepackingblueprint
 
   build-noperthedron:
     name: Build Noperthedron
@@ -91,7 +119,8 @@ jobs:
     name: Build Pages Artifact
     runs-on: ubuntu-latest
     needs:
-      - build-spherepacking-and-template
+      - build-project-template
+      - build-spherepacking
       - build-noperthedron
     steps:
       - uses: actions/checkout@v4

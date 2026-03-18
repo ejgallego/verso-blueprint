@@ -71,8 +71,8 @@ jobs:
       - name: Check Python harness syntax
         run: python3 -m py_compile scripts/blueprint_harness.py scripts/blueprint_harness_paths.py scripts/blueprint_harness_projects.py scripts/blueprint_harness_worktrees.py scripts/prepare_reference_blueprints_pages.py
 
-  reference-blueprints-spherepacking-and-template:
-    name: Reference Blueprints (Sphere Packing + Template)
+  reference-blueprints-project-template:
+    name: Reference Blueprints (Project Template)
     runs-on: ubuntu-latest
     env:
       BP_REFERENCE_CHECKOUT_MODE: shared
@@ -91,15 +91,41 @@ jobs:
           key: ${{ runner.os }}-lake-deps-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
           restore-keys: |
             ${{ runner.os }}-lake-deps-
-      - name: Generate sphere packing and starter template
-        run: ./scripts/generate-reference-blueprints.sh --project project-template --project spherepackingblueprint
-      - name: Upload reference blueprint artifact
+      - name: Generate starter template
+        run: ./scripts/generate-reference-blueprints.sh --project project-template
+      - name: Upload project template artifact
         uses: actions/upload-artifact@v4
         with:
-          name: reference-blueprints-spherepacking-and-template
+          name: reference-blueprints-project-template
+          path: _out/reference-blueprints/project-template
+
+  reference-blueprints-spherepacking:
+    name: Reference Blueprints (Sphere Packing)
+    runs-on: ubuntu-latest
+    env:
+      BP_REFERENCE_CHECKOUT_MODE: shared
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Restore Lake dependency cache
+        uses: actions/cache@v4
+        with:
           path: |
-            _out/reference-blueprints/project-template
-            _out/reference-blueprints/spherepackingblueprint
+            .lake/packages/mathlib/.lake/build
+            .lake/packages/verso/.lake/build
+          key: ${{ runner.os }}-lake-deps-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+          restore-keys: |
+            ${{ runner.os }}-lake-deps-
+      - name: Generate sphere packing
+        run: ./scripts/generate-reference-blueprints.sh --project spherepackingblueprint
+      - name: Upload sphere packing artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-blueprints-spherepacking
+          path: _out/reference-blueprints/spherepackingblueprint
 
   reference-blueprints-noperthedron:
     name: Reference Blueprints (Noperthedron)
