@@ -16,6 +16,7 @@ OFFICIAL_BLUEPRINT_URL_PATTERNS = (
     r"git@github\.com:leanprover/verso-blueprint\.git",
     r"ssh://git@github\.com/leanprover/verso-blueprint\.git",
 )
+COMMIT_HASH_PATTERN = re.compile(r"^[0-9a-f]{40}$", re.IGNORECASE)
 
 def output_dir_for(project: HarnessProject, output_root: Path) -> Path:
     return output_root / project.project_id
@@ -62,6 +63,10 @@ def format_external_command(
     return [part.format(**placeholders) for part in command]
 
 
+def ref_is_commit_hash(ref: str | None) -> bool:
+    return ref is not None and COMMIT_HASH_PATTERN.fullmatch(ref) is not None
+
+
 def clone_git_project(
     project: HarnessProject,
     destination: Path,
@@ -70,19 +75,25 @@ def clone_git_project(
     source: str | None = None,
     shallow: bool = True,
 ) -> Path:
+    checkout_commit_after_clone = source is None and ref_is_commit_hash(project.ref)
     command = ["git", "clone"]
     if source is None and shallow:
         command.extend(["--depth", "1"])
-    if project.ref and source is None:
+    if project.ref and source is None and not checkout_commit_after_clone:
         command.extend(["--branch", project.ref])
     command.extend([source or project.repository or "", str(destination)])
     run(command, cwd=cwd)
+    if checkout_commit_after_clone:
+        update_git_checkout(project, destination)
     return destination
 
 
 def fetch_git_project(project: HarnessProject, checkout_root: Path) -> None:
     if project.ref is None:
         run(["git", "fetch", "origin"], cwd=checkout_root)
+        return
+    if ref_is_commit_hash(project.ref):
+        run(["git", "fetch", "origin", project.ref], cwd=checkout_root)
         return
     run(["git", "fetch", "origin", project.ref], cwd=checkout_root)
 
@@ -91,6 +102,7 @@ def update_git_checkout(project: HarnessProject, checkout_root: Path) -> None:
     if project.ref is None:
         return
     run(["git", "fetch", "--depth", "1", "origin", project.ref], cwd=checkout_root)
+    discard_untracked_project_manifest(checkout_root / project.project_root)
     run(["git", "checkout", "--detach", "FETCH_HEAD"], cwd=checkout_root)
     # Harness-managed clones are disposable; keep them clean even if a previous
     # run rewrote tracked files such as `lakefile.lean`.
@@ -137,7 +149,10 @@ def default_reference_edit_branch(project: HarnessProject) -> str:
 
 
 def default_reference_edit_base(project: HarnessProject) -> str:
-    return f"origin/{project.ref or 'main'}"
+    ref = project.ref or "main"
+    if ref_is_commit_hash(ref):
+        return ref
+    return f"origin/{ref}"
 
 
 def prepare_reference_edit_checkout(

@@ -8,15 +8,19 @@ import tempfile
 import unittest
 
 from scripts.blueprint_harness_projects import (
+    HarnessProject,
     default_project_manifest,
     load_projects_manifest,
 )
 from scripts.blueprint_harness_references import (
     OFFICIAL_BLUEPRINT_REQUIRE,
+    clone_git_project,
     discard_untracked_project_manifest,
+    default_reference_edit_base,
     reference_update_command,
     rewrite_local_blueprint_dependency,
     tracked_project_manifest_path,
+    update_git_checkout,
     use_shared_reference_checkout,
 )
 
@@ -27,6 +31,21 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 class BlueprintHarnessProjectsTests(unittest.TestCase):
     def init_git_repo(self, root: Path) -> None:
         subprocess.run(["git", "init"], cwd=root, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def run_git(self, root: Path, *args: str) -> None:
+        subprocess.run(["git", *args], cwd=root, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def commit(self, root: Path, message: str) -> str:
+        self.run_git(root, "config", "user.name", "Test User")
+        self.run_git(root, "config", "user.email", "test@example.com")
+        self.run_git(root, "commit", "-m", message)
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=root,
+            check=True,
+            text=True,
+            capture_output=True,
+        ).stdout.strip()
 
     def test_default_manifest_contains_current_external_projects(self) -> None:
         manifest = default_project_manifest(PACKAGE_ROOT)
@@ -270,6 +289,118 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
         self.assertEqual(package_rev(template_manifest, "verso"), package_rev(root_manifest, "verso"))
         self.assertEqual(package_rev(template_manifest, "subverso"), package_rev(root_manifest, "subverso"))
+
+    def test_clone_git_project_checks_out_commit_ref_without_branch_name(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote = root / "remote.git"
+            seed = root / "seed"
+            checkout = root / "checkout"
+
+            subprocess.run(["git", "init", "--bare", str(remote)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            seed.mkdir()
+            self.init_git_repo(seed)
+            (seed / "file.txt").write_text("first\n", encoding="utf-8")
+            self.run_git(seed, "add", "file.txt")
+            first = self.commit(seed, "first")
+            (seed / "file.txt").write_text("second\n", encoding="utf-8")
+            self.run_git(seed, "commit", "-am", "second")
+            self.run_git(seed, "branch", "-M", "main")
+            self.run_git(seed, "remote", "add", "origin", str(remote))
+            self.run_git(seed, "push", "-u", "origin", "main")
+
+            project = HarnessProject(
+                project_id="external-blueprint",
+                source_kind="git_checkout",
+                project_root=".",
+                build_target=None,
+                generator=None,
+                repository=str(remote),
+                ref=first,
+                build_command=None,
+                generate_command=("lake", "exe", "blueprint-gen"),
+                site_subdir="html-multi",
+                panel_regression_script=None,
+                browser_tests_path=None,
+                description=None,
+            )
+
+            clone_git_project(project, checkout, cwd=root)
+
+            head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=checkout,
+                check=True,
+                text=True,
+                capture_output=True,
+            ).stdout.strip()
+            self.assertEqual(head, first)
+
+    def test_default_reference_edit_base_uses_detached_commit_for_sha_ref(self) -> None:
+        project = HarnessProject(
+            project_id="external-blueprint",
+            source_kind="git_checkout",
+            project_root=".",
+            build_target=None,
+            generator=None,
+            repository="https://github.com/example/external-blueprint.git",
+            ref="9b50e39c17434ee1a574fd27ed97006adfdc5dc1",
+            build_command=None,
+            generate_command=("lake", "exe", "blueprint-gen"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+
+        self.assertEqual(default_reference_edit_base(project), project.ref)
+
+    def test_update_git_checkout_discards_stale_untracked_manifest_before_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote = root / "remote.git"
+            seed = root / "seed"
+            checkout = root / "checkout"
+
+            subprocess.run(["git", "init", "--bare", str(remote)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            seed.mkdir()
+            self.init_git_repo(seed)
+            (seed / "lakefile.lean").write_text("import Lake\n", encoding="utf-8")
+            self.run_git(seed, "add", "lakefile.lean")
+            self.commit(seed, "seed")
+            self.run_git(seed, "branch", "-M", "main")
+            self.run_git(seed, "remote", "add", "origin", str(remote))
+            self.run_git(seed, "push", "-u", "origin", "main")
+
+            subprocess.run(["git", "clone", str(remote), str(checkout)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            (checkout / "lake-manifest.json").write_text("{}\n", encoding="utf-8")
+
+            (seed / "lake-manifest.json").write_text('{"version":"1.1.0"}\n', encoding="utf-8")
+            self.run_git(seed, "add", "lake-manifest.json")
+            target = self.commit(seed, "add manifest")
+            self.run_git(seed, "push", "origin", "main")
+
+            project = HarnessProject(
+                project_id="external-blueprint",
+                source_kind="git_checkout",
+                project_root=".",
+                build_target=None,
+                generator=None,
+                repository=str(remote),
+                ref=target,
+                build_command=None,
+                generate_command=("lake", "exe", "blueprint-gen"),
+                site_subdir="html-multi",
+                panel_regression_script=None,
+                browser_tests_path=None,
+                description=None,
+            )
+
+            update_git_checkout(project, checkout)
+
+            manifest = checkout / "lake-manifest.json"
+            self.assertEqual(tracked_project_manifest_path(checkout), manifest)
+            self.assertEqual(manifest.read_text(encoding="utf-8"), '{"version":"1.1.0"}\n')
 
     def test_use_shared_reference_checkout_env_switch(self) -> None:
         old = os.environ.get("BP_REFERENCE_CHECKOUT_MODE")
