@@ -127,6 +127,36 @@ Work:
     artifact from CI instead of rebuilding the sites through a separate
     preview-only workflow
 
+### Template Delivery and Client CI
+
+Goal: provide a user-facing starter that can build and deploy a Blueprint site
+to GitHub Pages, while keeping documentation and regression coverage anchored in
+this repository.
+
+Work:
+
+1. keep a local in-repo template/example as the documentation-facing source of
+   truth for project shape, authoring patterns, and generator wiring
+2. add a root-level `.github/workflows/` Pages workflow plus one local CI
+   script to the in-repo template so the user-facing contract is explicit and
+   testable
+3. add main-repository CI coverage that materializes the local template as a
+   fresh standalone repository and runs that template-owned CI script end to
+   end
+4. keep the maintainer harness out of the user-facing template CI contract; the
+   harness should validate or materialize templates, not be required by client
+   repositories
+5. evaluate whether to publish a separate external template repository as a
+   generated or synchronized output of the local template source of truth,
+   rather than maintaining two hand-edited templates
+6. avoid Git submodules for template delivery unless a concrete synchronization
+   problem remains unsolved by one-way export or sync automation
+7. evaluate a dedicated `verso-blueprint` GitHub Action for the stable
+   build-and-deploy path once the template workflow contract has settled
+8. keep local smoke coverage and one real GitHub-hosted canary deployment
+   separate, so routine PR validation does not depend on cross-repository Pages
+   deployment
+
 ## UI Follow-Ups
 
 These are secondary to semantic consolidation, but still worthwhile:
@@ -147,3 +177,5 @@ These are secondary to semantic consolidation, but still worthwhile:
 3. imported duplicate collisions for labels, groups, or authors
 4. workflow drift across long-lived worktrees and branches
 5. tracked local-worktree bookkeeping leaking into the public repository surface
+6. drift between the local documented template, any exported external template,
+   and the eventual GitHub Action contract

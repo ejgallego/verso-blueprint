@@ -5,15 +5,20 @@ This folder is a copyable starter Blueprint project.
 The goal is not to show every feature. The goal is to give you one small
 project that already has the right moving parts:
 
+- a GitHub Pages workflow under `.github/workflows/`
 - chapter files with real Blueprint blocks
 - a Blueprint top-level file
 - a `blueprint-gen` executable
+- a local CI script for build-and-render checks
 - rendered graph and summary pages
 
 ## File Layout
 
 ```text
 project_template/
+  .github/
+    workflows/
+      pages.yml
   .gitignore
   lakefile.lean
   lean-toolchain
@@ -24,6 +29,8 @@ project_template/
       Addition.lean
       Multiplication.lean
   ProjectTemplateMain.lean
+  scripts/
+    ci-pages.sh
 ```
 
 The important files are:
@@ -33,6 +40,9 @@ The important files are:
 - `ProjectTemplate/Blueprint.lean`: the Blueprint top-level file
 - `ProjectTemplateMain.lean`: the rendering entry point
 - `lakefile.lean`: the package definition and the `blueprint-gen` executable
+- `.github/workflows/pages.yml`: GitHub Actions workflow that builds and deploys
+  the generated HTML to GitHub Pages
+- `scripts/ci-pages.sh`: the local command that the Pages workflow runs
 
 ## What the template demonstrates
 
@@ -55,11 +65,23 @@ Typical commands:
 
 ```bash
 lake update
-lake exe blueprint-gen --output _out/site
+./scripts/ci-pages.sh
 ```
 
 Run `lake update` once after copying the template. After that, use
-`lake exe blueprint-gen` whenever you want to regenerate the site.
+`./scripts/ci-pages.sh` whenever you want the same local build-and-render check
+that the included GitHub Pages workflow runs. If you only want to regenerate
+the site manually, `lake exe blueprint-gen --output _out/site` still works.
+
+## GitHub Pages
+
+The template includes `.github/workflows/pages.yml`.
+
+- on pull requests, it builds the Blueprint site and uploads the Pages artifact
+- on pushes to `main`, it deploys `_out/site/html-multi` to GitHub Pages
+
+Depending on your repository or organization settings, you may still need to
+enable GitHub Pages with GitHub Actions as the publishing source once.
 
 ## About dependencies
 

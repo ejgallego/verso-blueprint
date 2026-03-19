@@ -69,4 +69,31 @@ jobs:
       - name: Run Python harness tests
         run: python3 -m unittest discover -s tests/harness -p 'test_*.py'
       - name: Check Python harness syntax
-        run: python3 -m py_compile scripts/blueprint_harness.py scripts/blueprint_reference_harness.py scripts/blueprint_harness_cli.py scripts/blueprint_harness_paths.py scripts/blueprint_harness_projects.py scripts/blueprint_harness_worktrees.py scripts/prepare_reference_blueprints_pages.py
+        run: python3 -m py_compile scripts/blueprint_harness.py scripts/blueprint_reference_harness.py scripts/blueprint_harness_cli.py scripts/blueprint_harness_paths.py scripts/blueprint_harness_projects.py scripts/blueprint_harness_worktrees.py scripts/check_project_template_fresh_repo.py scripts/prepare_reference_blueprints_pages.py
+
+  project-template-fresh-repo:
+    name: Project Template Fresh Repo
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint GitHub workflows
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: .github/workflows/ci.yml .github/workflows/reference-blueprints.yml project_template/.github/workflows/pages.yml
+      - name: Install elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Show tool versions
+        run: |
+          lean --version
+          lake --version
+          python3 --version
+      - name: Run fresh-repo template CI smoke
+        run: python3 ./scripts/check_project_template_fresh_repo.py --site-output _out/project-template-fresh-repo/html-multi
+      - name: Upload fresh-repo template artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-template-fresh-repo
+          path: _out/project-template-fresh-repo

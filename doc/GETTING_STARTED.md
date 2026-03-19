@@ -118,11 +118,13 @@ keeps the examples short and easy to follow:
 
 ```bash
 lake update
-lake exe blueprint-gen --output _out/site
+./scripts/ci-pages.sh
 ```
 
 Run `lake update` once after copying the template. After that, run
-`lake exe blueprint-gen` whenever you want to regenerate the site.
+`./scripts/ci-pages.sh` whenever you want the same local build-and-render check
+that the included GitHub Pages workflow uses. If you only want to regenerate
+the site manually, `lake exe blueprint-gen --output _out/site` still works.
 
 ## What to change first
 
