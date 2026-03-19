@@ -17,6 +17,7 @@ METADATA_DIRNAME = "_meta"
 class GitWorktree:
     name: str
     path: Path
+    head: str
     branch: str | None
     root_checkout: bool
 
@@ -81,19 +82,23 @@ def parse_git_worktree_porcelain(text: str, repo_root: Path) -> list[GitWorktree
     worktrees: list[GitWorktree] = []
     for block in blocks:
         path: Path | None = None
+        head: str | None = None
         branch: str | None = None
         for line in block.splitlines():
             if line.startswith("worktree "):
                 path = Path(line.removeprefix("worktree ").strip())
+            elif line.startswith("HEAD "):
+                head = line.removeprefix("HEAD ").strip()
             elif line.startswith("branch "):
                 branch_ref = line.removeprefix("branch ").strip()
                 branch = branch_ref.removeprefix("refs/heads/")
-        if path is None:
+        if path is None or head is None:
             continue
         worktrees.append(
             GitWorktree(
                 name=worktree_name(repo_root, path),
                 path=path,
+                head=head,
                 branch=branch,
                 root_checkout=path.resolve() == repo_root.resolve(),
             )

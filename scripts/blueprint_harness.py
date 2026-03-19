@@ -13,12 +13,14 @@ from scripts.blueprint_harness_references import (
     generate_in_repo_command_project,
     generate_git_project,
     output_dir_for,
+    prepare_reference_edit_checkout,
     reference_prune_plan,
     site_dir_for,
     sync_reference_blueprints,
 )
 from scripts.blueprint_harness_utils import format_command, lean_low_priority_command, run
 from scripts.blueprint_harness_worktrees import (
+    GitWorktree,
     git_worktrees,
     resolve_worktree_name,
     sync_worktree_registry,
@@ -221,20 +223,40 @@ def render_in_repo_projects(package_root: Path, output_root: Path, projects: lis
         for _, proc in procs:
             if proc.poll() is None:
                 proc.kill()
-def merged_clean_worktree_candidates(repo_root: Path, current_path: Path) -> list[tuple[str, Path, str]]:
-    merged = subprocess.run(
-        ["git", "branch", "--format=%(refname:short)", "--merged", "main"],
+
+
+def preferred_main_ref(repo_root: Path) -> str:
+    if (
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", "refs/remotes/origin/main"],
+            cwd=repo_root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    ):
+        return "origin/main"
+    return "main"
+
+
+def ref_merged_into_main(repo_root: Path, ref: str) -> bool:
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ref, preferred_main_ref(repo_root)],
         cwd=repo_root,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.splitlines()
-    merged_set = {branch.strip() for branch in merged if branch.strip() and branch.strip() != "main"}
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def merged_clean_worktree_candidates(repo_root: Path, current_path: Path) -> list[tuple[str, Path, str]]:
     candidates: list[tuple[str, Path, str]] = []
     for worktree in git_worktrees(repo_root):
         if worktree.root_checkout or worktree.path.resolve() == current_path.resolve():
             continue
-        if worktree.branch is None or worktree.branch not in merged_set:
+        if worktree.branch is None or worktree.branch == "main":
+            continue
+        if not ref_merged_into_main(repo_root, worktree.branch):
             continue
         status = subprocess.run(
             ["git", "status", "--short"],
@@ -249,20 +271,8 @@ def merged_clean_worktree_candidates(repo_root: Path, current_path: Path) -> lis
     return candidates
 
 
-def git_worktree_map(repo_root: Path) -> dict[str, tuple[Path, str | None, bool]]:
-    return {
-        worktree.name: (worktree.path, worktree.branch, worktree.root_checkout)
-        for worktree in git_worktrees(repo_root)
-    }
-
-
-def branch_merged_into_main(repo_root: Path, branch: str) -> bool:
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", branch, "main"],
-        cwd=repo_root,
-        check=False,
-    )
-    return result.returncode == 0
+def git_worktree_map(repo_root: Path) -> dict[str, GitWorktree]:
+    return {worktree.name: worktree for worktree in git_worktrees(repo_root)}
 
 
 def worktree_is_clean(path: Path) -> bool:
@@ -526,6 +536,7 @@ def command_paths(_: argparse.Namespace) -> int:
     print(f"reference_output_root={layout.reference_output_root}")
     print(f"reference_cache_root={layout.reference_project_cache_root}")
     print(f"reference_checkout_root={layout.reference_project_checkout_root}")
+    print(f"reference_edit_root={layout.reference_project_edit_root}")
     for project in projects:
         canonical_site = canonical_example_site_dir(project.project_id, Path(__file__))
         print(f"{project.project_id}_site={canonical_site}")
@@ -564,6 +575,26 @@ def command_reference_sync(args: argparse.Namespace) -> int:
     )
     print(f"[blueprint-harness] reference cache root: {layout.reference_project_cache_root}")
     print(f"[blueprint-harness] reference checkout root: {layout.reference_project_checkout_root}")
+    return 0
+
+
+def command_reference_edit(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
+    project = selected_projects(load_project_catalog(manifest_path), [args.project])[0]
+    edit_dir, branch, base_ref = prepare_reference_edit_checkout(
+        layout,
+        project,
+        branch=args.branch,
+        base_ref=args.base,
+    )
+    print(f"[blueprint-harness] editable reference checkout: {edit_dir}")
+    print(f"[blueprint-harness] branch: {branch}")
+    print(f"[blueprint-harness] base ref: {base_ref}")
+    print(
+        "[blueprint-harness] note: editable reference checkouts are separate from the "
+        "disposable validation clones used by `reference-sync` and `generate`."
+    )
     return 0
 
 
@@ -609,24 +640,36 @@ def command_worktree_retire(args: argparse.Namespace) -> int:
     worktrees = git_worktree_map(layout.repo_root)
     if name not in worktrees:
         raise SystemExit(f"[blueprint-harness] unknown worktree `{name}`")
-    path, branch, root_checkout = worktrees[name]
-    if root_checkout or branch is None or branch == "main":
+    worktree = worktrees[name]
+    path = worktree.path
+    branch = worktree.branch
+    if worktree.root_checkout:
         raise SystemExit("[blueprint-harness] cannot retire the root checkout")
     if path.resolve() == layout.package_root.resolve():
         raise SystemExit("[blueprint-harness] cannot retire the current active worktree from inside itself")
-    if not branch_merged_into_main(layout.repo_root, branch):
-        raise SystemExit(f"[blueprint-harness] branch `{branch}` is not merged into `main`")
+    if branch == "main":
+        raise SystemExit("[blueprint-harness] cannot retire a linked worktree attached to `main`")
+    merge_subject = branch or worktree.head
+    if not ref_merged_into_main(layout.repo_root, merge_subject):
+        if branch is None:
+            raise SystemExit(
+                f"[blueprint-harness] detached worktree `{name}` is at `{worktree.head}` "
+                "which is not merged into the preferred main ref"
+            )
+        raise SystemExit(f"[blueprint-harness] branch `{branch}` is not merged into the preferred main ref")
     if not worktree_is_clean(path):
         raise SystemExit(f"[blueprint-harness] worktree `{name}` has local modifications")
 
     print(f"name={name}")
     print(f"path={path}")
-    print(f"branch={branch}")
+    print(f"branch={branch or ''}")
+    print(f"head={worktree.head}")
     if args.dry_run:
         return 0
 
     run(["git", "worktree", "remove", str(path)], cwd=layout.repo_root)
-    run(["git", "branch", "-d", branch], cwd=layout.repo_root)
+    if branch is not None:
+        run(["git", "branch", "-d", branch], cwd=layout.repo_root)
 
     manifest_path = resolve_manifest_path(None, layout.package_root)
     projects = load_project_catalog(manifest_path)
@@ -912,6 +955,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Warm only the shared cache checkout and skip preparing the current checkout's local clones.",
     )
     reference_sync.set_defaults(func=command_reference_sync)
+
+    reference_edit = subparsers.add_parser(
+        "reference-edit",
+        help="Prepare or reuse one editable external reference checkout for manual changes.",
+    )
+    add_manifest_argument(reference_edit)
+    reference_edit.add_argument("project", help="External git-checkout project id to open for editing.")
+    reference_edit.add_argument(
+        "--branch",
+        default=None,
+        help="Editable branch name. Defaults to `wip/<project-id>`.",
+    )
+    reference_edit.add_argument(
+        "--base",
+        default=None,
+        help="Base ref used when creating the editable branch. Defaults to `origin/<project-ref>`.",
+    )
+    reference_edit.set_defaults(func=command_reference_edit)
 
     reference_prune = subparsers.add_parser(
         "reference-prune",

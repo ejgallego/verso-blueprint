@@ -39,6 +39,14 @@ class HarnessLayout:
     def reference_project_checkout_root(self) -> Path:
         return self.reference_project_root / "by-worktree" / self.reference_project_checkout_namespace
 
+    @property
+    def reference_project_edit_namespace(self) -> str:
+        return self.worktree_name or "main"
+
+    @property
+    def reference_project_edit_root(self) -> Path:
+        return self.reference_project_root / "edit" / self.reference_project_edit_namespace
+
 
 def find_package_root(start: Path | None = None) -> Path:
     current = (start or Path.cwd()).resolve()

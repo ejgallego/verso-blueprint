@@ -8,6 +8,7 @@ import unittest
 import scripts.blueprint_harness as harness_mod
 from scripts.blueprint_harness import build_parser, create_worktree_sync_policy, generate_projects
 from scripts.blueprint_harness_projects import HarnessProject
+from scripts.blueprint_harness_worktrees import GitWorktree
 
 
 class BlueprintHarnessCliTests(unittest.TestCase):
@@ -24,10 +25,112 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             parser.parse_args(["reference-sync", "--example", "noperthedron"])
 
+    def test_reference_edit_parses_project_branch_and_base(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["reference-edit", "noperthedron", "--branch", "wip/noperthedron", "--base", "origin/main"])
+        self.assertEqual(args.project, "noperthedron")
+        self.assertEqual(args.branch, "wip/noperthedron")
+        self.assertEqual(args.base, "origin/main")
+
     def test_generate_keeps_example_alias(self) -> None:
         parser = build_parser()
         args = parser.parse_args(["generate", "--example", "noperthedron"])
         self.assertEqual(args.project, ["noperthedron"])
+
+    def test_reference_edit_uses_prepare_reference_checkout(self) -> None:
+        project = HarnessProject(
+            project_id="noperthedron",
+            source_kind="git_checkout",
+            project_root=".",
+            build_target=None,
+            generator=None,
+            repository="https://github.com/example/noperthedron.git",
+            ref="main",
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+        args = argparse.Namespace(manifest=None, project="noperthedron", branch="wip/noperthedron", base="origin/main")
+        layout = SimpleNamespace(package_root=Path("/tmp/package"), reference_project_edit_root=Path("/tmp/edit"))
+        originals = {
+            "detect_harness_layout": harness_mod.detect_harness_layout,
+            "resolve_manifest_path": harness_mod.resolve_manifest_path,
+            "load_project_catalog": harness_mod.load_project_catalog,
+            "prepare_reference_edit_checkout": harness_mod.prepare_reference_edit_checkout,
+        }
+        seen: dict[str, object] = {}
+        try:
+            harness_mod.detect_harness_layout = lambda _start=None: layout
+            harness_mod.resolve_manifest_path = lambda _path_text, _package_root: Path("/tmp/projects.json")
+            harness_mod.load_project_catalog = lambda _manifest_path: [project]
+
+            def fake_prepare(_layout, _project, *, branch, base_ref):
+                seen["layout"] = _layout
+                seen["project"] = _project
+                seen["branch"] = branch
+                seen["base_ref"] = base_ref
+                return Path("/tmp/edit/noperthedron"), branch or "wip/noperthedron", base_ref or "origin/main"
+
+            harness_mod.prepare_reference_edit_checkout = fake_prepare
+
+            self.assertEqual(harness_mod.command_reference_edit(args), 0)
+        finally:
+            for name, value in originals.items():
+                setattr(harness_mod, name, value)
+
+        self.assertEqual(seen["layout"], layout)
+        self.assertEqual(seen["project"], project)
+        self.assertEqual(seen["branch"], "wip/noperthedron")
+        self.assertEqual(seen["base_ref"], "origin/main")
+
+    def test_worktree_retire_supports_detached_merged_worktree(self) -> None:
+        args = argparse.Namespace(name="reference-edit", dry_run=False)
+        layout = SimpleNamespace(
+            repo_root=Path("/tmp/repo"),
+            package_root=Path("/tmp/package"),
+            worktree_name=None,
+            reference_project_cache_root=Path("/tmp/cache"),
+            reference_project_root=Path("/tmp/reference-root"),
+        )
+        detached = GitWorktree(
+            name="reference-edit",
+            path=Path("/tmp/repo/.worktrees/reference-edit"),
+            head="abc123",
+            branch=None,
+            root_checkout=False,
+        )
+        originals = {
+            "detect_harness_layout": harness_mod.detect_harness_layout,
+            "git_worktree_map": harness_mod.git_worktree_map,
+            "ref_merged_into_main": harness_mod.ref_merged_into_main,
+            "worktree_is_clean": harness_mod.worktree_is_clean,
+            "run": harness_mod.run,
+            "resolve_manifest_path": harness_mod.resolve_manifest_path,
+            "load_project_catalog": harness_mod.load_project_catalog,
+            "git_worktrees": harness_mod.git_worktrees,
+            "reference_prune_plan": harness_mod.reference_prune_plan,
+        }
+        commands: list[list[str]] = []
+        try:
+            harness_mod.detect_harness_layout = lambda _start=None: layout
+            harness_mod.git_worktree_map = lambda _repo_root: {"reference-edit": detached}
+            harness_mod.ref_merged_into_main = lambda _repo_root, ref: ref == "abc123"
+            harness_mod.worktree_is_clean = lambda _path: True
+            harness_mod.run = lambda command, *, cwd: commands.append(command)
+            harness_mod.resolve_manifest_path = lambda _path_text, _package_root: Path("/tmp/projects.json")
+            harness_mod.load_project_catalog = lambda _manifest_path: []
+            harness_mod.git_worktrees = lambda _repo_root: []
+            harness_mod.reference_prune_plan = lambda *_args, **_kwargs: []
+
+            self.assertEqual(harness_mod.command_worktree_retire(args), 0)
+        finally:
+            for name, value in originals.items():
+                setattr(harness_mod, name, value)
+
+        self.assertEqual(commands, [["git", "worktree", "remove", str(detached.path)]])
 
     def test_generate_projects_does_not_auto_sync_root_lake(self) -> None:
         project = HarnessProject(

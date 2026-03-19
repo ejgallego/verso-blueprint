@@ -33,6 +33,7 @@ The supported repository-local entry points are:
 ./scripts/validate-reference-blueprints.sh
 python3 -m scripts.blueprint_harness create-worktree <name>
 python3 -m scripts.blueprint_harness projects
+python3 -m scripts.blueprint_harness reference-edit <project>
 python3 -m scripts.blueprint_harness reference-sync
 python3 -m scripts.blueprint_harness reference-prune
 python3 -m scripts.blueprint_harness --help
@@ -206,7 +207,9 @@ The local coordination layer is now machine-readable and untracked.
 - `worktree-prune-candidates` lists merged clean linked worktrees that are good
   manual prune candidates
 - `worktree-retire` removes one merged clean linked worktree, deletes its local
-  branch, and prunes its stale reference clones
+  branch when one exists, and prunes its stale reference clones
+- detached linked worktrees are also retireable once their `HEAD` commit is
+  reachable from `origin/main` or local `main`
 
 The live local files are:
 
@@ -239,6 +242,9 @@ python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
 - each checkout gets its own local clone under
   `.worktrees/_reference-blueprints/by-worktree/<checkout>/`, seeded from the
   shared cache so transitive build artifacts stay warm across worktrees
+- editable reference-project clones live separately under
+  `.worktrees/_reference-blueprints/edit/<checkout>/` and are not touched by
+  `reference-sync`, `generate`, or `reference-prune`
 - `reference-prune` cleans up stale project caches and local clones when
   worktrees or manifest entries disappear
 - the Python harness rewrites the cloned project's `lakefile.lean` locally so
@@ -250,6 +256,17 @@ python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
   revisions
 - the Python harness is maintainer tooling for those validations, not the main
   package-facing authoring interface
+
+To prepare one editable external reference checkout for manual changes, use:
+
+```bash
+python3 -m scripts.blueprint_harness reference-edit noperthedron
+python3 -m scripts.blueprint_harness reference-edit spherepackingblueprint --branch feat/update-figures
+```
+
+Those editable clones are ordinary developer checkouts intended for local
+edits and future PRs; they intentionally do not reuse the disposable cache
+reset flow that the validation harness uses.
 
 ## CI and Pages
 

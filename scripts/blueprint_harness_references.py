@@ -33,6 +33,10 @@ def reference_local_checkout_dir(layout, project: HarnessProject) -> Path:
     return layout.reference_project_checkout_root / project.project_id
 
 
+def reference_edit_checkout_dir(layout, project: HarnessProject) -> Path:
+    return layout.reference_project_edit_root / project.project_id
+
+
 def use_shared_reference_checkout() -> bool:
     return os.getenv("BP_REFERENCE_CHECKOUT_MODE") == "shared"
 
@@ -58,15 +62,29 @@ def format_external_command(
     return [part.format(**placeholders) for part in command]
 
 
-def clone_git_project(project: HarnessProject, destination: Path, *, cwd: Path, source: str | None = None) -> Path:
+def clone_git_project(
+    project: HarnessProject,
+    destination: Path,
+    *,
+    cwd: Path,
+    source: str | None = None,
+    shallow: bool = True,
+) -> Path:
     command = ["git", "clone"]
-    if source is None:
+    if source is None and shallow:
         command.extend(["--depth", "1"])
     if project.ref and source is None:
         command.extend(["--branch", project.ref])
     command.extend([source or project.repository or "", str(destination)])
     run(command, cwd=cwd)
     return destination
+
+
+def fetch_git_project(project: HarnessProject, checkout_root: Path) -> None:
+    if project.ref is None:
+        run(["git", "fetch", "origin"], cwd=checkout_root)
+        return
+    run(["git", "fetch", "origin", project.ref], cwd=checkout_root)
 
 
 def update_git_checkout(project: HarnessProject, checkout_root: Path) -> None:
@@ -77,6 +95,89 @@ def update_git_checkout(project: HarnessProject, checkout_root: Path) -> None:
     # Harness-managed clones are disposable; keep them clean even if a previous
     # run rewrote tracked files such as `lakefile.lean`.
     run(["git", "reset", "--hard", "FETCH_HEAD"], cwd=checkout_root)
+
+
+def git_checkout_is_clean(checkout_root: Path) -> bool:
+    status = subprocess.run(
+        ["git", "status", "--short"],
+        cwd=checkout_root,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+    return not status
+
+
+def current_git_branch(checkout_root: Path) -> str | None:
+    branch = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=checkout_root,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+    return branch or None
+
+
+def local_branch_exists(checkout_root: Path, branch: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=checkout_root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
+def default_reference_edit_branch(project: HarnessProject) -> str:
+    return f"wip/{project.project_id}"
+
+
+def default_reference_edit_base(project: HarnessProject) -> str:
+    return f"origin/{project.ref or 'main'}"
+
+
+def prepare_reference_edit_checkout(
+    layout,
+    project: HarnessProject,
+    *,
+    branch: str | None,
+    base_ref: str | None,
+) -> tuple[Path, str, str]:
+    if not project.git_checkout or project.repository is None:
+        raise SystemExit(f"[blueprint-harness] project `{project.project_id}` is not an external git checkout project")
+
+    edit_dir = reference_edit_checkout_dir(layout, project)
+    edit_dir.parent.mkdir(parents=True, exist_ok=True)
+    if not edit_dir.exists():
+        clone_git_project(project, edit_dir, cwd=layout.package_root, shallow=False)
+    else:
+        fetch_git_project(project, edit_dir)
+
+    target_branch = branch or default_reference_edit_branch(project)
+    target_base_ref = base_ref or default_reference_edit_base(project)
+    current_branch = current_git_branch(edit_dir)
+
+    if local_branch_exists(edit_dir, target_branch):
+        if current_branch != target_branch and not git_checkout_is_clean(edit_dir):
+            raise SystemExit(
+                f"[blueprint-harness] editable checkout `{edit_dir}` has local modifications; "
+                f"cannot switch to branch `{target_branch}` safely."
+            )
+        if current_branch != target_branch:
+            run(["git", "checkout", target_branch], cwd=edit_dir)
+    else:
+        if current_branch != target_branch and not git_checkout_is_clean(edit_dir):
+            raise SystemExit(
+                f"[blueprint-harness] editable checkout `{edit_dir}` has local modifications; "
+                f"cannot create branch `{target_branch}` safely."
+            )
+        run(["git", "checkout", "-b", target_branch, target_base_ref], cwd=edit_dir)
+
+    return edit_dir, target_branch, target_base_ref
 
 
 def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) -> Path:

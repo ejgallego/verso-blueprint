@@ -51,6 +51,14 @@ python3 -m scripts.blueprint_harness sync-root-lake
 python3 -m scripts.blueprint_harness reference-sync
 ```
 
+If you want to make manual changes in one external reference blueprint repo,
+use a separate editable clone instead of the disposable validation clones:
+
+```bash
+python3 -m scripts.blueprint_harness reference-edit noperthedron
+python3 -m scripts.blueprint_harness reference-edit spherepackingblueprint --branch feat/update-figures
+```
+
 Use `./scripts/lean-low-priority ...` for long `lake`, `lean`, and
 `.lake/build/bin/*` commands when you intentionally run them.
 
@@ -75,8 +83,8 @@ as the full command reference.
   Project-manifest loader and schema checks for
   [`tests/harness/projects.json`](../tests/harness/projects.json).
 - `blueprint_harness_references.py`
-  Reference-blueprint checkout, local override, cache warm-up, and prune
-  helpers extracted from the main harness CLI.
+  Reference-blueprint checkout, editable-clone setup, local override, cache
+  warm-up, and prune helpers extracted from the main harness CLI.
 - `blueprint_harness_utils.py`
   Shared process-launch helpers used by the harness modules.
 - `blueprint_harness_paths.py`

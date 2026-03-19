@@ -24,12 +24,16 @@ branch refs/heads/main
 worktree /tmp/repo/.worktrees/harness-rework
 HEAD def
 branch refs/heads/feat/harness-rework
+
+worktree /tmp/repo/.worktrees/detached-edit
+HEAD 1234567
 """
         worktrees = parse_git_worktree_porcelain(text, repo_root)
 
-        self.assertEqual([(worktree.name, worktree.branch) for worktree in worktrees], [
-            ("main", "main"),
-            ("harness-rework", "feat/harness-rework"),
+        self.assertEqual([(worktree.name, worktree.branch, worktree.head) for worktree in worktrees], [
+            ("main", "main", "abc"),
+            ("harness-rework", "feat/harness-rework", "def"),
+            ("detached-edit", None, "1234567"),
         ])
         self.assertTrue(worktrees[0].root_checkout)
         self.assertFalse(worktrees[1].root_checkout)
