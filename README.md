@@ -153,6 +153,20 @@ Read these in order:
 9. [doc/UPSTREAM_TODO.md](./doc/UPSTREAM_TODO.md): items intended to move back
    into `verso`
 
+### Maintainer CLI Split
+
+The repository now uses two small maintainer CLIs instead of one large mixed
+surface:
+
+- `python3 -m scripts.blueprint_harness`
+  Worktree creation, root-`main` checks, landing, and local coordination
+- `python3 -m scripts.blueprint_reference_harness`
+  Reference-project generation, validation, cache sync, editable reference
+  checkouts, and prune operations
+
+The shell wrappers under [`scripts/`](./scripts/) still front the common
+reference-generation and validation flows.
+
 ## Acknowledgements
 
 Verso Blueprint builds on:

@@ -49,6 +49,13 @@ See the repository PR template for the preferred structure.
 
 ## Local Worktree Coordination
 
+For local maintainer automation, keep the CLI split in mind:
+
+- use `python3 -m scripts.blueprint_harness ...` for worktree management,
+  branch landing, and local coordination metadata
+- use `python3 -m scripts.blueprint_reference_harness ...` for reference
+  project generation, validation, cache sync, and editable reference clones
+
 Use the harness commands to manage local coordination metadata:
 
 ```bash

@@ -1,6 +1,6 @@
 # Blueprint Maintainer Guide
 
-Last updated: 2026-03-17
+Last updated: 2026-03-19
 
 This document is the repository-level workflow guide for maintaining Blueprint
 support in `verso-blueprint` and its published reference blueprints.
@@ -55,6 +55,13 @@ The shell wrappers are the normal front door for day-to-day work. The Python
 modules are the single source of truth for orchestration and path resolution:
 `blueprint_harness.py` for worktree and landing flows, and
 `blueprint_reference_harness.py` for reference-project lifecycle flows.
+
+Rule of thumb:
+
+- if the task is about linked worktrees, root `main`, or local coordination,
+  use `blueprint_harness`
+- if the task is about building, validating, syncing, editing, or pruning the
+  reference projects, use `blueprint_reference_harness`
 
 The default project catalog lives at `tests/harness/projects.json`. It includes
 the in-repo starter template plus the external reference blueprint repositories,
