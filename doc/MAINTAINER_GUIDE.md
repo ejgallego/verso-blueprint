@@ -237,7 +237,7 @@ python3 -m scripts.blueprint_reference_harness validate --allow-local-build --ru
 The local coordination layer is now machine-readable and untracked.
 
 - `worktree-sync` scans `git worktree list` and refreshes local metadata under
-  `.worktrees/`
+  `.worktrees/`; it prints the same dashboard view as `worktree-list`
 - `worktree-list` shows the current local dashboard, combining local metadata
   with live Git state
 - `worktree-claim` records owner, priority, summary, status, and write scope
@@ -267,13 +267,15 @@ not be treated as repository content.
 Recommended workflow:
 
 ```bash
-python3 -m scripts.blueprint_harness worktree-sync
 python3 -m scripts.blueprint_harness create-worktree harness-rework --owner codex --priority P1 --summary "external harness rework" --scope scripts --scope tests/harness
 python3 -m scripts.blueprint_harness worktree-list
 python3 -m scripts.blueprint_harness worktree-claim harness-rework --priority P0 --status review
 python3 -m scripts.blueprint_harness worktree-prune-candidates
 python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
 ```
+
+`worktree-list` already refreshes the local metadata before printing. Use
+`worktree-sync` only when you want an explicit refresh step.
 
 ## Reference Blueprint Notes
 

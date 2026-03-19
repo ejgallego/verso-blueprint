@@ -1,10 +1,11 @@
 # Contributing
 
-This repository uses a two-layer coordination model:
+This repository keeps local parallel work simple:
 
-- GitHub issues and pull requests are the shared, durable record.
-- `.worktrees/` metadata is the local, untracked coordination layer for
-  parallel work.
+- one linked worktree per feature or fix branch
+- `.worktrees/` metadata as the local, untracked coordination layer for you and
+  Codex
+- pull requests as the durable review and merge artifact
 
 ## Branch Conventions
 
@@ -15,7 +16,7 @@ This repository uses a two-layer coordination model:
 - Use `wip/<slug>` only for local-only exploratory branches that are not ready
   for review.
 
-Prefer including the issue number or stable task slug when one exists.
+Prefer short, descriptive slugs over opaque branch names.
 
 ## Commit Conventions
 
@@ -59,13 +60,16 @@ For local maintainer automation, keep the CLI split in mind:
 Use the harness commands to manage local coordination metadata:
 
 ```bash
-python3 -m scripts.blueprint_harness worktree-sync
 python3 -m scripts.blueprint_harness worktree-list
 python3 -m scripts.blueprint_harness create-worktree <name> --owner <name> --priority P1 --summary <text> --scope <path>
 python3 -m scripts.blueprint_harness worktree-claim --priority P0 --summary <text>
 python3 -m scripts.blueprint_harness worktree-status
 python3 -m scripts.blueprint_harness worktree-release
 ```
+
+`worktree-list` already refreshes local metadata before printing the dashboard.
+Use `worktree-sync` only when you explicitly want a refresh without any other
+action.
 
 By default, only clean up worktrees or branches created or landed by the
 current session. Do not retire or delete unrelated local worktrees unless the

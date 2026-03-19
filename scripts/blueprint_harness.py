@@ -291,6 +291,18 @@ def bool_or_blank(value: bool | None) -> str:
     return "" if value is None else str(value).lower()
 
 
+def print_worktree_dashboard(records, registry: Path) -> None:
+    print(f"worktree_registry={registry}")
+    for record in records:
+        scope = ",".join(record.write_scope) if record.write_scope else ""
+        print(
+            f"{record.name}\tpriority={record.priority or ''}\tstatus={record.status}\t"
+            f"owner={record.owner or ''}\tbranch={record.branch or ''}\tdirty={bool_or_blank(record.dirty)}\t"
+            f"main_ahead={text_or_blank(record.main_ahead)}\tmain_behind={text_or_blank(record.main_behind)}\t"
+            f"scope={scope}\tsummary={record.summary or ''}"
+        )
+
+
 def command_sync_root_lake(_: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
     if not layout.in_linked_worktree:
@@ -532,24 +544,14 @@ def command_worktree_retire(args: argparse.Namespace) -> int:
 def command_worktree_sync(_: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
     records, registry = sync_worktree_registry(layout.repo_root)
-    print(f"worktree_registry={registry}")
-    for record in records:
-        print(f"{record.name}\tbranch={record.branch or ''}\tstatus={record.status}\towner={record.owner or ''}")
+    print_worktree_dashboard(records, registry)
     return 0
 
 
 def command_worktree_list(_: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
     records, registry = sync_worktree_registry(layout.repo_root)
-    print(f"worktree_registry={registry}")
-    for record in records:
-        scope = ",".join(record.write_scope) if record.write_scope else ""
-        print(
-            f"{record.name}\tpriority={record.priority or ''}\tstatus={record.status}\t"
-            f"owner={record.owner or ''}\tbranch={record.branch or ''}\tdirty={bool_or_blank(record.dirty)}\t"
-            f"main_ahead={text_or_blank(record.main_ahead)}\tmain_behind={text_or_blank(record.main_behind)}\t"
-            f"scope={scope}\tsummary={record.summary or ''}"
-        )
+    print_worktree_dashboard(records, registry)
     return 0
 
 
@@ -731,7 +733,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     worktree_sync = subparsers.add_parser(
         "worktree-sync",
-        help="Sync local worktree coordination metadata under .worktrees/.",
+        help="Refresh local worktree coordination metadata and print the dashboard view.",
     )
     worktree_sync.set_defaults(func=command_worktree_sync)
 
