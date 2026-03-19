@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+from types import SimpleNamespace
 import unittest
 
 from scripts.blueprint_harness_projects import (
@@ -17,6 +18,7 @@ from scripts.blueprint_harness_references import (
     clone_git_project,
     discard_untracked_project_manifest,
     default_reference_edit_base,
+    generate_git_project,
     reference_update_command,
     rewrite_local_blueprint_dependency,
     tracked_project_manifest_path,
@@ -414,6 +416,70 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
                 os.environ.pop("BP_REFERENCE_CHECKOUT_MODE", None)
             else:
                 os.environ["BP_REFERENCE_CHECKOUT_MODE"] = old
+
+    def test_generate_git_project_skips_cache_warm_build_for_local_checkout_mode(self) -> None:
+        import scripts.blueprint_harness_references as refs_mod
+
+        project = HarnessProject(
+            project_id="external-blueprint",
+            source_kind="git_checkout",
+            project_root=".",
+            build_target=None,
+            generator=None,
+            repository="https://github.com/example/external-blueprint.git",
+            ref="main",
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen", "--output", "{output_dir}"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cache_dir = root / "cache"
+            local_dir = root / "local"
+            output_root = root / "out"
+            cache_dir.mkdir()
+            local_dir.mkdir()
+            (local_dir / "lakefile.lean").write_text('require VersoBlueprint from "../pkg"\n', encoding="utf-8")
+
+            layout = SimpleNamespace(
+                package_root=root / "pkg",
+                repo_root=root / "repo",
+            )
+            layout.package_root.mkdir()
+            layout.repo_root.mkdir()
+
+            originals = {
+                "sync_reference_cache_checkout": refs_mod.sync_reference_cache_checkout,
+                "sync_reference_local_checkout": refs_mod.sync_reference_local_checkout,
+                "prime_reference_checkout_from_root_lake_cache": refs_mod.prime_reference_checkout_from_root_lake_cache,
+                "rewrite_local_blueprint_dependency": refs_mod.rewrite_local_blueprint_dependency,
+                "reference_update_command": refs_mod.reference_update_command,
+                "run": refs_mod.run,
+                "use_shared_reference_checkout": refs_mod.use_shared_reference_checkout,
+            }
+            commands: list[list[str]] = []
+            warm_build_values: list[bool] = []
+            try:
+                refs_mod.sync_reference_cache_checkout = lambda _layout, _project, *, warm_build: warm_build_values.append(warm_build) or cache_dir
+                refs_mod.sync_reference_local_checkout = lambda _layout, _project, _cache_dir: local_dir
+                refs_mod.prime_reference_checkout_from_root_lake_cache = lambda _layout, _project_dir: None
+                refs_mod.rewrite_local_blueprint_dependency = lambda _project_dir, _package_root: local_dir / "lakefile.lean"
+                refs_mod.reference_update_command = lambda _package_root, _project_dir: ["lake", "update", "VersoBlueprint"]
+                refs_mod.run = lambda command, *, cwd: commands.append(command)
+                refs_mod.use_shared_reference_checkout = lambda: False
+
+                generate_git_project(layout, output_root, project, skip_build=False)
+            finally:
+                for name, value in originals.items():
+                    setattr(refs_mod, name, value)
+
+        self.assertEqual(warm_build_values, [False])
+        self.assertIn(["lake", "update", "VersoBlueprint"], commands)
+        self.assertTrue(any(command[1:] == ["lake", "build"] for command in commands))
 
     def test_reference_prune_plan_finds_stale_cache_and_checkout_paths(self) -> None:
         from scripts.blueprint_harness import reference_prune_plan

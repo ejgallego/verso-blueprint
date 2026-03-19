@@ -391,7 +391,11 @@ def generate_in_repo_command_project(layout, output_root: Path, project: Harness
 
 
 def generate_git_project(layout, output_root: Path, project: HarnessProject, *, skip_build: bool) -> None:
-    cache_dir = sync_reference_cache_checkout(layout, project, warm_build=not skip_build)
+    # Shared cache warm builds run against `layout.repo_root` so linked worktree
+    # validations must skip them here and build only after rewriting the local
+    # checkout dependency to `layout.package_root`.
+    cache_warm_build = (not skip_build) and use_shared_reference_checkout()
+    cache_dir = sync_reference_cache_checkout(layout, project, warm_build=cache_warm_build)
     checkout_root = cache_dir if use_shared_reference_checkout() else sync_reference_local_checkout(layout, project, cache_dir)
     project_dir = checkout_root / project.project_root
     discard_untracked_project_manifest(project_dir)
