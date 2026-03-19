@@ -549,8 +549,21 @@ def command_worktree_status(args: argparse.Namespace) -> int:
     print(f"task_id={record.task_id or ''}")
     print(f"summary={record.summary or ''}")
     print(f"write_scope={','.join(record.write_scope)}")
+    print(f"created_at={record.created_at or ''}")
     print(f"updated_at={record.updated_at or ''}")
     print(f"last_seen_at={record.last_seen_at or ''}")
+    print(f"dirty={'' if record.dirty is None else str(record.dirty).lower()}")
+    print(f"tracked_changes={'' if record.tracked_changes is None else record.tracked_changes}")
+    print(f"untracked_changes={'' if record.untracked_changes is None else record.untracked_changes}")
+    print(f"merged_into_main={'' if record.merged_into_main is None else str(record.merged_into_main).lower()}")
+    print(f"main_ahead={'' if record.main_ahead is None else record.main_ahead}")
+    print(f"main_behind={'' if record.main_behind is None else record.main_behind}")
+    print(f"upstream={record.upstream or ''}")
+    print(f"upstream_ahead={'' if record.upstream_ahead is None else record.upstream_ahead}")
+    print(f"upstream_behind={'' if record.upstream_behind is None else record.upstream_behind}")
+    print(f"last_commit={record.last_commit or ''}")
+    print(f"last_commit_at={record.last_commit_at or ''}")
+    print(f"last_commit_subject={record.last_commit_subject or ''}")
     return 0
 
 

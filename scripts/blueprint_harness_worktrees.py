@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 import json
 from pathlib import Path
 import subprocess
 
 
-WORKTREE_METADATA_FILENAME = ".codex-worktree.json"
 ROOT_METADATA_FILENAME = "_root.json"
 REGISTRY_FILENAME = "registry.json"
 METADATA_DIRNAME = "_meta"
@@ -35,9 +34,21 @@ class WorktreeRecord:
     task_id: str | None = None
     summary: str | None = None
     write_scope: list[str] = field(default_factory=list)
+    created_at: str | None = None
     updated_at: str | None = None
     last_seen_at: str | None = None
-    extra: dict[str, object] = field(default_factory=dict, repr=False)
+    dirty: bool | None = None
+    tracked_changes: int | None = None
+    untracked_changes: int | None = None
+    merged_into_main: bool | None = None
+    main_ahead: int | None = None
+    main_behind: int | None = None
+    upstream: str | None = None
+    upstream_ahead: int | None = None
+    upstream_behind: int | None = None
+    last_commit: str | None = None
+    last_commit_at: str | None = None
+    last_commit_subject: str | None = None
 
 
 def utc_now() -> str:
@@ -52,13 +63,6 @@ def metadata_path(repo_root: Path, name: str) -> Path:
     if name == "main":
         return repo_root / ".worktrees" / METADATA_DIRNAME / ROOT_METADATA_FILENAME
     return repo_root / ".worktrees" / METADATA_DIRNAME / f"{name}.json"
-
-
-def legacy_metadata_path(repo_root: Path, name: str) -> Path:
-    if name == "main":
-        return repo_root / ".worktrees" / ROOT_METADATA_FILENAME
-    return repo_root / ".worktrees" / name / WORKTREE_METADATA_FILENAME
-
 
 def registry_path(repo_root: Path) -> Path:
     return repo_root / ".worktrees" / REGISTRY_FILENAME
@@ -122,25 +126,12 @@ def load_record(path: Path) -> WorktreeRecord | None:
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
-    return parse_record(data)
-
-
-def parse_record(data: dict[str, object]) -> WorktreeRecord:
-    known = {item.name for item in fields(WorktreeRecord) if item.name != "extra"}
-    payload = {key: value for key, value in data.items() if key in known}
-    extra = {key: value for key, value in data.items() if key not in known}
-    return WorktreeRecord(**payload, extra=extra)
-
-
-def record_payload(record: WorktreeRecord) -> dict[str, object]:
-    payload = {item.name: getattr(record, item.name) for item in fields(WorktreeRecord) if item.name != "extra"}
-    payload.update(record.extra)
-    return payload
+    return WorktreeRecord(**data)
 
 
 def save_record(path: Path, record: WorktreeRecord) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(record_payload(record), indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(asdict(record), indent=2) + "\n", encoding="utf-8")
 
 
 def load_registry(repo_root: Path) -> dict[str, WorktreeRecord]:
@@ -149,7 +140,7 @@ def load_registry(repo_root: Path) -> dict[str, WorktreeRecord]:
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
     entries = data.get("worktrees", [])
-    return {entry["name"]: parse_record(entry) for entry in entries}
+    return {entry["name"]: WorktreeRecord(**entry) for entry in entries}
 
 
 def save_registry(repo_root: Path, records: list[WorktreeRecord]) -> Path:
@@ -158,10 +149,127 @@ def save_registry(repo_root: Path, records: list[WorktreeRecord]) -> Path:
     payload = {
         "version": 1,
         "generated_at": utc_now(),
-        "worktrees": [record_payload(record) for record in records],
+        "worktrees": [asdict(record) for record in records],
     }
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return path
+
+
+def ref_oid(repo_root: Path, ref: str) -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", ref],
+        cwd=repo_root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        return None
+    oid = result.stdout.strip()
+    return oid or None
+
+
+def preferred_main_ref(repo_root: Path) -> str:
+    if ref_oid(repo_root, "refs/remotes/origin/main") is not None:
+        return "origin/main"
+    return "main"
+
+
+def is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+            cwd=repo_root,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
+def ref_merged_into_main(repo_root: Path, ref: str) -> bool:
+    upstream = preferred_main_ref(repo_root)
+    if ref_oid(repo_root, ref) is None or ref_oid(repo_root, upstream) is None:
+        return False
+    return is_ancestor(repo_root, ref, upstream)
+
+
+def rev_list_counts(repo_root: Path, ref: str, base_ref: str) -> tuple[int | None, int | None]:
+    if ref_oid(repo_root, ref) is None or ref_oid(repo_root, base_ref) is None:
+        return None, None
+    result = subprocess.run(
+        ["git", "rev-list", "--left-right", "--count", f"{base_ref}...{ref}"],
+        cwd=repo_root,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    behind_text, ahead_text = result.stdout.strip().split()
+    return int(ahead_text), int(behind_text)
+
+
+def branch_upstream(repo_root: Path, branch: str) -> str | None:
+    result = subprocess.run(
+        ["git", "for-each-ref", "--format=%(upstream:short)", f"refs/heads/{branch}"],
+        cwd=repo_root,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    upstream = result.stdout.strip()
+    return upstream or None
+
+
+def worktree_status_counts(path: Path) -> tuple[bool, int, int]:
+    result = subprocess.run(
+        ["git", "status", "--short"],
+        cwd=path,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    tracked_changes = sum(1 for line in lines if not line.startswith("??"))
+    untracked_changes = sum(1 for line in lines if line.startswith("??"))
+    return bool(lines), tracked_changes, untracked_changes
+
+
+def worktree_last_commit(path: Path) -> tuple[str | None, str | None, str | None]:
+    result = subprocess.run(
+        ["git", "log", "-1", "--format=%h%n%cI%n%s"],
+        cwd=path,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    parts = result.stdout.splitlines()
+    if len(parts) != 3:
+        return None, None, None
+    return parts[0] or None, parts[1] or None, parts[2] or None
+
+
+def collect_worktree_facts(repo_root: Path, git_wt: GitWorktree) -> dict[str, object]:
+    ref = git_wt.branch or git_wt.head
+    dirty, tracked_changes, untracked_changes = worktree_status_counts(git_wt.path)
+    main_ahead, main_behind = rev_list_counts(repo_root, ref, "main")
+    upstream = branch_upstream(repo_root, git_wt.branch) if git_wt.branch is not None else None
+    upstream_ahead, upstream_behind = (
+        rev_list_counts(repo_root, ref, upstream) if upstream is not None else (None, None)
+    )
+    last_commit, last_commit_at, last_commit_subject = worktree_last_commit(git_wt.path)
+    return {
+        "dirty": dirty,
+        "tracked_changes": tracked_changes,
+        "untracked_changes": untracked_changes,
+        "merged_into_main": ref_merged_into_main(repo_root, ref),
+        "main_ahead": main_ahead,
+        "main_behind": main_behind,
+        "upstream": upstream,
+        "upstream_ahead": upstream_ahead,
+        "upstream_behind": upstream_behind,
+        "last_commit": last_commit,
+        "last_commit_at": last_commit_at,
+        "last_commit_subject": last_commit_subject,
+    }
 
 
 def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]:
@@ -170,10 +278,8 @@ def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]
     records: list[WorktreeRecord] = []
     for git_wt in git_worktrees(repo_root):
         path = metadata_path(repo_root, git_wt.name)
-        legacy_path = legacy_metadata_path(repo_root, git_wt.name)
-        existing = load_record(path) or load_record(legacy_path) or previous.get(git_wt.name)
-        extra = existing.extra.copy() if existing else {}
-        extra.setdefault("created_at", now)
+        existing = load_record(path) or previous.get(git_wt.name)
+        facts = collect_worktree_facts(repo_root, git_wt)
         record = WorktreeRecord(
             version=1,
             name=git_wt.name,
@@ -186,13 +292,23 @@ def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]
             task_id=existing.task_id if existing else None,
             summary=existing.summary if existing else default_summary(git_wt.name),
             write_scope=existing.write_scope[:] if existing else [],
+            created_at=existing.created_at if existing and existing.created_at else now,
             updated_at=now,
             last_seen_at=now,
-            extra=extra,
+            dirty=facts["dirty"],
+            tracked_changes=facts["tracked_changes"],
+            untracked_changes=facts["untracked_changes"],
+            merged_into_main=facts["merged_into_main"],
+            main_ahead=facts["main_ahead"],
+            main_behind=facts["main_behind"],
+            upstream=facts["upstream"],
+            upstream_ahead=facts["upstream_ahead"],
+            upstream_behind=facts["upstream_behind"],
+            last_commit=facts["last_commit"],
+            last_commit_at=facts["last_commit_at"],
+            last_commit_subject=facts["last_commit_subject"],
         )
         save_record(path, record)
-        if legacy_path.exists():
-            legacy_path.unlink()
         records.append(record)
     records.sort(key=lambda record: (not record.root_checkout, record.name))
     return records, save_registry(repo_root, records)
