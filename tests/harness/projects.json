@@ -18,7 +18,7 @@
       "source": {
         "kind": "git_checkout",
         "repository": "https://github.com/ejgallego/verso-noperthedron.git",
-        "ref": "main",
+        "ref": "9b50e39c17434ee1a574fd27ed97006adfdc5dc1",
         "project_root": "."
       },
       "build_command": ["lake", "build"],
@@ -35,7 +35,7 @@
       "source": {
         "kind": "git_checkout",
         "repository": "https://github.com/ejgallego/verso-sphere-packing.git",
-        "ref": "main",
+        "ref": "bf360549db514531d681c5516ceef138fb8d97ae",
         "project_root": "."
       },
       "build_command": ["lake", "build"],

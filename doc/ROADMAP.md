@@ -1,6 +1,6 @@
 # Blueprint Roadmap
 
-Last updated: 2026-03-16
+Last updated: 2026-03-19
 
 This document tracks active cleanup and follow-up work for Blueprint support in
 this repository.
@@ -119,6 +119,10 @@ Work:
    local `verso` checkout
 8. add the minimum project override surface needed for Blueprint projects that
    live outside this repository
+9. upstream a Lake improvement so updating one overridden dependency does not
+   rewrite unrelated pinned transitive dependencies or require harness-side
+   manifest cleanup to keep `verso` and `subverso` aligned with tracked
+   reference manifests
 
 ## UI Follow-Ups
 

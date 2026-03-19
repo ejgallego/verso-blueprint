@@ -258,6 +258,19 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
             self.assertEqual(command[-2:], ["lake", "update"])
 
+    def test_project_template_manifest_keeps_verso_and_subverso_in_sync_with_root(self) -> None:
+        root_manifest = json.loads((PACKAGE_ROOT / "lake-manifest.json").read_text(encoding="utf-8"))
+        template_manifest = json.loads((PACKAGE_ROOT / "project_template" / "lake-manifest.json").read_text(encoding="utf-8"))
+
+        def package_rev(manifest_data: dict, package_name: str) -> str:
+            package = next(entry for entry in manifest_data["packages"] if entry["name"] == package_name)
+            rev = package.get("rev")
+            self.assertIsInstance(rev, str)
+            return rev
+
+        self.assertEqual(package_rev(template_manifest, "verso"), package_rev(root_manifest, "verso"))
+        self.assertEqual(package_rev(template_manifest, "subverso"), package_rev(root_manifest, "subverso"))
+
     def test_use_shared_reference_checkout_env_switch(self) -> None:
         old = os.environ.get("BP_REFERENCE_CHECKOUT_MODE")
         try:

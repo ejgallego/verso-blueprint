@@ -335,11 +335,12 @@ def generate_in_repo_command_project(layout, output_root: Path, project: Harness
 
     output_dir = output_dir_for(project, output_root)
     output_dir.mkdir(parents=True, exist_ok=True)
+    discard_untracked_project_manifest(project_dir)
     rewritten_lakefile, original_lakefile_text = maybe_rewrite_in_repo_blueprint_dependency(project_dir, layout.package_root)
     if rewritten_lakefile is not None:
         print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
     try:
-        run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
+        run(reference_update_command(layout.package_root, project_dir), cwd=project_dir)
         if not skip_build and project.build_command is not None:
             run(
                 lean_low_priority_command(
