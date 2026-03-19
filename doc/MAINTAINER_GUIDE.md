@@ -139,11 +139,8 @@ To print the resolved paths for the current checkout, run:
 python3 -m scripts.blueprint_harness paths
 ```
 
-`paths` prints both the canonical linked-worktree output locations and the
-resolved existing site directories. Resolution prefers the canonical current
-layout and only falls back to the older shared repo-root layout kept for
-pre-split migration compatibility; it does not reuse worktree-local `_out/`
-artifacts.
+`paths` prints the canonical worktree-aware output, cache, and checkout
+locations used by the harness.
 
 It also prints the shared reference blueprint cache root and the current
 checkout's local clone root.
@@ -157,6 +154,13 @@ the root checkout as the stable base:
 python3 -m scripts.blueprint_harness create-worktree <name>
 ```
 
+That command is intentionally heavyweight by default: after `git worktree add`
+it syncs the root checkout's `.lake/` and warms the shared and per-worktree
+reference blueprint clones.
+
+After creation, ordinary `generate` and `validate` runs reuse the worktree's
+current `.lake/`; they do not automatically resync it from the root checkout.
+
 The harness is worktree-aware:
 
 - in a linked worktree it writes artifacts to `_out/<worktree>/...`
@@ -168,7 +172,14 @@ The harness is worktree-aware:
 - local `lake build` and `lake test` in a linked worktree are disabled by
   default to avoid unnecessary dependency rebuilds
 
-Before rebuilding from a linked worktree, prefer:
+If you only want a bare linked checkout and plan to bootstrap it yourself, use:
+
+```bash
+python3 -m scripts.blueprint_harness create-worktree <name> --lightweight
+```
+
+When you do want to refresh a linked worktree from the root checkout and shared
+reference cache, prefer:
 
 ```bash
 python3 -m scripts.blueprint_harness sync-root-lake

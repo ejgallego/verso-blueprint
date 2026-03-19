@@ -10,7 +10,11 @@ from scripts.blueprint_harness_projects import (
     default_project_manifest,
     load_projects_manifest,
 )
-from scripts.blueprint_harness import OFFICIAL_BLUEPRINT_REQUIRE, rewrite_local_blueprint_dependency, use_shared_reference_checkout
+from scripts.blueprint_harness_references import (
+    OFFICIAL_BLUEPRINT_REQUIRE,
+    rewrite_local_blueprint_dependency,
+    use_shared_reference_checkout,
+)
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]

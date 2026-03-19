@@ -2,10 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
-
-
-EXAMPLES: tuple[str, ...] = ("noperthedron", "spherepackingblueprint")
 
 
 @dataclass(frozen=True)
@@ -89,39 +85,5 @@ def canonical_example_site_dir(example: str, start: Path | None = None) -> Path:
     return layout.reference_output_root / example / "html-multi"
 
 
-def previous_canonical_example_site_dir(example: str, start: Path | None = None) -> Path:
-    layout = detect_harness_layout(start)
-    return layout.artifact_root / "example-blueprints" / example / "html-multi"
-
-
-def legacy_shared_example_site_dir(example: str, start: Path | None = None) -> Path:
-    layout = detect_harness_layout(start)
-    return layout.artifact_root / example / "html-multi"
-
-
-def example_site_candidates(example: str, start: Path | None = None) -> list[Path]:
-    candidates = [
-        canonical_example_site_dir(example, start),
-        previous_canonical_example_site_dir(example, start),
-        # Retain the older shared repo-root layout during the verso -> verso-blueprint migration.
-        legacy_shared_example_site_dir(example, start),
-    ]
-    unique: list[Path] = []
-    seen: set[Path] = set()
-    for candidate in candidates:
-        if candidate not in seen:
-            unique.append(candidate)
-            seen.add(candidate)
-    return unique
-
-
-def first_existing(paths: Iterable[Path]) -> Path | None:
-    for path in paths:
-        if path.exists():
-            return path
-    return None
-
-
 def default_example_site_dir(example: str, start: Path | None = None) -> Path:
-    candidates = example_site_candidates(example, start)
-    return first_existing(candidates) or candidates[0]
+    return canonical_example_site_dir(example, start)

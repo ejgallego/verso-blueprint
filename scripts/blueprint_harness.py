@@ -2,16 +2,22 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-import os
-import re
 import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-from scripts.blueprint_harness_paths import canonical_example_site_dir, default_example_site_dir, detect_harness_layout, resolve_output_root
+from scripts.blueprint_harness_paths import canonical_example_site_dir, detect_harness_layout, resolve_output_root
 from scripts.blueprint_harness_projects import HarnessProject, load_projects_manifest, resolve_manifest_path
+from scripts.blueprint_harness_references import (
+    generate_in_repo_command_project,
+    generate_git_project,
+    output_dir_for,
+    reference_prune_plan,
+    site_dir_for,
+    sync_reference_blueprints,
+)
+from scripts.blueprint_harness_utils import format_command, lean_low_priority_command, run
 from scripts.blueprint_harness_worktrees import (
     git_worktrees,
     resolve_worktree_name,
@@ -20,28 +26,11 @@ from scripts.blueprint_harness_worktrees import (
     worktree_record_map,
 )
 
-OFFICIAL_BLUEPRINT_REQUIRE = 'require VersoBlueprint from git "https://github.com/leanprover/verso-blueprint"@"main"'
-OFFICIAL_BLUEPRINT_URL_PATTERNS = (
-    r"https://github\.com/leanprover/verso-blueprint(?:\.git)?",
-    r"git@github\.com:leanprover/verso-blueprint\.git",
-    r"ssh://git@github\.com/leanprover/verso-blueprint\.git",
-)
-
 
 @dataclass(frozen=True)
 class StepFailure:
     step: str
     detail: str
-
-
-def format_command(command: list[str]) -> str:
-    return " ".join(command)
-
-
-def run(command: list[str], *, cwd: Path) -> None:
-    print(f"[blueprint-harness] $ {format_command(command)}")
-    subprocess.run(command, cwd=cwd, check=True)
-
 
 def run_capturing_failure(step: str, command: list[str], *, cwd: Path) -> StepFailure | None:
     try:
@@ -72,11 +61,6 @@ def load_project_catalog(manifest_path: Path) -> list[HarnessProject]:
         return load_projects_manifest(manifest_path)
     except (FileNotFoundError, ValueError) as err:
         raise SystemExit(f"[blueprint-harness] {err}") from err
-
-
-def lean_low_priority_command(package_root: Path, *args: str) -> list[str]:
-    return [str(package_root / "scripts" / "lean-low-priority"), *args]
-
 
 def should_use_local_build(layout, allow_local_build: bool) -> bool:
     return (not layout.in_linked_worktree) or allow_local_build
@@ -131,6 +115,10 @@ def default_branch_name(worktree_name: str) -> str:
     return f"feat/{worktree_name}"
 
 
+def create_worktree_sync_policy(args: argparse.Namespace) -> tuple[bool, bool]:
+    return (args.skip_sync or args.lightweight, args.skip_reference_sync or args.lightweight)
+
+
 def branch_exists(repo_root: Path, branch: str) -> bool:
     return (
         subprocess.run(
@@ -164,7 +152,8 @@ def ensure_prebuilt_executable(package_root: Path, exe_name: str) -> Path:
     if not path.exists():
         raise SystemExit(
             f"[blueprint-harness] missing prebuilt executable `{exe_name}` at {path}. "
-            "Sync from the root worktree after building there, or rerun with `--allow-local-build`."
+            "Refresh this worktree with `python3 -m scripts.blueprint_harness sync-root-lake` "
+            "after building from the root checkout, or rerun with `--allow-local-build`."
         )
     return path
 
@@ -182,26 +171,6 @@ def resolve_repo_relative_path(package_root: Path, path_text: str) -> Path:
     if path.is_absolute():
         return path
     return package_root / path
-
-
-def output_dir_for(project: HarnessProject, output_root: Path) -> Path:
-    return output_root / project.project_id
-
-
-def site_dir_for(project: HarnessProject, output_root: Path) -> Path:
-    return output_dir_for(project, output_root) / project.site_subdir
-
-
-def reference_cache_checkout_dir(layout, project: HarnessProject) -> Path:
-    return layout.reference_project_cache_root / project.project_id
-
-
-def reference_local_checkout_dir(layout, project: HarnessProject) -> Path:
-    return layout.reference_project_checkout_root / project.project_id
-
-
-def use_shared_reference_checkout() -> bool:
-    return os.getenv("BP_REFERENCE_CHECKOUT_MODE") == "shared"
 
 
 def build_in_repo_projects(package_root: Path, projects: list[HarnessProject]) -> None:
@@ -252,275 +221,6 @@ def render_in_repo_projects(package_root: Path, output_root: Path, projects: lis
         for _, proc in procs:
             if proc.poll() is None:
                 proc.kill()
-
-
-def maybe_rewrite_in_repo_blueprint_dependency(project_dir: Path, package_root: Path) -> tuple[Path | None, str | None]:
-    lakefile = project_dir / "lakefile.lean"
-    if not lakefile.exists():
-        return None, None
-
-    text = lakefile.read_text(encoding="utf-8")
-    if 'require VersoBlueprint from "' in text:
-        return None, None
-    if "require VersoBlueprint from git" not in text:
-        return None, None
-
-    rewrite_local_blueprint_dependency(project_dir, package_root)
-    return lakefile, text
-
-
-def generate_in_repo_command_project(layout, output_root: Path, project: HarnessProject, *, skip_build: bool) -> None:
-    project_dir = resolve_repo_relative_path(layout.package_root, project.project_root)
-    if not project_dir.exists():
-        raise SystemExit(f"[blueprint-harness] missing in-repo project root for `{project.project_id}`: {project_dir}")
-
-    output_dir = output_dir_for(project, output_root)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    rewritten_lakefile, original_lakefile_text = maybe_rewrite_in_repo_blueprint_dependency(project_dir, layout.package_root)
-    if rewritten_lakefile is not None:
-        print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
-    try:
-        run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
-        if not skip_build and project.build_command is not None:
-            run(
-                lean_low_priority_command(
-                    layout.package_root,
-                    *format_external_command(
-                        project.build_command,
-                        project=project,
-                        package_root=layout.package_root,
-                        checkout_root=project_dir,
-                        project_dir=project_dir,
-                        output_dir=output_dir,
-                    ),
-                ),
-                cwd=project_dir,
-            )
-        run(
-            lean_low_priority_command(
-                layout.package_root,
-                *format_external_command(
-                    project.generate_command or (),
-                    project=project,
-                    package_root=layout.package_root,
-                    checkout_root=project_dir,
-                    project_dir=project_dir,
-                    output_dir=output_dir,
-                ),
-            ),
-            cwd=project_dir,
-        )
-    finally:
-        if rewritten_lakefile is not None and original_lakefile_text is not None:
-            rewritten_lakefile.write_text(original_lakefile_text, encoding="utf-8")
-
-
-def format_external_command(
-    command: tuple[str, ...],
-    *,
-    project: HarnessProject,
-    package_root: Path,
-    checkout_root: Path,
-    project_dir: Path,
-    output_dir: Path,
-) -> list[str]:
-    site_dir = site_dir_for(project, output_dir.parent)
-    placeholders = {
-        "checkout_root": str(checkout_root),
-        "package_root": str(package_root),
-        "project_dir": str(project_dir),
-        "output_dir": str(output_dir),
-        "project_id": project.project_id,
-        "site_dir": str(site_dir),
-    }
-    return [part.format(**placeholders) for part in command]
-
-
-def clone_git_project(project: HarnessProject, destination: Path, *, cwd: Path, source: str | None = None) -> Path:
-    command = ["git", "clone"]
-    if source is None:
-        command.extend(["--depth", "1"])
-    if project.ref and source is None:
-        command.extend(["--branch", project.ref])
-    command.extend([source or project.repository or "", str(destination)])
-    run(command, cwd=cwd)
-    return destination
-
-
-def update_git_checkout(project: HarnessProject, checkout_root: Path) -> None:
-    if project.ref is None:
-        return
-    run(["git", "fetch", "--depth", "1", "origin", project.ref], cwd=checkout_root)
-    run(["git", "checkout", "--detach", "FETCH_HEAD"], cwd=checkout_root)
-    # Harness-managed clones are disposable; keep them clean even if a previous
-    # run rewrote tracked files such as `lakefile.lean`.
-    run(["git", "reset", "--hard", "FETCH_HEAD"], cwd=checkout_root)
-
-
-def sync_reference_cache_checkout(layout, project: HarnessProject, *, warm_build: bool) -> Path:
-    cache_dir = reference_cache_checkout_dir(layout, project)
-    cache_dir.parent.mkdir(parents=True, exist_ok=True)
-    if not cache_dir.exists():
-        clone_git_project(project, cache_dir, cwd=layout.package_root)
-    else:
-        update_git_checkout(project, cache_dir)
-    project_dir = cache_dir / project.project_root
-    cache_lakefile = project_dir / "lakefile.lean"
-    original_text = cache_lakefile.read_text(encoding="utf-8")
-    rewrite_local_blueprint_dependency(project_dir, layout.repo_root)
-    try:
-        run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
-        if warm_build and project.build_command is not None:
-            run(lean_low_priority_command(layout.package_root, *project.build_command), cwd=project_dir)
-    finally:
-        cache_lakefile.write_text(original_text, encoding="utf-8")
-    return cache_dir
-
-
-def prime_reference_checkout_from_root_lake_cache(layout, project_dir: Path) -> None:
-    if shutil.which("rsync") is None:
-        return
-
-    shared_build_roots = [
-        layout.package_root / ".lake" / "packages" / "mathlib" / ".lake" / "build",
-        layout.package_root / ".lake" / "packages" / "verso" / ".lake" / "build",
-    ]
-    target_build_roots = [
-        project_dir / ".lake" / "packages" / "mathlib" / ".lake" / "build",
-        project_dir / ".lake" / "packages" / "verso" / ".lake" / "build",
-    ]
-
-    for source_root, target_root in zip(shared_build_roots, target_build_roots):
-        if not source_root.exists():
-            continue
-        target_root.parent.mkdir(parents=True, exist_ok=True)
-        run(["rsync", "-a", f"{source_root}/", f"{target_root}/"], cwd=layout.package_root)
-
-
-def sync_reference_local_checkout(layout, project: HarnessProject, cache_dir: Path) -> Path:
-    local_dir = reference_local_checkout_dir(layout, project)
-    local_dir.parent.mkdir(parents=True, exist_ok=True)
-    if not local_dir.exists():
-        clone_git_project(project, local_dir, cwd=layout.package_root, source=str(cache_dir))
-    else:
-        update_git_checkout(project, local_dir)
-
-    cache_lake = cache_dir / ".lake"
-    if cache_lake.exists():
-        run(["rsync", "-a", "--delete", f"{cache_lake}/", f"{local_dir / '.lake'}/"], cwd=layout.package_root)
-    return local_dir
-
-
-def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) -> Path:
-    lakefile = project_dir / "lakefile.lean"
-    if not lakefile.exists():
-        raise SystemExit(f"[blueprint-harness] missing lakefile for cloned project: {lakefile}")
-
-    relative_path = os.path.relpath(package_root, start=project_dir)
-    replacement = f'require VersoBlueprint from "{relative_path}"'
-    text = lakefile.read_text(encoding="utf-8")
-    # Lake package overrides are not applied during the initial `lake update`
-    # manifest bootstrap path on a fresh clone, so the harness patches the
-    # cloned dependency declaration before the first update.
-    require_pattern = re.compile(
-        r'^\s*require\s+VersoBlueprint\s+from\s+git\s+"(?P<url>[^"]+)"(?:\s*@\s*"[^"]+")?\s*$',
-        re.MULTILINE,
-    )
-    match = next(
-        (
-            candidate
-            for candidate in require_pattern.finditer(text)
-            if any(re.fullmatch(pattern, candidate.group("url")) for pattern in OFFICIAL_BLUEPRINT_URL_PATTERNS)
-        ),
-        None,
-    )
-    if match is None:
-        raise SystemExit(
-            "[blueprint-harness] expected the cloned project to declare `VersoBlueprint` in "
-            "`lakefile.lean` from an official `leanprover/verso-blueprint` Git source; "
-            "cannot inject the local path override automatically."
-        )
-    rewritten = text[: match.start()] + replacement + text[match.end() :]
-    lakefile.write_text(rewritten, encoding="utf-8")
-    return lakefile
-
-
-def generate_git_project(layout, output_root: Path, project: HarnessProject, *, skip_build: bool) -> None:
-    cache_dir = sync_reference_cache_checkout(layout, project, warm_build=not skip_build)
-    checkout_root = cache_dir if use_shared_reference_checkout() else sync_reference_local_checkout(layout, project, cache_dir)
-    project_dir = checkout_root / project.project_root
-    prime_reference_checkout_from_root_lake_cache(layout, project_dir)
-    output_dir = output_dir_for(project, output_root)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    original_text = (project_dir / "lakefile.lean").read_text(encoding="utf-8") if use_shared_reference_checkout() else None
-    try:
-        rewritten_lakefile = rewrite_local_blueprint_dependency(project_dir, layout.package_root)
-        print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
-        run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
-        if not skip_build and project.build_command is not None:
-            run(
-                lean_low_priority_command(
-                    layout.package_root,
-                    *format_external_command(
-                        project.build_command,
-                        project=project,
-                        package_root=layout.package_root,
-                        checkout_root=checkout_root,
-                        project_dir=project_dir,
-                        output_dir=output_dir,
-                    ),
-                ),
-                cwd=project_dir,
-            )
-        run(
-            lean_low_priority_command(
-                layout.package_root,
-                *format_external_command(
-                    project.generate_command or (),
-                    project=project,
-                    package_root=layout.package_root,
-                    checkout_root=checkout_root,
-                    project_dir=project_dir,
-                    output_dir=output_dir,
-                ),
-            ),
-            cwd=project_dir,
-        )
-    finally:
-        if original_text is not None:
-            (project_dir / "lakefile.lean").write_text(original_text, encoding="utf-8")
-
-
-def sync_reference_blueprints(layout, projects: list[HarnessProject], *, warm_build: bool, prepare_local_checkout: bool) -> None:
-    git_projects = [project for project in projects if project.git_checkout]
-    if not git_projects:
-        return
-    if shutil.which("rsync") is None:
-        raise SystemExit("[blueprint-harness] `rsync` is required for reference blueprint cache sync.")
-    for project in git_projects:
-        cache_dir = sync_reference_cache_checkout(layout, project, warm_build=warm_build)
-        if prepare_local_checkout:
-            local_dir = sync_reference_local_checkout(layout, project, cache_dir)
-            print(f"[blueprint-harness] prepared local reference checkout: {local_dir}")
-
-
-def reference_prune_plan(active_worktree_names: set[str], project_ids: set[str], cache_root: Path, checkout_root: Path) -> list[Path]:
-    removals: list[Path] = []
-    if cache_root.exists():
-        for path in sorted(child for child in cache_root.iterdir() if child.is_dir()):
-            if path.name not in project_ids:
-                removals.append(path)
-    if checkout_root.exists():
-        for namespace_dir in sorted(child for child in checkout_root.iterdir() if child.is_dir()):
-            if namespace_dir.name not in active_worktree_names:
-                removals.append(namespace_dir)
-                continue
-            for project_dir in sorted(child for child in namespace_dir.iterdir() if child.is_dir()):
-                if project_dir.name not in project_ids:
-                    removals.append(project_dir)
-    return removals
-
-
 def merged_clean_worktree_candidates(repo_root: Path, current_path: Path) -> list[tuple[str, Path, str]]:
     merged = subprocess.run(
         ["git", "branch", "--format=%(refname:short)", "--merged", "main"],
@@ -584,7 +284,6 @@ def generate_projects(
     skip_build: bool,
     serial: bool,
     allow_local_build: bool,
-    skip_sync: bool = False,
 ) -> None:
     in_repo_projects = [project for project in projects if project.in_repo_example]
     in_repo_target_projects = [project for project in in_repo_projects if project.in_repo_target_project]
@@ -593,14 +292,12 @@ def generate_projects(
 
     if in_repo_target_projects:
         print(f"[blueprint-harness] package root: {layout.package_root}")
-        if not skip_sync:
-            sync_root_worktree_lake(layout)
         use_local_build = should_use_local_build(layout, allow_local_build)
         if layout.in_linked_worktree:
             print(f"[blueprint-harness] linked worktree output root: {output_root}")
             if not use_local_build:
                 print(
-                    "[blueprint-harness] using synced root executables; local Lake builds are disabled by default in linked worktrees"
+                    "[blueprint-harness] using the current worktree `.lake/`; run `sync-root-lake` explicitly when you want to refresh from the root checkout"
                 )
         else:
             print(f"[blueprint-harness] output root: {output_root}")
@@ -640,7 +337,6 @@ def command_generate(args: argparse.Namespace) -> int:
         skip_build=args.skip_build,
         serial=args.serial,
         allow_local_build=args.allow_local_build,
-        skip_sync=getattr(args, "skip_sync", False),
     )
 
     print(f"[blueprint-harness] project manifest: {manifest_path}")
@@ -699,7 +395,6 @@ def command_validate(args: argparse.Namespace) -> int:
     print(f"[blueprint-harness] validation output root: {output_root}")
     use_local_build = should_use_local_build(layout, args.allow_local_build)
     if args.run_lean_tests:
-        sync_root_worktree_lake(layout)
         if use_local_build:
             failure = run_capturing_failure(
                 "lake test",
@@ -716,7 +411,9 @@ def command_validate(args: argparse.Namespace) -> int:
                 failures.append(
                     StepFailure(
                         "lean tests",
-                        "no prebuilt test driver found in synced root artifacts; rerun from the root checkout or use --allow-local-build",
+                        "no prebuilt test driver found in the current worktree `.lake/`; "
+                        "run `python3 -m scripts.blueprint_harness sync-root-lake` after "
+                        "building from the root checkout, or use `--allow-local-build`",
                     )
                 )
                 if args.stop_on_first_failure:
@@ -740,7 +437,6 @@ def command_validate(args: argparse.Namespace) -> int:
             skip_build=False,
             serial=args.serial,
             allow_local_build=args.allow_local_build,
-            skip_sync=True,
         )
     except SystemExit as err:
         failures.append(StepFailure("generate projects", str(err)))
@@ -790,6 +486,7 @@ def command_create_worktree(args: argparse.Namespace) -> int:
     destination = worktree_path(layout.repo_root, worktree_name)
     branch = args.branch or default_branch_name(worktree_name)
     base_ref = args.base
+    skip_sync, skip_reference_sync = create_worktree_sync_policy(args)
 
     if destination.exists():
         raise SystemExit(f"[blueprint-harness] worktree path already exists: {destination}")
@@ -802,9 +499,9 @@ def command_create_worktree(args: argparse.Namespace) -> int:
     run(command, cwd=layout.repo_root)
 
     new_layout = detect_harness_layout(destination)
-    if not args.skip_sync:
+    if not skip_sync:
         sync_root_worktree_lake(new_layout)
-    if not args.skip_reference_sync:
+    if not skip_reference_sync:
         manifest_path = resolve_manifest_path(None, new_layout.package_root)
         projects = load_project_catalog(manifest_path)
         sync_reference_blueprints(new_layout, projects, warm_build=True, prepare_local_checkout=True)
@@ -831,9 +528,7 @@ def command_paths(_: argparse.Namespace) -> int:
     print(f"reference_checkout_root={layout.reference_project_checkout_root}")
     for project in projects:
         canonical_site = canonical_example_site_dir(project.project_id, Path(__file__))
-        resolved_site = default_example_site_dir(project.project_id, Path(__file__))
         print(f"{project.project_id}_site={canonical_site}")
-        print(f"{project.project_id}_site_resolved={resolved_site}")
     return 0
 
 
@@ -1035,6 +730,53 @@ def command_worktree_release(args: argparse.Namespace) -> int:
     return 0
 
 
+def add_output_root_argument(command_parser: argparse.ArgumentParser) -> None:
+    command_parser.add_argument("output_root", nargs="?", default=None)
+
+
+def add_project_selection_argument(
+    command_parser: argparse.ArgumentParser,
+    *,
+    help_text: str,
+    include_example_alias: bool = True,
+) -> None:
+    command_parser.add_argument(
+        "--project",
+        *(("--example",) if include_example_alias else ()),
+        dest="project",
+        action="append",
+        help=help_text,
+    )
+
+
+def add_manifest_argument(command_parser: argparse.ArgumentParser) -> None:
+    command_parser.add_argument(
+        "--manifest",
+        default=None,
+        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
+    )
+
+
+def add_serial_argument(command_parser: argparse.ArgumentParser) -> None:
+    command_parser.add_argument(
+        "--serial",
+        action="store_true",
+        help="Render selected projects serially instead of in parallel where supported.",
+    )
+
+
+def add_allow_local_build_argument(command_parser: argparse.ArgumentParser, *, help_text: str) -> None:
+    command_parser.add_argument(
+        "--allow-local-build",
+        action="store_true",
+        help=help_text,
+    )
+
+
+def add_optional_worktree_name_argument(command_parser: argparse.ArgumentParser) -> None:
+    command_parser.add_argument("name", nargs="?", default=None, help="Worktree name. Defaults to the current worktree.")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python3 -m scripts.blueprint_harness",
@@ -1046,33 +788,18 @@ def build_parser() -> argparse.ArgumentParser:
         "generate",
         help="Build the selected blueprint harness projects.",
     )
-    generate.add_argument("output_root", nargs="?", default=None)
-    generate.add_argument(
-        "--project",
-        "--example",
-        dest="project",
-        action="append",
-        help="Render only the selected project. Repeat to render more than one.",
-    )
-    generate.add_argument(
-        "--manifest",
-        default=None,
-        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
-    )
+    add_output_root_argument(generate)
+    add_project_selection_argument(generate, help_text="Render only the selected project. Repeat to render more than one.")
+    add_manifest_argument(generate)
     generate.add_argument(
         "--skip-build",
         action="store_true",
         help="Skip project builds and only run already-built or command-only generation steps.",
     )
-    generate.add_argument(
-        "--serial",
-        action="store_true",
-        help="Render selected projects serially instead of in parallel where supported.",
-    )
-    generate.add_argument(
-        "--allow-local-build",
-        action="store_true",
-        help="Permit `lake build` in a linked worktree instead of requiring synced root executables.",
+    add_serial_argument(generate)
+    add_allow_local_build_argument(
+        generate,
+        help_text="Permit `lake build` in a linked worktree instead of requiring synced root executables.",
     )
     generate.set_defaults(func=command_generate)
 
@@ -1080,19 +807,9 @@ def build_parser() -> argparse.ArgumentParser:
         "validate",
         help="Generate selected projects and run configured regressions.",
     )
-    validate.add_argument("output_root", nargs="?", default=None)
-    validate.add_argument(
-        "--project",
-        "--example",
-        dest="project",
-        action="append",
-        help="Restrict generation to the selected project. Repeat to select more.",
-    )
-    validate.add_argument(
-        "--manifest",
-        default=None,
-        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
-    )
+    add_output_root_argument(validate)
+    add_project_selection_argument(validate, help_text="Restrict generation to the selected project. Repeat to select more.")
+    add_manifest_argument(validate)
     validate.add_argument(
         "--run-lean-tests",
         action="store_true",
@@ -1108,21 +825,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip configured Playwright browser regression suites.",
     )
-    validate.add_argument(
-        "--serial",
-        action="store_true",
-        help="Render selected projects serially instead of in parallel where supported.",
-    )
+    add_serial_argument(validate)
     validate.add_argument(
         "--pytest-arg",
         action="append",
         default=[],
         help="Extra argument forwarded to pytest. Repeat for multiple arguments.",
     )
-    validate.add_argument(
-        "--allow-local-build",
-        action="store_true",
-        help="Permit `lake build` and `lake test` in a linked worktree instead of requiring synced root artifacts.",
+    add_allow_local_build_argument(
+        validate,
+        help_text="Permit `lake build` and `lake test` in a linked worktree instead of requiring synced root artifacts.",
     )
     validate.add_argument(
         "--stop-on-first-failure",
@@ -1139,7 +851,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     create_worktree = subparsers.add_parser(
         "create-worktree",
-        help="Create a linked worktree under `.worktrees/<name>` and sync root artifacts into it.",
+        help=(
+            "Create a linked worktree under `.worktrees/<name>`, then by default "
+            "sync the root `.lake/` and warm the reference blueprint clones."
+        ),
     )
     create_worktree.add_argument("name", help="Worktree directory name under `.worktrees/`.")
     create_worktree.add_argument(
@@ -1162,33 +877,29 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not warm the shared and per-worktree reference blueprint clones after creating the worktree.",
     )
+    create_worktree.add_argument(
+        "--lightweight",
+        action="store_true",
+        help="Create only the git worktree and skip both `.lake/` sync and reference-cache warm-up.",
+    )
     create_worktree.set_defaults(func=command_create_worktree)
 
     projects = subparsers.add_parser(
         "projects",
         help="List the configured harness projects from the active manifest.",
     )
-    projects.add_argument(
-        "--manifest",
-        default=None,
-        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
-    )
+    add_manifest_argument(projects)
     projects.set_defaults(func=command_projects)
 
     reference_sync = subparsers.add_parser(
         "reference-sync",
         help="Warm shared reference blueprint caches and prepare local clones for the current checkout.",
     )
-    reference_sync.add_argument(
-        "--manifest",
-        default=None,
-        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
-    )
-    reference_sync.add_argument(
-        "--project",
-        action="append",
-        default=None,
-        help="Restrict sync to the selected project. Repeat to select more.",
+    add_manifest_argument(reference_sync)
+    add_project_selection_argument(
+        reference_sync,
+        help_text="Restrict sync to the selected project. Repeat to select more.",
+        include_example_alias=False,
     )
     reference_sync.add_argument(
         "--skip-build",
@@ -1206,11 +917,7 @@ def build_parser() -> argparse.ArgumentParser:
         "reference-prune",
         help="Remove stale harness-managed reference blueprint caches and checkout clones.",
     )
-    reference_prune.add_argument(
-        "--manifest",
-        default=None,
-        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
-    )
+    add_manifest_argument(reference_prune)
     reference_prune.add_argument(
         "--dry-run",
         action="store_true",
@@ -1228,7 +935,7 @@ def build_parser() -> argparse.ArgumentParser:
         "worktree-retire",
         help="Retire one merged clean linked worktree and prune its stale reference clones.",
     )
-    worktree_retire.add_argument("name", nargs="?", default=None, help="Worktree name. Defaults to the current worktree.")
+    add_optional_worktree_name_argument(worktree_retire)
     worktree_retire.add_argument(
         "--dry-run",
         action="store_true",
@@ -1252,14 +959,14 @@ def build_parser() -> argparse.ArgumentParser:
         "worktree-status",
         help="Show local coordination metadata for one worktree.",
     )
-    worktree_status.add_argument("name", nargs="?", default=None, help="Worktree name. Defaults to the current worktree.")
+    add_optional_worktree_name_argument(worktree_status)
     worktree_status.set_defaults(func=command_worktree_status)
 
     worktree_claim = subparsers.add_parser(
         "worktree-claim",
         help="Set or update local coordination metadata for one worktree.",
     )
-    worktree_claim.add_argument("name", nargs="?", default=None, help="Worktree name. Defaults to the current worktree.")
+    add_optional_worktree_name_argument(worktree_claim)
     worktree_claim.add_argument("--owner", default=None, help="Owner or agent responsible for the worktree.")
     worktree_claim.add_argument("--issue", default=None, help="GitHub issue number or identifier.")
     worktree_claim.add_argument("--task-id", default=None, help="Local task identifier.")
@@ -1272,7 +979,7 @@ def build_parser() -> argparse.ArgumentParser:
         "worktree-release",
         help="Mark a worktree as done or otherwise retired in local coordination metadata.",
     )
-    worktree_release.add_argument("name", nargs="?", default=None, help="Worktree name. Defaults to the current worktree.")
+    add_optional_worktree_name_argument(worktree_release)
     worktree_release.add_argument("--status", default="done", help="Final status label.")
     worktree_release.add_argument("--summary", default=None, help="Optional final summary.")
     worktree_release.set_defaults(func=command_worktree_release)

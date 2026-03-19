@@ -145,10 +145,12 @@ Read these in order:
    this repository
 5. [doc/MAINTAINER_GUIDE.md](./doc/MAINTAINER_GUIDE.md): repository-local
    generation, validation, CI publication, and worktree workflow
-6. [doc/DESIGN_RATIONALE.md](./doc/DESIGN_RATIONALE.md): architecture and design
+6. [scripts/README.md](./scripts/README.md): lightweight guide to the
+   repository scripts and harness entry points
+7. [doc/DESIGN_RATIONALE.md](./doc/DESIGN_RATIONALE.md): architecture and design
    boundaries
-7. [doc/ROADMAP.md](./doc/ROADMAP.md): active cleanup and follow-up work
-8. [doc/UPSTREAM_TODO.md](./doc/UPSTREAM_TODO.md): items intended to move back
+8. [doc/ROADMAP.md](./doc/ROADMAP.md): active cleanup and follow-up work
+9. [doc/UPSTREAM_TODO.md](./doc/UPSTREAM_TODO.md): items intended to move back
    into `verso`
 
 ## Acknowledgements
