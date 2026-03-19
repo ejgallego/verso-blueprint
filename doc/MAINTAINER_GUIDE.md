@@ -104,6 +104,11 @@ python3 -m scripts.blueprint_reference_harness validate --project noperthedron -
 
 Run `python3 -m scripts.blueprint_reference_harness --help` for the full flag surface.
 
+When you run the reference CLI from the root checkout while it is on `main`,
+it expects that checkout to stay clean and in sync with the preferred main ref.
+Use `--allow-unsafe-root-main` only as an explicit maintainer override on
+`generate`, `validate`, or `sync`.
+
 To inspect the active catalog:
 
 ```bash

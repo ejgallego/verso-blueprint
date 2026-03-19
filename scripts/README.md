@@ -68,6 +68,10 @@ python3 -m scripts.blueprint_harness sync-root-lake
 python3 -m scripts.blueprint_reference_harness sync
 ```
 
+When you run `generate`, `validate`, or `sync` from the root checkout while it
+is on `main`, the reference CLI expects that checkout to stay clean and in
+sync. Use `--allow-unsafe-root-main` only as an explicit maintainer override.
+
 If you want to make manual changes in one external reference blueprint repo,
 use a separate editable clone instead of the disposable validation clones:
 
@@ -97,6 +101,8 @@ as the full command reference.
   Worktree, branch-landing, and coordination CLI.
 - `blueprint_reference_harness.py`
   Reference-blueprint generation, validation, and reference-checkout CLI.
+- `blueprint_harness_cli.py`
+  Shared argparse helper functions used by both CLIs.
 - `blueprint_harness_projects.py`
   Project-manifest loader and schema checks for
   [`tests/harness/projects.json`](../tests/harness/projects.json).

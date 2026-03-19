@@ -27,6 +27,21 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             parser.parse_args(["sync", "--example", "noperthedron"])
 
+    def test_reference_generate_parses_allow_unsafe_root_main(self) -> None:
+        parser = reference_harness_mod.build_parser()
+        args = parser.parse_args(["generate", "--allow-unsafe-root-main"])
+        self.assertTrue(args.allow_unsafe_root_main)
+
+    def test_reference_validate_parses_allow_unsafe_root_main(self) -> None:
+        parser = reference_harness_mod.build_parser()
+        args = parser.parse_args(["validate", "--allow-unsafe-root-main"])
+        self.assertTrue(args.allow_unsafe_root_main)
+
+    def test_reference_sync_parses_allow_unsafe_root_main(self) -> None:
+        parser = reference_harness_mod.build_parser()
+        args = parser.parse_args(["sync", "--allow-unsafe-root-main"])
+        self.assertTrue(args.allow_unsafe_root_main)
+
     def test_main_status_parses_require_sync(self) -> None:
         parser = build_parser()
         args = parser.parse_args(["main-status", "--require-sync"])
@@ -227,6 +242,43 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         args = parser.parse_args(["generate", "--example", "noperthedron"])
         self.assertEqual(args.project, ["noperthedron"])
 
+    def test_reference_generate_rejects_unsafe_root_main_without_override(self) -> None:
+        args = argparse.Namespace(
+            output_root=None,
+            manifest=None,
+            project=None,
+            skip_build=False,
+            allow_unsafe_root_main=False,
+            serial=False,
+            allow_local_build=False,
+        )
+        layout = SimpleNamespace(package_root=Path("/tmp/package"), repo_root=Path("/tmp/package"), in_linked_worktree=False)
+        originals = {
+            "detect_harness_layout": reference_harness_mod.detect_harness_layout,
+            "require_safe_root_main": reference_harness_mod.require_safe_root_main,
+        }
+        seen: dict[str, object] = {}
+        try:
+            reference_harness_mod.detect_harness_layout = lambda _start=None: layout
+
+            def fake_require(_layout, *, allow_unsafe, command_name):
+                seen["layout"] = _layout
+                seen["allow_unsafe"] = allow_unsafe
+                seen["command_name"] = command_name
+                raise SystemExit("blocked")
+
+            reference_harness_mod.require_safe_root_main = fake_require
+
+            with self.assertRaisesRegex(SystemExit, "blocked"):
+                reference_harness_mod.command_generate(args)
+        finally:
+            for name, value in originals.items():
+                setattr(reference_harness_mod, name, value)
+
+        self.assertEqual(seen["layout"], layout)
+        self.assertFalse(seen["allow_unsafe"])
+        self.assertEqual(seen["command_name"], "generate")
+
     def test_reference_edit_uses_prepare_reference_checkout(self) -> None:
         project = HarnessProject(
             project_id="noperthedron",
@@ -364,6 +416,7 @@ class BlueprintHarnessCliTests(unittest.TestCase):
             manifest=None,
             project=None,
             run_lean_tests=True,
+            allow_unsafe_root_main=False,
             skip_panel_regression=False,
             skip_browser_tests=False,
             serial=False,
@@ -398,6 +451,94 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         finally:
             for name, value in originals.items():
                 setattr(reference_harness_mod, name, value)
+
+    def test_reference_validate_rejects_unsafe_root_main_without_override(self) -> None:
+        args = argparse.Namespace(
+            output_root=None,
+            manifest=None,
+            project=None,
+            run_lean_tests=False,
+            allow_unsafe_root_main=False,
+            skip_panel_regression=False,
+            skip_browser_tests=False,
+            serial=False,
+            pytest_arg=[],
+            allow_local_build=False,
+            stop_on_first_failure=False,
+        )
+        layout = SimpleNamespace(package_root=Path("/tmp/package"), repo_root=Path("/tmp/package"), in_linked_worktree=False)
+        originals = {
+            "detect_harness_layout": reference_harness_mod.detect_harness_layout,
+            "require_safe_root_main": reference_harness_mod.require_safe_root_main,
+        }
+        seen: dict[str, object] = {}
+        try:
+            reference_harness_mod.detect_harness_layout = lambda _start=None: layout
+
+            def fake_require(_layout, *, allow_unsafe, command_name):
+                seen["layout"] = _layout
+                seen["allow_unsafe"] = allow_unsafe
+                seen["command_name"] = command_name
+                raise SystemExit("blocked")
+
+            reference_harness_mod.require_safe_root_main = fake_require
+
+            with self.assertRaisesRegex(SystemExit, "blocked"):
+                reference_harness_mod.command_validate(args)
+        finally:
+            for name, value in originals.items():
+                setattr(reference_harness_mod, name, value)
+
+        self.assertEqual(seen["layout"], layout)
+        self.assertFalse(seen["allow_unsafe"])
+        self.assertEqual(seen["command_name"], "validate")
+
+    def test_reference_sync_allows_unsafe_root_main_with_override(self) -> None:
+        args = argparse.Namespace(
+            manifest=None,
+            project=None,
+            skip_build=False,
+            allow_unsafe_root_main=True,
+            skip_local_checkout=False,
+        )
+        layout = SimpleNamespace(
+            package_root=Path("/tmp/package"),
+            repo_root=Path("/tmp/package"),
+            in_linked_worktree=False,
+            reference_project_cache_root=Path("/tmp/cache"),
+            reference_project_checkout_root=Path("/tmp/checkouts"),
+        )
+        originals = {
+            "detect_harness_layout": reference_harness_mod.detect_harness_layout,
+            "require_safe_root_main": reference_harness_mod.require_safe_root_main,
+            "resolve_manifest_path": reference_harness_mod.resolve_manifest_path,
+            "load_project_catalog": reference_harness_mod.load_project_catalog,
+            "selected_projects": reference_harness_mod.selected_projects,
+            "sync_reference_blueprints": reference_harness_mod.sync_reference_blueprints,
+        }
+        seen: dict[str, object] = {}
+        try:
+            reference_harness_mod.detect_harness_layout = lambda _start=None: layout
+
+            def fake_require(_layout, *, allow_unsafe, command_name):
+                seen["layout"] = _layout
+                seen["allow_unsafe"] = allow_unsafe
+                seen["command_name"] = command_name
+
+            reference_harness_mod.require_safe_root_main = fake_require
+            reference_harness_mod.resolve_manifest_path = lambda _path_text, _package_root: Path("/tmp/projects.json")
+            reference_harness_mod.load_project_catalog = lambda _manifest_path: []
+            reference_harness_mod.selected_projects = lambda _catalog, _values: []
+            reference_harness_mod.sync_reference_blueprints = lambda *_args, **_kwargs: None
+
+            self.assertEqual(reference_harness_mod.command_reference_sync(args), 0)
+        finally:
+            for name, value in originals.items():
+                setattr(reference_harness_mod, name, value)
+
+        self.assertEqual(seen["layout"], layout)
+        self.assertTrue(seen["allow_unsafe"])
+        self.assertEqual(seen["command_name"], "sync")
 
 
 if __name__ == "__main__":

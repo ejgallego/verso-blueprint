@@ -7,6 +7,15 @@ import shutil
 import subprocess
 import sys
 
+from scripts.blueprint_harness import current_branch_name, main_sync_status, worktree_is_clean
+from scripts.blueprint_harness_cli import (
+    add_allow_local_build_argument,
+    add_allow_unsafe_root_main_argument,
+    add_manifest_argument,
+    add_output_root_argument,
+    add_project_selection_argument,
+    add_serial_argument,
+)
 from scripts.blueprint_harness_paths import detect_harness_layout, resolve_output_root
 from scripts.blueprint_harness_projects import HarnessProject, load_projects_manifest, resolve_manifest_path
 from scripts.blueprint_harness_references import (
@@ -61,6 +70,40 @@ def load_project_catalog(manifest_path: Path) -> list[HarnessProject]:
 
 def should_use_local_build(layout, allow_local_build: bool) -> bool:
     return (not layout.in_linked_worktree) or allow_local_build
+
+
+def root_main_safety_findings(layout) -> list[str]:
+    if layout.in_linked_worktree:
+        return []
+    if current_branch_name(layout.repo_root) != "main":
+        return []
+
+    findings: list[str] = []
+    if not worktree_is_clean(layout.package_root):
+        findings.append("root checkout has local modifications")
+    status = main_sync_status(layout.repo_root)
+    if status.relationship != "in_sync":
+        findings.append(f"local `main` is {status.relationship} relative to `{status.upstream_ref}`")
+    return findings
+
+
+def require_safe_root_main(layout, *, allow_unsafe: bool, command_name: str) -> None:
+    findings = root_main_safety_findings(layout)
+    if not findings:
+        return
+
+    details = "; ".join(findings)
+    if allow_unsafe:
+        print(
+            f"[blueprint-reference-harness] warning: running `{command_name}` from an unsafe root checkout: {details}",
+            file=sys.stderr,
+        )
+        return
+
+    raise SystemExit(
+        f"[blueprint-reference-harness] refusing to run `{command_name}` from the root checkout: {details}. "
+        "Create a linked worktree or pass `--allow-unsafe-root-main` to override."
+    )
 
 
 def print_failure_summary(failures: list[StepFailure]) -> int:
@@ -244,6 +287,7 @@ def browser_test_command(package_root: Path, project: HarnessProject, site_dir: 
 
 def command_generate(args: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
+    require_safe_root_main(layout, allow_unsafe=args.allow_unsafe_root_main, command_name="generate")
     output_root = resolve_output_root(args.output_root, Path(__file__))
     manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
     projects = selected_projects(load_project_catalog(manifest_path), args.project)
@@ -266,6 +310,7 @@ def command_generate(args: argparse.Namespace) -> int:
 
 def command_validate(args: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
+    require_safe_root_main(layout, allow_unsafe=args.allow_unsafe_root_main, command_name="validate")
     output_root = resolve_output_root(args.output_root, Path(__file__))
     manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
     projects = selected_projects(load_project_catalog(manifest_path), args.project)
@@ -370,6 +415,7 @@ def command_projects(args: argparse.Namespace) -> int:
 
 def command_reference_sync(args: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
+    require_safe_root_main(layout, allow_unsafe=args.allow_unsafe_root_main, command_name="sync")
     manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
     projects = selected_projects(load_project_catalog(manifest_path), args.project)
     sync_reference_blueprints(
@@ -427,50 +473,6 @@ def command_reference_prune(args: argparse.Namespace) -> int:
     print(f"[blueprint-reference-harness] reference prune: removed {len(removals)} path(s)")
     return 0
 
-
-def add_output_root_argument(command_parser: argparse.ArgumentParser) -> None:
-    command_parser.add_argument("output_root", nargs="?", default=None)
-
-
-def add_project_selection_argument(
-    command_parser: argparse.ArgumentParser,
-    *,
-    help_text: str,
-    include_example_alias: bool = True,
-) -> None:
-    command_parser.add_argument(
-        "--project",
-        *(("--example",) if include_example_alias else ()),
-        dest="project",
-        action="append",
-        help=help_text,
-    )
-
-
-def add_manifest_argument(command_parser: argparse.ArgumentParser) -> None:
-    command_parser.add_argument(
-        "--manifest",
-        default=None,
-        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
-    )
-
-
-def add_serial_argument(command_parser: argparse.ArgumentParser) -> None:
-    command_parser.add_argument(
-        "--serial",
-        action="store_true",
-        help="Render selected projects serially instead of in parallel where supported.",
-    )
-
-
-def add_allow_local_build_argument(command_parser: argparse.ArgumentParser, *, help_text: str) -> None:
-    command_parser.add_argument(
-        "--allow-local-build",
-        action="store_true",
-        help=help_text,
-    )
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python3 -m scripts.blueprint_reference_harness",
@@ -490,6 +492,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip project builds and only run already-built or command-only generation steps.",
     )
+    add_allow_unsafe_root_main_argument(generate)
     add_serial_argument(generate)
     add_allow_local_build_argument(
         generate,
@@ -519,6 +522,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip configured Playwright browser regression suites.",
     )
+    add_allow_unsafe_root_main_argument(validate)
     add_serial_argument(validate)
     validate.add_argument(
         "--pytest-arg",
@@ -559,6 +563,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Update and clone the reference projects without warming their build artifacts.",
     )
+    add_allow_unsafe_root_main_argument(sync)
     sync.add_argument(
         "--skip-local-checkout",
         action="store_true",

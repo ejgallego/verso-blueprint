@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from scripts.blueprint_harness_cli import add_optional_worktree_name_argument
 from scripts.blueprint_harness_paths import canonical_example_site_dir, detect_harness_layout
 from scripts.blueprint_harness_projects import HarnessProject, load_projects_manifest, resolve_manifest_path
 from scripts.blueprint_harness_references import (
@@ -591,54 +592,6 @@ def command_worktree_release(args: argparse.Namespace) -> int:
     print(f"name={record.name}")
     print(f"status={record.status}")
     return 0
-
-
-def add_output_root_argument(command_parser: argparse.ArgumentParser) -> None:
-    command_parser.add_argument("output_root", nargs="?", default=None)
-
-
-def add_project_selection_argument(
-    command_parser: argparse.ArgumentParser,
-    *,
-    help_text: str,
-    include_example_alias: bool = True,
-) -> None:
-    command_parser.add_argument(
-        "--project",
-        *(("--example",) if include_example_alias else ()),
-        dest="project",
-        action="append",
-        help=help_text,
-    )
-
-
-def add_manifest_argument(command_parser: argparse.ArgumentParser) -> None:
-    command_parser.add_argument(
-        "--manifest",
-        default=None,
-        help="Path to the project manifest. Defaults to tests/harness/projects.json.",
-    )
-
-
-def add_serial_argument(command_parser: argparse.ArgumentParser) -> None:
-    command_parser.add_argument(
-        "--serial",
-        action="store_true",
-        help="Render selected projects serially instead of in parallel where supported.",
-    )
-
-
-def add_allow_local_build_argument(command_parser: argparse.ArgumentParser, *, help_text: str) -> None:
-    command_parser.add_argument(
-        "--allow-local-build",
-        action="store_true",
-        help=help_text,
-    )
-
-
-def add_optional_worktree_name_argument(command_parser: argparse.ArgumentParser) -> None:
-    command_parser.add_argument("name", nargs="?", default=None, help="Worktree name. Defaults to the current worktree.")
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
