@@ -62,7 +62,7 @@ def main() -> int:
                 "<title>Verso Blueprint Reference Blueprints</title>",
                 "<body>",
                 "<h1>Verso Blueprint Reference Blueprints</h1>",
-                "<p>Generated reference sites published from the current main branch.</p>",
+                "<p>Generated reference sites assembled from the current workflow run.</p>",
                 "<ul>",
                 *[html_link(project_id) for project_id in projects],
                 "</ul>",
