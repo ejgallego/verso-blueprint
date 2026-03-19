@@ -104,19 +104,15 @@ def normalize_priority(priority: str | None) -> str | None:
     return normalized
 
 
-def metadata_from_dict(data: dict[str, object], *, name: str | None = None) -> WorktreeMetadata:
+def metadata_from_dict(data: dict[str, object]) -> WorktreeMetadata:
     raw_scope = data.get("write_scope") or []
     write_scope = [str(entry) for entry in raw_scope] if isinstance(raw_scope, list) else []
     return WorktreeMetadata(
         version=int(data.get("version", 1)),
-        name=name or str(data["name"]),
+        name=str(data["name"]),
         status=str(data.get("status") or "active"),
         owner=str(data["owner"]) if data.get("owner") is not None else None,
-        priority=normalize_priority(
-            str(data["priority"]) if data.get("priority") is not None else (
-                str(data["task_id"]) if data.get("task_id") is not None else None
-            )
-        ),
+        priority=normalize_priority(str(data["priority"])) if data.get("priority") is not None else None,
         summary=str(data["summary"]) if data.get("summary") is not None else None,
         write_scope=write_scope,
         created_at=str(data["created_at"]) if data.get("created_at") is not None else None,
@@ -188,16 +184,6 @@ def load_record(path: Path) -> WorktreeMetadata | None:
 def save_record(path: Path, record: WorktreeMetadata) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(asdict(record), indent=2) + "\n", encoding="utf-8")
-
-
-def load_registry(repo_root: Path) -> dict[str, WorktreeMetadata]:
-    path = registry_path(repo_root)
-    if not path.exists():
-        return {}
-    data = json.loads(path.read_text(encoding="utf-8"))
-    entries = data.get("worktrees", [])
-    return {entry["name"]: metadata_from_dict(entry) for entry in entries}
-
 
 def save_registry(repo_root: Path, records: list[WorktreeRecord]) -> Path:
     path = registry_path(repo_root)
@@ -329,12 +315,11 @@ def collect_worktree_facts(repo_root: Path, git_wt: GitWorktree) -> dict[str, ob
 
 
 def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]:
-    previous = load_registry(repo_root)
     now = utc_now()
     records: list[WorktreeRecord] = []
     for git_wt in git_worktrees(repo_root):
         path = metadata_path(repo_root, git_wt.name)
-        existing = load_record(path) or previous.get(git_wt.name)
+        existing = load_record(path)
         facts = collect_worktree_facts(repo_root, git_wt)
         metadata = WorktreeMetadata(
             version=1,

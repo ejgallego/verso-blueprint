@@ -113,6 +113,29 @@ branch refs/heads/feat/demo
             repo_root = Path(tmp)
             worktree_dir = repo_root / ".worktrees" / "demo"
             worktree_dir.mkdir(parents=True)
+            for name, root_checkout, status, summary, priority in [
+                ("main", True, "base", "main", None),
+                ("demo", False, "active", "demo", "P1"),
+            ]:
+                path = metadata_path(repo_root, name)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": name,
+                        "status": status,
+                        "priority": priority,
+                        "summary": summary,
+                        "write_scope": [],
+                        "created_at": "2026-03-19T00:00:00Z",
+                        "updated_at": "2026-03-19T01:00:00Z",
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             registry = repo_root / ".worktrees" / "registry.json"
             registry.parent.mkdir(parents=True, exist_ok=True)
             registry.write_text(
@@ -123,53 +146,30 @@ branch refs/heads/feat/demo
                         "worktrees": [
                             {
                                 "version": 1,
-                                "name": "main",
-                                "path": str(repo_root),
-                                "branch": "main",
-                                "root_checkout": True,
-                                "status": "base",
-                                "summary": "main",
-                                "write_scope": [],
-                                "created_at": "2026-03-19T00:00:00Z",
-                                "updated_at": "2026-03-19T01:00:00Z",
-                                "dirty": False,
-                                "tracked_changes": 0,
-                                "untracked_changes": 0,
-                                "merged_into_main": True,
-                                "main_ahead": 0,
-                                "main_behind": 0,
-                                "upstream": "origin/main",
-                                "upstream_ahead": 0,
-                                "upstream_behind": 0,
-                                "last_commit": "abc1234",
-                                "last_commit_at": "2026-03-19T00:00:00Z",
-                                "last_commit_subject": "base",
-                            },
-                            {
-                                "version": 1,
                                 "name": "demo",
                                 "path": str(worktree_dir),
                                 "branch": "feat/demo",
                                 "root_checkout": False,
-                                "status": "active",
-                                "task_id": "P1",
-                                "summary": "demo",
-                                "write_scope": [],
-                                "created_at": "2026-03-19T00:00:00Z",
-                                "updated_at": "2026-03-19T01:00:00Z",
+                                "status": "blocked",
+                                "owner": "legacy",
+                                "priority": "P2",
+                                "summary": "stale registry data",
+                                "write_scope": ["legacy"],
+                                "created_at": "2026-03-18T00:00:00Z",
+                                "updated_at": "2026-03-18T00:00:00Z",
                                 "dirty": True,
-                                "tracked_changes": 3,
-                                "untracked_changes": 0,
+                                "tracked_changes": 9,
+                                "untracked_changes": 9,
                                 "merged_into_main": False,
-                                "main_ahead": 3,
-                                "main_behind": 4,
+                                "main_ahead": 9,
+                                "main_behind": 9,
                                 "upstream": None,
                                 "upstream_ahead": None,
                                 "upstream_behind": None,
-                                "last_commit": "def5678",
-                                "last_commit_at": "2026-03-19T00:00:00Z",
-                                "last_commit_subject": "demo",
-                            },
+                                "last_commit": "stale",
+                                "last_commit_at": "2026-03-18T00:00:00Z",
+                                "last_commit_subject": "stale",
+                            }
                         ],
                     },
                     indent=2,
@@ -225,7 +225,8 @@ branch refs/heads/feat/demo
             self.assertEqual(by_name["main"]["created_at"], "2026-03-19T00:00:00Z")
             self.assertEqual(by_name["demo"]["created_at"], "2026-03-19T00:00:00Z")
             self.assertEqual(by_name["demo"]["priority"], "P1")
-            self.assertNotIn("task_id", by_name["demo"])
+            self.assertEqual(by_name["demo"]["status"], "active")
+            self.assertEqual(by_name["demo"]["summary"], "demo")
             self.assertTrue(by_name["demo"]["dirty"])
             self.assertEqual(by_name["demo"]["tracked_changes"], 5)
             self.assertEqual(by_name["demo"]["untracked_changes"], 1)
@@ -233,6 +234,95 @@ branch refs/heads/feat/demo
             self.assertEqual(by_name["demo"]["main_behind"], 7)
             self.assertEqual(by_name["demo"]["last_commit"], "updated")
             self.assertEqual(by_name["demo"]["last_commit_subject"], "updated subject")
+
+    def test_sync_worktree_registry_ignores_registry_when_metadata_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            worktree_dir = repo_root / ".worktrees" / "demo"
+            worktree_dir.mkdir(parents=True)
+            registry = repo_root / ".worktrees" / "registry.json"
+            registry.parent.mkdir(parents=True, exist_ok=True)
+            registry.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "generated_at": "2026-03-19T00:00:00Z",
+                        "worktrees": [
+                            {
+                                "version": 1,
+                                "name": "demo",
+                                "path": str(worktree_dir),
+                                "branch": "feat/demo",
+                                "root_checkout": False,
+                                "status": "blocked",
+                                "owner": "legacy",
+                                "priority": "P0",
+                                "summary": "stale registry data",
+                                "write_scope": ["legacy"],
+                                "created_at": "2026-03-18T00:00:00Z",
+                                "updated_at": "2026-03-18T00:00:00Z",
+                                "dirty": True,
+                                "tracked_changes": 9,
+                                "untracked_changes": 9,
+                                "merged_into_main": False,
+                                "main_ahead": 9,
+                                "main_behind": 9,
+                                "upstream": None,
+                                "upstream_ahead": None,
+                                "upstream_behind": None,
+                                "last_commit": "stale",
+                                "last_commit_at": "2026-03-18T00:00:00Z",
+                                "last_commit_subject": "stale",
+                            }
+                        ],
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            subprocess_text = f"""
+worktree {repo_root}
+HEAD abc
+branch refs/heads/main
+
+worktree {worktree_dir}
+HEAD def
+branch refs/heads/feat/demo
+"""
+
+            import scripts.blueprint_harness_worktrees as worktrees_mod
+
+            originals = {
+                "git_worktrees": worktrees_mod.git_worktrees,
+                "collect_worktree_facts": worktrees_mod.collect_worktree_facts,
+            }
+            try:
+                worktrees_mod.git_worktrees = lambda _repo_root: parse_git_worktree_porcelain(subprocess_text, repo_root)
+                worktrees_mod.collect_worktree_facts = lambda _repo_root, _git_wt: {
+                    "dirty": False,
+                    "tracked_changes": 0,
+                    "untracked_changes": 0,
+                    "merged_into_main": False,
+                    "main_ahead": 0,
+                    "main_behind": 0,
+                    "upstream": None,
+                    "upstream_ahead": None,
+                    "upstream_behind": None,
+                    "last_commit": "updated",
+                    "last_commit_at": "2026-03-19T12:00:00Z",
+                    "last_commit_subject": "updated subject",
+                }
+                records, _registry = sync_worktree_registry(repo_root)
+            finally:
+                for name, value in originals.items():
+                    setattr(worktrees_mod, name, value)
+
+            by_name = {record.name: record for record in records}
+            self.assertEqual(by_name["demo"].status, "active")
+            self.assertIsNone(by_name["demo"].owner)
+            self.assertIsNone(by_name["demo"].priority)
+            self.assertEqual(by_name["demo"].summary, "demo")
 
     def test_collect_worktree_facts_reports_ref_relationships(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
