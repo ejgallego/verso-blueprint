@@ -102,7 +102,7 @@ as the full command reference.
   [`tests/harness/projects.json`](../tests/harness/projects.json).
 - `blueprint_harness_references.py`
   Reference-blueprint checkout, editable-clone setup, local override, cache
-  warm-up, and prune helpers extracted from the main harness CLI.
+  warm-up, and prune helpers shared by the reference CLI.
 - `blueprint_harness_utils.py`
   Shared process-launch helpers used by the harness modules.
 - `blueprint_harness_paths.py`

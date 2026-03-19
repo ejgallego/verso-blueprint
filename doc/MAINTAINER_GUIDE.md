@@ -52,7 +52,9 @@ python3 -m scripts.blueprint_harness worktree-retire
 ```
 
 The shell wrappers are the normal front door for day-to-day work. The Python
-module is the single source of truth for orchestration and path resolution.
+modules are the single source of truth for orchestration and path resolution:
+`blueprint_harness.py` for worktree and landing flows, and
+`blueprint_reference_harness.py` for reference-project lifecycle flows.
 
 The default project catalog lives at `tests/harness/projects.json`. It includes
 the in-repo starter template plus the external reference blueprint repositories,

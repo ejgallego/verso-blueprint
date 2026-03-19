@@ -7,7 +7,8 @@ import unittest
 
 import scripts.blueprint_harness as harness_mod
 import scripts.blueprint_reference_harness as reference_harness_mod
-from scripts.blueprint_harness import build_parser, create_worktree_sync_policy, generate_projects
+from scripts.blueprint_harness import build_parser, create_worktree_sync_policy
+from scripts.blueprint_reference_harness import generate_projects
 from scripts.blueprint_harness_projects import HarnessProject
 from scripts.blueprint_harness_worktrees import GitWorktree
 
@@ -245,16 +246,16 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         args = argparse.Namespace(manifest=None, project="noperthedron", branch="wip/noperthedron", base="origin/main")
         layout = SimpleNamespace(package_root=Path("/tmp/package"), reference_project_edit_root=Path("/tmp/edit"))
         originals = {
-            "detect_harness_layout": harness_mod.detect_harness_layout,
-            "resolve_manifest_path": harness_mod.resolve_manifest_path,
-            "load_project_catalog": harness_mod.load_project_catalog,
-            "prepare_reference_edit_checkout": harness_mod.prepare_reference_edit_checkout,
+            "detect_harness_layout": reference_harness_mod.detect_harness_layout,
+            "resolve_manifest_path": reference_harness_mod.resolve_manifest_path,
+            "load_project_catalog": reference_harness_mod.load_project_catalog,
+            "prepare_reference_edit_checkout": reference_harness_mod.prepare_reference_edit_checkout,
         }
         seen: dict[str, object] = {}
         try:
-            harness_mod.detect_harness_layout = lambda _start=None: layout
-            harness_mod.resolve_manifest_path = lambda _path_text, _package_root: Path("/tmp/projects.json")
-            harness_mod.load_project_catalog = lambda _manifest_path: [project]
+            reference_harness_mod.detect_harness_layout = lambda _start=None: layout
+            reference_harness_mod.resolve_manifest_path = lambda _path_text, _package_root: Path("/tmp/projects.json")
+            reference_harness_mod.load_project_catalog = lambda _manifest_path: [project]
 
             def fake_prepare(_layout, _project, *, branch, base_ref):
                 seen["layout"] = _layout
@@ -263,12 +264,12 @@ class BlueprintHarnessCliTests(unittest.TestCase):
                 seen["base_ref"] = base_ref
                 return Path("/tmp/edit/noperthedron"), branch or "wip/noperthedron", base_ref or "origin/main"
 
-            harness_mod.prepare_reference_edit_checkout = fake_prepare
+            reference_harness_mod.prepare_reference_edit_checkout = fake_prepare
 
-            self.assertEqual(harness_mod.command_reference_edit(args), 0)
+            self.assertEqual(reference_harness_mod.command_reference_edit(args), 0)
         finally:
             for name, value in originals.items():
-                setattr(harness_mod, name, value)
+                setattr(reference_harness_mod, name, value)
 
         self.assertEqual(seen["layout"], layout)
         self.assertEqual(seen["project"], project)
@@ -339,13 +340,11 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         )
         layout = SimpleNamespace(package_root=Path("/tmp/package"), in_linked_worktree=True)
 
-        original_sync = harness_mod.sync_root_worktree_lake
-        original_ensure = harness_mod.ensure_prebuilt_executable
-        original_render = harness_mod.render_in_repo_projects
+        original_ensure = reference_harness_mod.ensure_prebuilt_executable
+        original_render = reference_harness_mod.render_in_repo_projects
         try:
-            harness_mod.sync_root_worktree_lake = lambda _layout: (_ for _ in ()).throw(AssertionError("unexpected sync"))
-            harness_mod.ensure_prebuilt_executable = lambda _package_root, _exe_name: Path("/tmp/demo")
-            harness_mod.render_in_repo_projects = lambda _package_root, _output_root, _projects, _serial: None
+            reference_harness_mod.ensure_prebuilt_executable = lambda _package_root, _exe_name: Path("/tmp/demo")
+            reference_harness_mod.render_in_repo_projects = lambda _package_root, _output_root, _projects, _serial: None
 
             generate_projects(
                 layout,
@@ -356,9 +355,8 @@ class BlueprintHarnessCliTests(unittest.TestCase):
                 allow_local_build=False,
             )
         finally:
-            harness_mod.sync_root_worktree_lake = original_sync
-            harness_mod.ensure_prebuilt_executable = original_ensure
-            harness_mod.render_in_repo_projects = original_render
+            reference_harness_mod.ensure_prebuilt_executable = original_ensure
+            reference_harness_mod.render_in_repo_projects = original_render
 
     def test_validate_run_lean_tests_does_not_auto_sync_root_lake(self) -> None:
         args = argparse.Namespace(
@@ -375,33 +373,31 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         )
         layout = SimpleNamespace(package_root=Path("/tmp/package"), in_linked_worktree=True)
         originals = {
-            "detect_harness_layout": harness_mod.detect_harness_layout,
-            "resolve_output_root": harness_mod.resolve_output_root,
-            "resolve_manifest_path": harness_mod.resolve_manifest_path,
-            "load_project_catalog": harness_mod.load_project_catalog,
-            "selected_projects": harness_mod.selected_projects,
-            "should_use_local_build": harness_mod.should_use_local_build,
-            "sync_root_worktree_lake": harness_mod.sync_root_worktree_lake,
-            "find_test_driver_binary": harness_mod.find_test_driver_binary,
-            "run_capturing_failure": harness_mod.run_capturing_failure,
-            "generate_projects": harness_mod.generate_projects,
+            "detect_harness_layout": reference_harness_mod.detect_harness_layout,
+            "resolve_output_root": reference_harness_mod.resolve_output_root,
+            "resolve_manifest_path": reference_harness_mod.resolve_manifest_path,
+            "load_project_catalog": reference_harness_mod.load_project_catalog,
+            "selected_projects": reference_harness_mod.selected_projects,
+            "should_use_local_build": reference_harness_mod.should_use_local_build,
+            "find_test_driver_binary": reference_harness_mod.find_test_driver_binary,
+            "run_capturing_failure": reference_harness_mod.run_capturing_failure,
+            "generate_projects": reference_harness_mod.generate_projects,
         }
         try:
-            harness_mod.detect_harness_layout = lambda _start=None: layout
-            harness_mod.resolve_output_root = lambda _path_text, _start=None: Path("/tmp/out")
-            harness_mod.resolve_manifest_path = lambda _path_text, _package_root: Path("/tmp/projects.json")
-            harness_mod.load_project_catalog = lambda _manifest_path: []
-            harness_mod.selected_projects = lambda _catalog, _values: []
-            harness_mod.should_use_local_build = lambda _layout, _allow_local_build: False
-            harness_mod.sync_root_worktree_lake = lambda _layout: (_ for _ in ()).throw(AssertionError("unexpected sync"))
-            harness_mod.find_test_driver_binary = lambda _package_root: Path("/tmp/verso-blueprint-tests")
-            harness_mod.run_capturing_failure = lambda _step, _command, cwd: None
-            harness_mod.generate_projects = lambda *_args, **_kwargs: None
+            reference_harness_mod.detect_harness_layout = lambda _start=None: layout
+            reference_harness_mod.resolve_output_root = lambda _path_text, _start=None: Path("/tmp/out")
+            reference_harness_mod.resolve_manifest_path = lambda _path_text, _package_root: Path("/tmp/projects.json")
+            reference_harness_mod.load_project_catalog = lambda _manifest_path: []
+            reference_harness_mod.selected_projects = lambda _catalog, _values: []
+            reference_harness_mod.should_use_local_build = lambda _layout, _allow_local_build: False
+            reference_harness_mod.find_test_driver_binary = lambda _package_root: Path("/tmp/verso-blueprint-tests")
+            reference_harness_mod.run_capturing_failure = lambda _step, _command, cwd: None
+            reference_harness_mod.generate_projects = lambda *_args, **_kwargs: None
 
-            self.assertEqual(harness_mod.command_validate(args), 0)
+            self.assertEqual(reference_harness_mod.command_validate(args), 0)
         finally:
             for name, value in originals.items():
-                setattr(harness_mod, name, value)
+                setattr(reference_harness_mod, name, value)
 
 
 if __name__ == "__main__":
