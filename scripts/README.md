@@ -21,6 +21,7 @@ The normal repository-facing entry points are:
 ./scripts/generate-reference-blueprints.sh
 ./scripts/validate-reference-blueprints.sh
 python3 -m scripts.blueprint_harness --help
+python3 -m scripts.blueprint_reference_harness --help
 ```
 
 If you are starting new implementation work, create a linked worktree through
@@ -64,15 +65,15 @@ cache, prefer:
 
 ```bash
 python3 -m scripts.blueprint_harness sync-root-lake
-python3 -m scripts.blueprint_harness reference-sync
+python3 -m scripts.blueprint_reference_harness sync
 ```
 
 If you want to make manual changes in one external reference blueprint repo,
 use a separate editable clone instead of the disposable validation clones:
 
 ```bash
-python3 -m scripts.blueprint_harness reference-edit noperthedron
-python3 -m scripts.blueprint_harness reference-edit spherepackingblueprint --branch feat/update-figures
+python3 -m scripts.blueprint_reference_harness edit noperthedron
+python3 -m scripts.blueprint_reference_harness edit spherepackingblueprint --branch feat/update-figures
 ```
 
 Use `./scripts/lean-low-priority ...` for long `lake`, `lean`, and
@@ -87,14 +88,15 @@ as the full command reference.
 ## What Lives Here
 
 - `generate-reference-blueprints.sh`
-  Thin wrapper for `python3 -m scripts.blueprint_harness generate`.
+  Thin wrapper for `python3 -m scripts.blueprint_reference_harness generate`.
 - `validate-reference-blueprints.sh`
-  Thin wrapper for `python3 -m scripts.blueprint_harness validate`.
+  Thin wrapper for `python3 -m scripts.blueprint_reference_harness validate`.
 - `lean-low-priority`
   Small wrapper that lowers scheduler priority for long Lean/Lake commands.
 - `blueprint_harness.py`
-  Main maintainer CLI. This is the single source of truth for orchestration and
-  subcommand wiring.
+  Worktree, branch-landing, and coordination CLI.
+- `blueprint_reference_harness.py`
+  Reference-blueprint generation, validation, and reference-checkout CLI.
 - `blueprint_harness_projects.py`
   Project-manifest loader and schema checks for
   [`tests/harness/projects.json`](../tests/harness/projects.json).
@@ -120,7 +122,7 @@ If you want to inspect the current harness state instead of reading code, start
 with:
 
 ```bash
-python3 -m scripts.blueprint_harness projects
+python3 -m scripts.blueprint_reference_harness projects
 python3 -m scripts.blueprint_harness paths
 ```
 

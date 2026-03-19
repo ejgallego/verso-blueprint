@@ -69,7 +69,7 @@ jobs:
       - name: Run Python harness tests
         run: python3 -m unittest discover -s tests/harness -p 'test_*.py'
       - name: Check Python harness syntax
-        run: python3 -m py_compile scripts/blueprint_harness.py scripts/blueprint_harness_paths.py scripts/blueprint_harness_projects.py scripts/blueprint_harness_worktrees.py scripts/prepare_reference_blueprints_pages.py
+        run: python3 -m py_compile scripts/blueprint_harness.py scripts/blueprint_reference_harness.py scripts/blueprint_harness_paths.py scripts/blueprint_harness_projects.py scripts/blueprint_harness_worktrees.py scripts/prepare_reference_blueprints_pages.py
 
   reference-blueprints-project-template:
     name: Reference Blueprints (Project Template)

@@ -34,11 +34,12 @@ The supported repository-local entry points are:
 python3 -m scripts.blueprint_harness create-worktree <name>
 python3 -m scripts.blueprint_harness land-main <source-ref>
 python3 -m scripts.blueprint_harness main-status
-python3 -m scripts.blueprint_harness projects
-python3 -m scripts.blueprint_harness reference-edit <project>
-python3 -m scripts.blueprint_harness reference-sync
-python3 -m scripts.blueprint_harness reference-prune
 python3 -m scripts.blueprint_harness --help
+python3 -m scripts.blueprint_reference_harness projects
+python3 -m scripts.blueprint_reference_harness edit <project>
+python3 -m scripts.blueprint_reference_harness sync
+python3 -m scripts.blueprint_reference_harness prune
+python3 -m scripts.blueprint_reference_harness --help
 python3 -m scripts.blueprint_harness paths
 python3 -m scripts.blueprint_harness sync-root-lake
 python3 -m scripts.blueprint_harness worktree-sync
@@ -95,30 +96,30 @@ The harness supports narrowing the example set and forwarding extra pytest
 arguments:
 
 ```bash
-python3 -m scripts.blueprint_harness generate --project noperthedron
-python3 -m scripts.blueprint_harness validate --project noperthedron --pytest-arg -k --pytest-arg preview
+python3 -m scripts.blueprint_reference_harness generate --project noperthedron
+python3 -m scripts.blueprint_reference_harness validate --project noperthedron --pytest-arg -k --pytest-arg preview
 ```
 
-Run `python3 -m scripts.blueprint_harness --help` for the full flag surface.
+Run `python3 -m scripts.blueprint_reference_harness --help` for the full flag surface.
 
 To inspect the active catalog:
 
 ```bash
-python3 -m scripts.blueprint_harness projects
+python3 -m scripts.blueprint_reference_harness projects
 ```
 
 To warm the shared reference blueprint cache and prepare local clones for the
 current checkout:
 
 ```bash
-python3 -m scripts.blueprint_harness reference-sync
+python3 -m scripts.blueprint_reference_harness sync
 ```
 
 To remove stale harness-managed reference caches and orphaned local clones:
 
 ```bash
-python3 -m scripts.blueprint_harness reference-prune --dry-run
-python3 -m scripts.blueprint_harness reference-prune
+python3 -m scripts.blueprint_reference_harness prune --dry-run
+python3 -m scripts.blueprint_reference_harness prune
 ```
 
 ## Output Layout
@@ -207,14 +208,14 @@ reference cache, prefer:
 
 ```bash
 python3 -m scripts.blueprint_harness sync-root-lake
-python3 -m scripts.blueprint_harness reference-sync
+python3 -m scripts.blueprint_reference_harness sync
 ```
 
 If local rebuilding is actually required, opt in explicitly:
 
 ```bash
-python3 -m scripts.blueprint_harness generate --allow-local-build
-python3 -m scripts.blueprint_harness validate --allow-local-build --run-lean-tests
+python3 -m scripts.blueprint_reference_harness generate --allow-local-build
+python3 -m scripts.blueprint_reference_harness validate --allow-local-build --run-lean-tests
 ```
 
 ## Parallel Worktree Coordination
@@ -283,8 +284,8 @@ python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
 To prepare one editable external reference checkout for manual changes, use:
 
 ```bash
-python3 -m scripts.blueprint_harness reference-edit noperthedron
-python3 -m scripts.blueprint_harness reference-edit spherepackingblueprint --branch feat/update-figures
+python3 -m scripts.blueprint_reference_harness edit noperthedron
+python3 -m scripts.blueprint_reference_harness edit spherepackingblueprint --branch feat/update-figures
 ```
 
 Those editable clones are ordinary developer checkouts intended for local

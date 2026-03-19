@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import unittest
 
 import scripts.blueprint_harness as harness_mod
+import scripts.blueprint_reference_harness as reference_harness_mod
 from scripts.blueprint_harness import build_parser, create_worktree_sync_policy, generate_projects
 from scripts.blueprint_harness_projects import HarnessProject
 from scripts.blueprint_harness_worktrees import GitWorktree
@@ -21,9 +22,9 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         self.assertEqual(create_worktree_sync_policy(args), (True, False))
 
     def test_reference_sync_does_not_accept_example_alias(self) -> None:
-        parser = build_parser()
+        parser = reference_harness_mod.build_parser()
         with self.assertRaises(SystemExit):
-            parser.parse_args(["reference-sync", "--example", "noperthedron"])
+            parser.parse_args(["sync", "--example", "noperthedron"])
 
     def test_main_status_parses_require_sync(self) -> None:
         parser = build_parser()
@@ -39,8 +40,8 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         self.assertTrue(args.no_push)
 
     def test_reference_edit_parses_project_branch_and_base(self) -> None:
-        parser = build_parser()
-        args = parser.parse_args(["reference-edit", "noperthedron", "--branch", "wip/noperthedron", "--base", "origin/main"])
+        parser = reference_harness_mod.build_parser()
+        args = parser.parse_args(["edit", "noperthedron", "--branch", "wip/noperthedron", "--base", "origin/main"])
         self.assertEqual(args.project, "noperthedron")
         self.assertEqual(args.branch, "wip/noperthedron")
         self.assertEqual(args.base, "origin/main")
@@ -221,7 +222,7 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         )
 
     def test_generate_keeps_example_alias(self) -> None:
-        parser = build_parser()
+        parser = reference_harness_mod.build_parser()
         args = parser.parse_args(["generate", "--example", "noperthedron"])
         self.assertEqual(args.project, ["noperthedron"])
 
