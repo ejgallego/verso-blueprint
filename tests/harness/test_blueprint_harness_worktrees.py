@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -73,6 +74,78 @@ branch refs/heads/feat/demo
             self.assertEqual(metadata_path(repo_root, "demo"), repo_root / ".worktrees" / METADATA_DIRNAME / "demo.json")
             self.assertFalse((worktree_dir / ".codex-worktree.json").exists())
             self.assertTrue(registry.exists())
+
+    def test_sync_worktree_registry_preserves_unknown_local_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            worktree_dir = repo_root / ".worktrees" / "demo"
+            worktree_dir.mkdir(parents=True)
+            registry = repo_root / ".worktrees" / "registry.json"
+            registry.parent.mkdir(parents=True, exist_ok=True)
+            registry.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "generated_at": "2026-03-19T00:00:00Z",
+                        "worktrees": [
+                            {
+                                "version": 1,
+                                "name": "main",
+                                "path": str(repo_root),
+                                "branch": "main",
+                                "root_checkout": True,
+                                "status": "base",
+                                "summary": "main",
+                                "write_scope": [],
+                                "created_at": "2026-03-19T00:00:00Z",
+                                "dirty": False,
+                            },
+                            {
+                                "version": 1,
+                                "name": "demo",
+                                "path": str(worktree_dir),
+                                "branch": "feat/demo",
+                                "root_checkout": False,
+                                "status": "active",
+                                "summary": "demo",
+                                "write_scope": [],
+                                "created_at": "2026-03-19T00:00:00Z",
+                                "dirty": True,
+                                "tracked_changes": 3,
+                            },
+                        ],
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            subprocess_text = f"""
+worktree {repo_root}
+HEAD abc
+branch refs/heads/main
+
+worktree {worktree_dir}
+HEAD def
+branch refs/heads/feat/demo
+"""
+
+            import scripts.blueprint_harness_worktrees as worktrees_mod
+
+            original = worktrees_mod.git_worktrees
+            try:
+                worktrees_mod.git_worktrees = lambda _repo_root: parse_git_worktree_porcelain(subprocess_text, repo_root)
+                records, _registry = sync_worktree_registry(repo_root)
+            finally:
+                worktrees_mod.git_worktrees = original
+
+            self.assertEqual([record.name for record in records], ["main", "demo"])
+            rewritten = json.loads(registry.read_text(encoding="utf-8"))
+            by_name = {entry["name"]: entry for entry in rewritten["worktrees"]}
+            self.assertEqual(by_name["main"]["created_at"], "2026-03-19T00:00:00Z")
+            self.assertEqual(by_name["demo"]["created_at"], "2026-03-19T00:00:00Z")
+            self.assertTrue(by_name["demo"]["dirty"])
+            self.assertEqual(by_name["demo"]["tracked_changes"], 3)
 
 
 if __name__ == "__main__":

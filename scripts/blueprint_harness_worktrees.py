@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -37,6 +37,7 @@ class WorktreeRecord:
     write_scope: list[str] = field(default_factory=list)
     updated_at: str | None = None
     last_seen_at: str | None = None
+    extra: dict[str, object] = field(default_factory=dict, repr=False)
 
 
 def utc_now() -> str:
@@ -121,12 +122,25 @@ def load_record(path: Path) -> WorktreeRecord | None:
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
-    return WorktreeRecord(**data)
+    return parse_record(data)
+
+
+def parse_record(data: dict[str, object]) -> WorktreeRecord:
+    known = {item.name for item in fields(WorktreeRecord) if item.name != "extra"}
+    payload = {key: value for key, value in data.items() if key in known}
+    extra = {key: value for key, value in data.items() if key not in known}
+    return WorktreeRecord(**payload, extra=extra)
+
+
+def record_payload(record: WorktreeRecord) -> dict[str, object]:
+    payload = {item.name: getattr(record, item.name) for item in fields(WorktreeRecord) if item.name != "extra"}
+    payload.update(record.extra)
+    return payload
 
 
 def save_record(path: Path, record: WorktreeRecord) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(record), indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(record_payload(record), indent=2) + "\n", encoding="utf-8")
 
 
 def load_registry(repo_root: Path) -> dict[str, WorktreeRecord]:
@@ -135,7 +149,7 @@ def load_registry(repo_root: Path) -> dict[str, WorktreeRecord]:
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
     entries = data.get("worktrees", [])
-    return {entry["name"]: WorktreeRecord(**entry) for entry in entries}
+    return {entry["name"]: parse_record(entry) for entry in entries}
 
 
 def save_registry(repo_root: Path, records: list[WorktreeRecord]) -> Path:
@@ -144,7 +158,7 @@ def save_registry(repo_root: Path, records: list[WorktreeRecord]) -> Path:
     payload = {
         "version": 1,
         "generated_at": utc_now(),
-        "worktrees": [asdict(record) for record in records],
+        "worktrees": [record_payload(record) for record in records],
     }
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return path
@@ -158,6 +172,8 @@ def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]
         path = metadata_path(repo_root, git_wt.name)
         legacy_path = legacy_metadata_path(repo_root, git_wt.name)
         existing = load_record(path) or load_record(legacy_path) or previous.get(git_wt.name)
+        extra = existing.extra.copy() if existing else {}
+        extra.setdefault("created_at", now)
         record = WorktreeRecord(
             version=1,
             name=git_wt.name,
@@ -172,6 +188,7 @@ def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]
             write_scope=existing.write_scope[:] if existing else [],
             updated_at=now,
             last_seen_at=now,
+            extra=extra,
         )
         save_record(path, record)
         if legacy_path.exists():
