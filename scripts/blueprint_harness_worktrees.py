@@ -189,6 +189,20 @@ def save_record(path: Path, record: WorktreeMetadata) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(asdict(record), indent=2) + "\n", encoding="utf-8")
 
+
+def prune_stale_metadata(repo_root: Path, active_names: set[str]) -> None:
+    meta_dir = repo_root / ".worktrees" / METADATA_DIRNAME
+    if not meta_dir.exists():
+        return
+    for path in meta_dir.glob("*.json"):
+        if path.name == ROOT_METADATA_FILENAME:
+            keep = "main" in active_names
+        else:
+            keep = path.stem in active_names
+        if not keep:
+            path.unlink(missing_ok=True)
+
+
 def save_registry(repo_root: Path, records: list[WorktreeRecord]) -> Path:
     path = registry_path(repo_root)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -321,7 +335,9 @@ def collect_worktree_facts(repo_root: Path, git_wt: GitWorktree) -> dict[str, ob
 def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]:
     now = utc_now()
     records: list[WorktreeRecord] = []
-    for git_wt in git_worktrees(repo_root):
+    git_wt_list = git_worktrees(repo_root)
+    active_names = {git_wt.name for git_wt in git_wt_list}
+    for git_wt in git_wt_list:
         path = metadata_path(repo_root, git_wt.name)
         existing = load_record(path)
         facts = collect_worktree_facts(repo_root, git_wt)
@@ -366,6 +382,7 @@ def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]
         )
         save_record(path, metadata)
         records.append(record)
+    prune_stale_metadata(repo_root, active_names)
     records.sort(key=lambda record: (not record.root_checkout, record.name))
     return records, save_registry(repo_root, records)
 

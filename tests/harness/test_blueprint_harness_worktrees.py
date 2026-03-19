@@ -332,6 +332,64 @@ branch refs/heads/feat/demo
             self.assertIsNone(by_name["demo"].priority)
             self.assertEqual(by_name["demo"].summary, "demo")
 
+    def test_sync_worktree_registry_prunes_stale_metadata_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            worktree_dir = repo_root / ".worktrees" / "demo"
+            worktree_dir.mkdir(parents=True)
+            stale_path = repo_root / ".worktrees" / METADATA_DIRNAME / "stale.json"
+            stale_path.parent.mkdir(parents=True, exist_ok=True)
+            stale_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "name": "stale",
+                        "status": "done",
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            subprocess_text = f"""
+worktree {repo_root}
+HEAD abc
+branch refs/heads/main
+
+worktree {worktree_dir}
+HEAD def
+branch refs/heads/feat/demo
+"""
+
+            import scripts.blueprint_harness_worktrees as worktrees_mod
+
+            originals = {
+                "git_worktrees": worktrees_mod.git_worktrees,
+                "collect_worktree_facts": worktrees_mod.collect_worktree_facts,
+            }
+            try:
+                worktrees_mod.git_worktrees = lambda _repo_root: parse_git_worktree_porcelain(subprocess_text, repo_root)
+                worktrees_mod.collect_worktree_facts = lambda _repo_root, _git_wt: {
+                    "dirty": False,
+                    "tracked_changes": 0,
+                    "untracked_changes": 0,
+                    "merged_into_main": False,
+                    "main_ahead": 0,
+                    "main_behind": 0,
+                    "upstream": None,
+                    "upstream_ahead": None,
+                    "upstream_behind": None,
+                    "last_commit": "updated",
+                    "last_commit_at": "2026-03-19T12:00:00Z",
+                    "last_commit_subject": "updated subject",
+                }
+                sync_worktree_registry(repo_root)
+            finally:
+                for name, value in originals.items():
+                    setattr(worktrees_mod, name, value)
+
+            self.assertFalse(stale_path.exists())
+
     def test_collect_worktree_facts_reports_ref_relationships(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp) / "repo"
