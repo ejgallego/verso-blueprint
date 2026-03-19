@@ -66,6 +66,10 @@ python3 -m scripts.blueprint_harness worktree-status
 python3 -m scripts.blueprint_harness worktree-release
 ```
 
+By default, only clean up worktrees or branches created or landed by the
+current session. Do not retire or delete unrelated local worktrees unless the
+owner or the user explicitly asks for that cleanup.
+
 Local metadata lives under ignored `.worktrees/` paths:
 
 - `.worktrees/registry.json`

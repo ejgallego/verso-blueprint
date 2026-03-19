@@ -248,6 +248,8 @@ The local coordination layer is now machine-readable and untracked.
   branch when one exists, and prunes its stale reference clones
 - detached linked worktrees are also retireable once their `HEAD` commit is
   reachable from `origin/main` or local `main`
+- by default, each session should only retire or delete worktrees and branches
+  it created or landed itself; broader cleanup should be explicit
 
 The live local files are:
 
