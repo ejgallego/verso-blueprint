@@ -311,14 +311,21 @@ reset flow that the validation harness uses.
 The repository includes these GitHub Actions workflows:
 
 - `.github/workflows/ci.yml`
+- `.github/workflows/reference-blueprints-preview.yml`
 - `.github/workflows/reference-blueprints.yml`
 
-`ci.yml` is the main verification workflow. It splits checks into four jobs:
+`ci.yml` is the main verification workflow. It keeps the always-on checks for
+pull requests and pushes to `main`:
 
 - `Blueprint Build`
 - `Blueprint Tests`
 - `Harness Tests`
-- `Reference Blueprint Build`
+
+`reference-blueprints-preview.yml` is the pull-request-only preview workflow. It:
+
+- builds the three reference blueprints on pull requests
+- assembles a preview site artifact under `_site/`
+- keeps PR-only preview jobs out of `ci.yml`, so `main` runs do not show them as skipped
 
 `reference-blueprints.yml` is the publication workflow. On pushes to `main`, it:
 
