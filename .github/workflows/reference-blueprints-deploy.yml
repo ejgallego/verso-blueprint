@@ -1,0 +1,50 @@
+name: Reference Blueprints Deploy
+
+on:
+  workflow_run:
+    workflows:
+      - Reference Blueprints
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: reference-blueprints-pages
+  cancel-in-progress: true
+
+jobs:
+  upload-pages-artifact:
+    name: Upload Pages Artifact
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download built site artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: reference-blueprints-site
+          path: _site
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy Pages
+    if: github.event.workflow_run.conclusion == 'success'
+    environment:
+      name: github-pages
+    runs-on: ubuntu-latest
+    needs: upload-pages-artifact
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

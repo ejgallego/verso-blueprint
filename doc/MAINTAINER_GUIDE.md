@@ -313,9 +313,8 @@ reset flow that the validation harness uses.
 The repository includes these GitHub Actions workflows:
 
 - `.github/workflows/ci.yml`
-- `.github/workflows/reference-blueprints-build.yml`
-- `.github/workflows/reference-blueprints-preview.yml`
 - `.github/workflows/reference-blueprints.yml`
+- `.github/workflows/reference-blueprints-deploy.yml`
 
 `ci.yml` is the main verification workflow. It keeps the always-on checks for
 pull requests and pushes to `main`:
@@ -324,22 +323,19 @@ pull requests and pushes to `main`:
 - `Blueprint Tests`
 - `Harness Tests`
 
-`reference-blueprints-preview.yml` is the pull-request-only preview workflow. It:
+`reference-blueprints.yml` is the shared build workflow. On pull requests,
+pushes to `main`, and manual dispatch, it:
 
-- calls the shared reference-build workflow on pull requests
-- assembles a preview site artifact under `_site/`
-- keeps PR-only preview jobs out of `ci.yml`, so `main` runs do not show them as skipped
-
-`reference-blueprints.yml` is the publication workflow. On pushes to `main`, it:
-
-- calls the shared reference-build workflow
-- stages a Pages artifact under `_site/`
-- uploads and deploys that artifact to GitHub Pages
+- builds the three reference blueprints
+- stages a site artifact under `_site/`
+- uploads that assembled site as a normal workflow artifact
 - uses the shared reference-checkout mode in CI to avoid duplicating warmed
   `.lake/` trees on the GitHub runner
 
-`reference-blueprints-build.yml` is the reusable workflow that owns the shared
-reference blueprint build matrix used by both preview and publication.
+`reference-blueprints-deploy.yml` is the deployment workflow. It runs after a
+successful `reference-blueprints.yml` run on `main`, downloads the site
+artifact from that triggering run, uploads a Pages artifact, and deploys it to
+GitHub Pages.
 
 The staged Pages artifact layout is:
 
