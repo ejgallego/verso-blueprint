@@ -73,6 +73,7 @@ jobs:
 
   reference-blueprints-project-template:
     name: Reference Blueprints (Project Template)
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     env:
       BP_REFERENCE_CHECKOUT_MODE: shared
@@ -101,6 +102,7 @@ jobs:
 
   reference-blueprints-spherepacking:
     name: Reference Blueprints (Sphere Packing)
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     env:
       BP_REFERENCE_CHECKOUT_MODE: shared
@@ -129,6 +131,7 @@ jobs:
 
   reference-blueprints-noperthedron:
     name: Reference Blueprints (Noperthedron)
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     env:
       BP_REFERENCE_CHECKOUT_MODE: shared
