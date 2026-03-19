@@ -38,15 +38,15 @@ jobs:
         run: |
           curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-      - name: Restore Lake dependency cache
+      - name: Restore Lake package cache
         uses: actions/cache@v4
         with:
           path: |
-            .lake/packages/mathlib/.lake/build
-            .lake/packages/verso/.lake/build
-          key: ${{ runner.os }}-lake-deps-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+            .lake/packages/mathlib
+            .lake/packages/verso
+          key: ${{ runner.os }}-lake-packages-v2-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
           restore-keys: |
-            ${{ runner.os }}-lake-deps-
+            ${{ runner.os }}-lake-packages-v2-
       - name: Show tool versions
         run: |
           lean --version
