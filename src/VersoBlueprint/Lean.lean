@@ -36,7 +36,6 @@ namespace Informal.Lean
 structure LeanBlockConfig where
   «show» : Bool
   name : Option Lean.Name
-  analyze : Bool := true
 
 abbrev LiterateDef := Data.LiterateDef
 abbrev LiterateThm := Data.LiterateThm
@@ -81,6 +80,15 @@ private def reportMessages {m} [Monad m] [MonadLog m]
     logMessage {msg with
       isSilent := msg.isSilent || msg.severity != .error
     }
+
+private def outputMessage (shouldHighlight : Bool) (msg : Message) : DocElabM Highlighted.Message := do
+  let head := if msg.caption != "" then msg.caption ++ ":\n" else ""
+  if shouldHighlight then
+    let msg ← highlightMessage msg
+    pure { msg with contents := .append #[.text head, msg.contents] }
+  else
+    let contents ← liftM <| msg.data.toString
+    pure <| .ofSeverityString msg.severity (head ++ contents)
 
 def reconstructHighlight (docReconst : DocReconstruction) (key : Export.Key) :=
   match docReconst.highlightDeduplication.toHighlighted key with
@@ -284,6 +292,9 @@ def elabCommands (config : LeanBlockConfig) (str : StrLit) : DocElabM ElabComman
       (kind := Lsp.SymbolKind.file)
       (detail? := some ("Lean code" ++ config.outlineMeta))
 
+    let inServer := Elab.inServer.get (← getOptions)
+    let shouldAnalyze := !inServer
+    let shouldHighlight := !inServer
     let envBefore ← getEnv
     let col? := (← getRef).getPos? |>.map (← getFileMap).utf8PosToLspPos |>.map (·.character)
     let origScopes := (← getScopes).modifyHead fun sc =>
@@ -324,7 +335,7 @@ def elabCommands (config : LeanBlockConfig) (str : StrLit) : DocElabM ElabComman
       cmdState ← Profile.withDocElab "lean" "runCommand" <| runCommand (Command.elabCommand cmd) cmd cctx cmdState
       cmdIndex := cmdIndex + 1
 
-      if config.analyze then
+      if shouldAnalyze then
         let analysis := cmdAnalysis cmd cmdIndex
         cmdAnalyses := cmdAnalyses.push analysis
 
@@ -335,19 +346,21 @@ def elabCommands (config : LeanBlockConfig) (str : StrLit) : DocElabM ElabComman
     for t in cmdState.infoState.trees do
       pushInfoTree t
 
-    let mut hls := Highlighted.empty
-    let nonSilentMsgs := cmdState.messages.toArray.filter (!·.isSilent)
-    let mut lastPos : String.Pos.Raw := cmds[0]? >>= (·.getRange?.map (·.start)) |>.getD 0
-    for cmd in cmds do
-      hls := hls ++ (← highlightIncludingUnparsed cmd nonSilentMsgs cmdState.infoState.trees (startPos? := lastPos))
-      lastPos := (cmd.getTrailingTailPos?).getD lastPos
+    let hls ←
+      if shouldHighlight then
+        let mut hls := Highlighted.empty
+        let nonSilentMsgs := cmdState.messages.toArray.filter (!·.isSilent)
+        let mut lastPos : String.Pos.Raw := cmds[0]? >>= (·.getRange?.map (·.start)) |>.getD 0
+        for cmd in cmds do
+          hls := hls ++ (← highlightIncludingUnparsed cmd nonSilentMsgs cmdState.infoState.trees (startPos? := lastPos))
+          lastPos := (cmd.getTrailingTailPos?).getD lastPos
+        pure hls
+      else
+        pure <| Highlighted.text str.getString
 
     if let some name := config.name then
       let nonSilentMsgs := cmdState.messages.toList.filter (!·.isSilent)
-      let msgs ← nonSilentMsgs.mapM fun (msg : Message) => do
-        let head := if msg.caption != "" then msg.caption ++ ":\n" else ""
-        let msg ← highlightMessage msg
-        pure { msg with contents := .append #[.text head, msg.contents] }
+      let msgs ← nonSilentMsgs.mapM (outputMessage shouldHighlight)
       saveOutputs name msgs
 
     reportMessages cmdState.messages
@@ -356,7 +369,7 @@ def elabCommands (config : LeanBlockConfig) (str : StrLit) : DocElabM ElabComman
 
     let block ← toHighlightedLeanBlock config.show hls str
     let (definedDefs, definedTheorems) ←
-      if config.analyze then
+      if shouldAnalyze then
         getDefinedDecls cctx.fileMap envBefore cmdState.env cmdAnalyses
       else
         pure (#[], #[])
