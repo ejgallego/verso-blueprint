@@ -309,26 +309,6 @@ def sync_reference_cache_checkout(layout, project: HarnessProject, *, warm_build
     return cache_dir
 
 
-def prime_reference_checkout_from_root_lake_cache(layout, project_dir: Path) -> None:
-    if shutil.which("rsync") is None:
-        return
-
-    shared_build_roots = [
-        layout.package_root / ".lake" / "packages" / "mathlib" / ".lake" / "build",
-        layout.package_root / ".lake" / "packages" / "verso" / ".lake" / "build",
-    ]
-    target_build_roots = [
-        project_dir / ".lake" / "packages" / "mathlib" / ".lake" / "build",
-        project_dir / ".lake" / "packages" / "verso" / ".lake" / "build",
-    ]
-
-    for source_root, target_root in zip(shared_build_roots, target_build_roots):
-        if not source_root.exists():
-            continue
-        target_root.parent.mkdir(parents=True, exist_ok=True)
-        run(["rsync", "-a", f"{source_root}/", f"{target_root}/"], cwd=layout.package_root)
-
-
 def sync_reference_local_checkout(layout, project: HarnessProject, cache_dir: Path) -> Path:
     local_dir = reference_local_checkout_dir(layout, project)
     local_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -339,6 +319,9 @@ def sync_reference_local_checkout(layout, project: HarnessProject, cache_dir: Pa
 
     cache_lake = cache_dir / ".lake"
     if cache_lake.exists():
+        # The shared cache checkout is the source of truth for project-specific
+        # dependency state, including warmed Mathlib builds when the reference
+        # cache has been prepared ahead of time.
         run(["rsync", "-a", "--delete", f"{cache_lake}/", f"{local_dir / '.lake'}/"], cwd=layout.package_root)
     return local_dir
 
@@ -399,7 +382,6 @@ def generate_git_project(layout, output_root: Path, project: HarnessProject, *, 
     checkout_root = cache_dir if use_shared_reference_checkout() else sync_reference_local_checkout(layout, project, cache_dir)
     project_dir = checkout_root / project.project_root
     discard_untracked_project_manifest(project_dir)
-    prime_reference_checkout_from_root_lake_cache(layout, project_dir)
     output_dir = output_dir_for(project, output_root)
     output_dir.mkdir(parents=True, exist_ok=True)
     original_text = (project_dir / "lakefile.lean").read_text(encoding="utf-8") if use_shared_reference_checkout() else None

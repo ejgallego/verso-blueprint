@@ -279,7 +279,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
             self.assertEqual(command[-2:], ["lake", "update"])
 
-    def test_project_template_manifest_keeps_verso_and_subverso_in_sync_with_root(self) -> None:
+    def test_project_template_manifest_keeps_verso_and_subverso_in_sync_with_root_without_mathlib(self) -> None:
         root_manifest = json.loads((PACKAGE_ROOT / "lake-manifest.json").read_text(encoding="utf-8"))
         template_manifest = json.loads((PACKAGE_ROOT / "project_template" / "lake-manifest.json").read_text(encoding="utf-8"))
 
@@ -291,6 +291,8 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
         self.assertEqual(package_rev(template_manifest, "verso"), package_rev(root_manifest, "verso"))
         self.assertEqual(package_rev(template_manifest, "subverso"), package_rev(root_manifest, "subverso"))
+        self.assertNotIn("mathlib", {entry["name"] for entry in root_manifest["packages"]})
+        self.assertNotIn("mathlib", {entry["name"] for entry in template_manifest["packages"]})
 
     def test_clone_git_project_checks_out_commit_ref_without_branch_name(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -455,7 +457,6 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
             originals = {
                 "sync_reference_cache_checkout": refs_mod.sync_reference_cache_checkout,
                 "sync_reference_local_checkout": refs_mod.sync_reference_local_checkout,
-                "prime_reference_checkout_from_root_lake_cache": refs_mod.prime_reference_checkout_from_root_lake_cache,
                 "rewrite_local_blueprint_dependency": refs_mod.rewrite_local_blueprint_dependency,
                 "reference_update_command": refs_mod.reference_update_command,
                 "run": refs_mod.run,
@@ -466,7 +467,6 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
             try:
                 refs_mod.sync_reference_cache_checkout = lambda _layout, _project, *, warm_build: warm_build_values.append(warm_build) or cache_dir
                 refs_mod.sync_reference_local_checkout = lambda _layout, _project, _cache_dir: local_dir
-                refs_mod.prime_reference_checkout_from_root_lake_cache = lambda _layout, _project_dir: None
                 refs_mod.rewrite_local_blueprint_dependency = lambda _project_dir, _package_root: local_dir / "lakefile.lean"
                 refs_mod.reference_update_command = lambda _package_root, _project_dir: ["lake", "update", "VersoBlueprint"]
                 refs_mod.run = lambda command, *, cwd: commands.append(command)
@@ -480,6 +480,64 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
         self.assertEqual(warm_build_values, [False])
         self.assertIn(["lake", "update", "VersoBlueprint"], commands)
         self.assertTrue(any(command[1:] == ["lake", "build"] for command in commands))
+
+    def test_sync_reference_local_checkout_rsyncs_warmed_cache_lake(self) -> None:
+        import scripts.blueprint_harness_references as refs_mod
+
+        project = HarnessProject(
+            project_id="external-blueprint",
+            source_kind="git_checkout",
+            project_root=".",
+            build_target=None,
+            generator=None,
+            repository="https://github.com/example/external-blueprint.git",
+            ref="main",
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cache_dir = root / "cache" / project.project_id
+            cache_dir.mkdir(parents=True)
+            (cache_dir / ".lake" / "packages" / "mathlib" / ".lake" / "build").mkdir(parents=True)
+            layout = SimpleNamespace(
+                package_root=root / "pkg",
+                reference_project_checkout_root=root / "checkouts",
+            )
+            layout.package_root.mkdir()
+
+            originals = {
+                "clone_git_project": refs_mod.clone_git_project,
+                "update_git_checkout": refs_mod.update_git_checkout,
+                "run": refs_mod.run,
+            }
+            commands: list[list[str]] = []
+            try:
+                refs_mod.clone_git_project = lambda _project, destination, *, cwd, source=None, shallow=True: destination.mkdir(parents=True) or destination
+                refs_mod.update_git_checkout = lambda _project, _checkout_root: None
+                refs_mod.run = lambda command, *, cwd: commands.append(command)
+
+                local_dir = refs_mod.sync_reference_local_checkout(layout, project, cache_dir)
+            finally:
+                for name, value in originals.items():
+                    setattr(refs_mod, name, value)
+
+        self.assertEqual(local_dir, root / "checkouts" / project.project_id)
+        self.assertIn(
+            [
+                "rsync",
+                "-a",
+                "--delete",
+                f"{cache_dir / '.lake'}/",
+                f"{local_dir / '.lake'}/",
+            ],
+            commands,
+        )
 
     def test_reference_prune_plan_finds_stale_cache_and_checkout_paths(self) -> None:
         from scripts.blueprint_harness import reference_prune_plan

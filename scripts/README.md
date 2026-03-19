@@ -68,6 +68,18 @@ python3 -m scripts.blueprint_harness sync-root-lake
 python3 -m scripts.blueprint_reference_harness sync
 ```
 
+For rendering and browser regressions, prefer the in-repo test blueprints under
+`tests/test_blueprints/` over the external reference blueprints. The default
+browser suite now builds and serves
+`tests/test_blueprints/preview_runtime_showcase/` when you run:
+
+```bash
+uv run --project tests/browser --extra test python -m pytest tests/browser -q --browser chromium
+```
+
+The shared reference cache remains responsible for warmed external-project
+dependency state, including project-specific Mathlib builds.
+
 Use `worktree-list` as the local dashboard for parallel work. It combines the
 small manual records under `.worktrees/_meta/` with live Git state such as the
 current branch, dirty status, and commit distance from `main`. `worktree-list`

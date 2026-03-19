@@ -49,7 +49,7 @@ def sync_root_worktree_lake(layout) -> None:
     if not source_bin_dir.exists():
         raise SystemExit(
             "[blueprint-harness] root worktree has no prepared `.lake/build/bin` to sync. "
-            "Build from the root checkout first; linked worktrees should not bootstrap Mathlib locally."
+            "Build from the root checkout first; linked worktrees should not bootstrap the dependency graph locally."
         )
 
     if shutil.which("rsync") is None:

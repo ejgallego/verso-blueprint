@@ -86,7 +86,8 @@ enable GitHub Pages with GitHub Actions as the publishing source once.
 ## About dependencies
 
 The template currently pins `verso` and `verso-blueprint` from Git. Replace
-those refs with release tags when you move to a released version.
+those refs with release tags when you move to a released version. The template
+does not need a direct Mathlib dependency.
 
 ## Next step
 

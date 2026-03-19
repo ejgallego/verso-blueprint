@@ -98,6 +98,18 @@ Lean tests are intentionally opt-in:
 ./scripts/validate-reference-blueprints.sh --run-lean-tests
 ```
 
+For day-to-day rendering and browser regression work, prefer the in-repo test
+blueprint showcase instead of the external reference blueprints:
+
+```bash
+uv run --project tests/browser --extra test python -m pytest tests/browser -q --browser chromium
+```
+
+That path builds and serves the default showcase under
+`tests/test_blueprints/preview_runtime_showcase/`. The reference blueprints are
+still useful as broader integration coverage, but they are no longer the
+primary rendering-development oracle.
+
 ### Select Projects or Forward Test Flags
 
 The harness supports narrowing the example set and forwarding extra pytest
@@ -202,9 +214,13 @@ current `.lake/`; they do not automatically resync it from the root checkout.
 The harness is worktree-aware:
 
 - in a linked worktree it writes artifacts to `_out/<worktree>/...`
-- by default it prefers reusing the root checkout's prepared `.lake` artifacts
+- by default it prefers reusing the root checkout's prepared package `.lake`
+  artifacts and binaries
 - it also keeps shared warmed reference blueprint caches under
   `.worktrees/_reference-blueprints/cache/`
+- those shared reference caches are the source of project-specific dependency
+  state, including warmed Mathlib builds for external projects that pin their
+  own Mathlib versions
 - each checkout uses its own local reference blueprint clones under
   `.worktrees/_reference-blueprints/by-worktree/<checkout>/`
 - local `lake build` and `lake test` in a linked worktree are disabled by
