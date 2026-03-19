@@ -95,3 +95,21 @@ def canonical_example_site_dir(example: str, start: Path | None = None) -> Path:
 
 def default_example_site_dir(example: str, start: Path | None = None) -> Path:
     return canonical_example_site_dir(example, start)
+
+
+def canonical_test_blueprint_package_dir(name: str, start: Path | None = None) -> Path:
+    layout = detect_harness_layout(start)
+    return layout.package_root / "tests" / "test_blueprints" / name
+
+
+def canonical_test_blueprint_output_dir(name: str, start: Path | None = None) -> Path:
+    layout = detect_harness_layout(start)
+    return layout.artifact_root / "test-blueprints" / name
+
+
+def canonical_test_blueprint_site_dir(name: str, start: Path | None = None) -> Path:
+    return canonical_test_blueprint_output_dir(name, start) / "html-multi"
+
+
+def default_test_blueprint_site_dir(name: str, start: Path | None = None) -> Path:
+    return canonical_test_blueprint_site_dir(name, start)

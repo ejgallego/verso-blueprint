@@ -14,11 +14,17 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))
 
-from scripts.blueprint_harness_paths import default_example_site_dir
+from scripts.blueprint_harness_paths import (
+    canonical_test_blueprint_output_dir,
+    canonical_test_blueprint_package_dir,
+    default_test_blueprint_site_dir,
+)
 
+
+DEFAULT_TEST_BLUEPRINT = "preview_runtime_showcase"
 
 def default_site_dir() -> Path:
-    return default_example_site_dir("noperthedron", Path(__file__))
+    return default_test_blueprint_site_dir(DEFAULT_TEST_BLUEPRINT, Path(__file__))
 
 
 DEFAULT_SITE_DIR = default_site_dir()
@@ -67,7 +73,32 @@ def load_redirects(site_dir: str | Path):
     return [(s, sections[s][0]["address"] + "#" + sections[s][0]["id"]) for s in sections]
 
 
+def build_test_blueprint_site(name: str) -> Path:
+    package_dir = canonical_test_blueprint_package_dir(name, Path(__file__))
+    output_dir = canonical_test_blueprint_output_dir(name, Path(__file__))
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            str(PACKAGE_ROOT / "scripts" / "lean-low-priority"),
+            "lake",
+            "exe",
+            "blueprint-gen",
+            "--output",
+            str(output_dir),
+        ],
+        cwd=package_dir,
+        check=True,
+    )
+    return output_dir / "html-multi"
+
+
 def pytest_addoption(parser):
+    parser.addoption(
+        "--test-blueprint",
+        action="store",
+        default=DEFAULT_TEST_BLUEPRINT,
+        help="Named in-repo test blueprint to build and serve by default",
+    )
     parser.addoption(
         "--port",
         action="store",
@@ -77,8 +108,8 @@ def pytest_addoption(parser):
     parser.addoption(
         "--site-dir",
         action="store",
-        default=str(DEFAULT_SITE_DIR),
-        help="Path to the built site directory",
+        default=None,
+        help="Path to the built site directory (overrides --test-blueprint)",
     )
     parser.addoption(
         "--server-url",
@@ -110,9 +141,12 @@ def server(request):
         return
 
     site_dir = request.config.getoption("--site-dir")
-    site_dir = Path(site_dir)
-    if not site_dir.is_absolute():
-        site_dir = (Path(__file__).parent / site_dir).resolve()
+    if site_dir is None:
+        site_dir = build_test_blueprint_site(request.config.getoption("--test-blueprint"))
+    else:
+        site_dir = Path(site_dir)
+        if not site_dir.is_absolute():
+            site_dir = (Path(__file__).parent / site_dir).resolve()
     port = request.config.getoption("--port")
 
     if port is None:

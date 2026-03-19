@@ -53,13 +53,13 @@ class TestPreviewRuntimeRegressions:
 
     def test_exact_manifest_keys_keep_statement_and_proof_previews_distinct(self, server: str, page: Page):
         errors = record_runtime_errors(page)
-        page.goto(f"{server}/The-Noperthedron/")
+        page.goto(f"{server}/Preview-Relationships/")
 
         previews = page.evaluate(
             """async () => {
                 const utils = window.bpPreviewUtils;
-                const statement = await utils.loadSharedPreviewEntry("c1_c2_c3_norms--statement");
-                const proof = await utils.loadSharedPreviewEntry("c1_c2_c3_norms--proof");
+                const statement = await utils.loadSharedPreviewEntry("preview_facets--statement");
+                const proof = await utils.loadSharedPreviewEntry("preview_facets--proof");
                 return {
                     statement: {
                         html: utils.readPreviewTemplate(statement),
@@ -77,14 +77,14 @@ class TestPreviewRuntimeRegressions:
             }"""
         )
 
-        assert "Trivial arithmetic." in previews["proof"]["html"]
-        assert "Trivial arithmetic." not in previews["statement"]["html"]
-        assert "C_1" in previews["statement"]["html"]
-        assert previews["statement"]["label"] == "c1_c2_c3_norms"
+        assert "Proof facet marker" in previews["proof"]["html"]
+        assert "Proof facet marker" not in previews["statement"]["html"]
+        assert "Statement facet marker" in previews["statement"]["html"]
+        assert previews["statement"]["label"] == "preview_facets"
         assert previews["statement"]["facet"] == "statement"
-        assert previews["proof"]["label"] == "c1_c2_c3_norms"
+        assert previews["proof"]["label"] == "preview_facets"
         assert previews["proof"]["facet"] == "proof"
-        assert previews["statement"]["href"].startswith("The-Noperthedron/")
+        assert previews["statement"]["href"].startswith("Preview-Relationships/")
         assert "#--informal-preview-" in previews["statement"]["href"]
         assert previews["proof"]["href"] == previews["statement"]["href"]
         assert "bp_label_preview_tpl" not in page.content()
@@ -145,9 +145,9 @@ class TestPreviewRuntimeRegressions:
 
     def test_used_by_panel_loads_manifest_backed_preview(self, server: str, page: Page):
         errors = record_runtime_errors(page)
-        page.goto(f"{server}/The-Noperthedron/")
+        page.goto(f"{server}/Preview-Relationships/")
 
-        wrap = page.locator(".bp_used_by_wrap").first
+        wrap = page.locator('.bp_wrapper[title="used_target"] .bp_used_by_wrap').first
         expect(wrap).to_have_count(1)
         assert "bp_used_by_preview_tpl" not in page.content()
 
@@ -168,12 +168,12 @@ class TestPreviewRuntimeRegressions:
 
     def test_bibliography_hover_does_not_throw_and_opens_panel(self, server: str, page: Page):
         errors = record_runtime_errors(page)
-        page.goto(f"{server}/The-Global-Theorem/")
+        page.goto(f"{server}/Inline-Hover-Previews/")
 
         page.locator("body[data-bp-inline-preview-bound='1']").wait_for()
 
         trigger = page.locator(
-            '.bp_inline_preview_ref[data-bp-preview-title="Bibliography: polyhedron.without.rupert"]'
+            '.bp_inline_preview_ref[data-bp-preview-title="Bibliography: preview.showcase.cite"]'
         ).first
         expect(trigger).to_have_count(1)
 
@@ -181,20 +181,18 @@ class TestPreviewRuntimeRegressions:
 
         panel = page.locator("#bp-inline-preview-panel")
         expect(panel).to_be_visible()
-        expect(panel.locator(".bp_inline_preview_panel_body")).to_contain_text(
-            "polyhedron.without.rupert"
-        )
+        expect(panel.locator(".bp_inline_preview_panel_body")).to_contain_text("preview.showcase.cite")
 
         assert_no_runtime_errors(errors)
 
     def test_nested_inline_subhover_uses_child_panel(self, server: str, page: Page):
         errors = record_runtime_errors(page)
-        page.goto(f"{server}/Computational-Step/")
+        page.goto(f"{server}/Inline-Hover-Previews/")
 
         page.locator("body[data-bp-inline-preview-bound='1']").wait_for()
 
         outer = page.locator(
-            '.bp_inline_preview_ref[data-bp-preview-title="Theorem 7.15"]'
+            '.bp_inline_preview_ref[data-bp-preview-key="nested_outer--statement"]'
         ).first
         expect(outer).to_have_count(1)
 
@@ -202,10 +200,9 @@ class TestPreviewRuntimeRegressions:
 
         main_panel = page.locator("#bp-inline-preview-panel")
         expect(main_panel).to_be_visible()
-        expect(main_panel.locator(".bp_inline_preview_panel_title")).to_have_text("Theorem 7.15")
 
         nested = main_panel.locator(
-            '.bp_inline_preview_panel_body .bp_inline_preview_ref[data-bp-preview-title="Definition 7.10"]'
+            '.bp_inline_preview_panel_body .bp_inline_preview_ref[data-bp-preview-key="nested_inner--statement"]'
         ).first
         expect(nested).to_have_count(1)
 
@@ -213,7 +210,11 @@ class TestPreviewRuntimeRegressions:
 
         child_panel = page.locator("#bp-inline-preview-child-panel")
         expect(child_panel).to_be_visible()
-        expect(child_panel.locator(".bp_inline_preview_panel_title")).to_have_text("Definition 7.10")
-        expect(main_panel.locator(".bp_inline_preview_panel_title")).to_have_text("Theorem 7.15")
+        expect(child_panel.locator(".bp_inline_preview_panel_body")).to_contain_text(
+            "Nested inner preview definition."
+        )
+        expect(main_panel.locator(".bp_inline_preview_panel_body")).to_contain_text(
+            "Outer theorem refers to"
+        )
 
         assert_no_runtime_errors(errors)
