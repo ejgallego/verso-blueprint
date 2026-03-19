@@ -238,8 +238,9 @@ The local coordination layer is now machine-readable and untracked.
 
 - `worktree-sync` scans `git worktree list` and refreshes local metadata under
   `.worktrees/`
-- `worktree-list` shows the current local registry snapshot
-- `worktree-claim` records owner, issue, summary, status, and write scope
+- `worktree-list` shows the current local dashboard, combining local metadata
+  with live Git state
+- `worktree-claim` records owner, priority, summary, status, and write scope
 - `worktree-status` shows one worktree record
 - `worktree-release` marks a worktree done or otherwise retired
 - `worktree-prune-candidates` lists merged clean linked worktrees that are good
@@ -257,15 +258,19 @@ The live local files are:
 - `.worktrees/_meta/_root.json`
 - `.worktrees/_meta/<name>.json`
 
-These files are intentionally ignored by Git and should not be treated as
-repository content.
+Treat `.worktrees/_meta/*.json` as the local source of truth for manual
+coordination fields such as owner, priority, summary, status, and write scope.
+Treat `.worktrees/registry.json` as a generated snapshot for `worktree-list`
+and `worktree-status`. These files are intentionally ignored by Git and should
+not be treated as repository content.
 
 Recommended workflow:
 
 ```bash
 python3 -m scripts.blueprint_harness worktree-sync
-python3 -m scripts.blueprint_harness worktree-claim --owner codex --summary "external harness rework" --scope scripts --scope tests/harness
+python3 -m scripts.blueprint_harness create-worktree harness-rework --owner codex --priority P1 --summary "external harness rework" --scope scripts --scope tests/harness
 python3 -m scripts.blueprint_harness worktree-list
+python3 -m scripts.blueprint_harness worktree-claim harness-rework --priority P0 --status review
 python3 -m scripts.blueprint_harness worktree-prune-candidates
 python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
 ```

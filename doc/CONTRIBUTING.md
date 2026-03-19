@@ -61,7 +61,8 @@ Use the harness commands to manage local coordination metadata:
 ```bash
 python3 -m scripts.blueprint_harness worktree-sync
 python3 -m scripts.blueprint_harness worktree-list
-python3 -m scripts.blueprint_harness worktree-claim --owner <name> --summary <text> --scope <path>
+python3 -m scripts.blueprint_harness create-worktree <name> --owner <name> --priority P1 --summary <text> --scope <path>
+python3 -m scripts.blueprint_harness worktree-claim --priority P0 --summary <text>
 python3 -m scripts.blueprint_harness worktree-status
 python3 -m scripts.blueprint_harness worktree-release
 ```
@@ -76,4 +77,7 @@ Local metadata lives under ignored `.worktrees/` paths:
 - `.worktrees/_meta/_root.json`
 - `.worktrees/_meta/<name>.json`
 
-That data is intentionally not tracked in Git.
+Treat `.worktrees/_meta/*.json` as the source of truth for local coordination
+fields such as owner, priority, summary, status, and write scope. Treat
+`.worktrees/registry.json` as a generated dashboard snapshot that combines that
+local metadata with live Git state. None of that data is tracked in Git.

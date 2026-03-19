@@ -22,6 +22,19 @@ class GitWorktree:
 
 
 @dataclass
+class WorktreeMetadata:
+    version: int
+    name: str
+    status: str
+    owner: str | None = None
+    priority: str | None = None
+    summary: str | None = None
+    write_scope: list[str] = field(default_factory=list)
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+@dataclass
 class WorktreeRecord:
     version: int
     name: str
@@ -30,13 +43,11 @@ class WorktreeRecord:
     root_checkout: bool
     status: str
     owner: str | None = None
-    issue: str | None = None
-    task_id: str | None = None
+    priority: str | None = None
     summary: str | None = None
     write_scope: list[str] = field(default_factory=list)
     created_at: str | None = None
     updated_at: str | None = None
-    last_seen_at: str | None = None
     dirty: bool | None = None
     tracked_changes: int | None = None
     untracked_changes: int | None = None
@@ -82,6 +93,51 @@ def default_summary(name: str) -> str:
     return name.replace("-", " ")
 
 
+def normalize_priority(priority: str | None) -> str | None:
+    if priority is None:
+        return None
+    normalized = priority.strip()
+    if not normalized:
+        return None
+    if normalized.lower() in {"p0", "p1", "p2"}:
+        return normalized.upper()
+    return normalized
+
+
+def metadata_from_dict(data: dict[str, object], *, name: str | None = None) -> WorktreeMetadata:
+    raw_scope = data.get("write_scope") or []
+    write_scope = [str(entry) for entry in raw_scope] if isinstance(raw_scope, list) else []
+    return WorktreeMetadata(
+        version=int(data.get("version", 1)),
+        name=name or str(data["name"]),
+        status=str(data.get("status") or "active"),
+        owner=str(data["owner"]) if data.get("owner") is not None else None,
+        priority=normalize_priority(
+            str(data["priority"]) if data.get("priority") is not None else (
+                str(data["task_id"]) if data.get("task_id") is not None else None
+            )
+        ),
+        summary=str(data["summary"]) if data.get("summary") is not None else None,
+        write_scope=write_scope,
+        created_at=str(data["created_at"]) if data.get("created_at") is not None else None,
+        updated_at=str(data["updated_at"]) if data.get("updated_at") is not None else None,
+    )
+
+
+def metadata_from_record(record: WorktreeRecord) -> WorktreeMetadata:
+    return WorktreeMetadata(
+        version=record.version,
+        name=record.name,
+        status=record.status,
+        owner=record.owner,
+        priority=normalize_priority(record.priority),
+        summary=record.summary,
+        write_scope=record.write_scope[:],
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
 def parse_git_worktree_porcelain(text: str, repo_root: Path) -> list[GitWorktree]:
     blocks = [block for block in text.strip().split("\n\n") if block.strip()]
     worktrees: list[GitWorktree] = []
@@ -122,25 +178,25 @@ def git_worktrees(repo_root: Path) -> list[GitWorktree]:
     return parse_git_worktree_porcelain(result.stdout, repo_root)
 
 
-def load_record(path: Path) -> WorktreeRecord | None:
+def load_record(path: Path) -> WorktreeMetadata | None:
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
-    return WorktreeRecord(**data)
+    return metadata_from_dict(data)
 
 
-def save_record(path: Path, record: WorktreeRecord) -> None:
+def save_record(path: Path, record: WorktreeMetadata) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(asdict(record), indent=2) + "\n", encoding="utf-8")
 
 
-def load_registry(repo_root: Path) -> dict[str, WorktreeRecord]:
+def load_registry(repo_root: Path) -> dict[str, WorktreeMetadata]:
     path = registry_path(repo_root)
     if not path.exists():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
     entries = data.get("worktrees", [])
-    return {entry["name"]: WorktreeRecord(**entry) for entry in entries}
+    return {entry["name"]: metadata_from_dict(entry) for entry in entries}
 
 
 def save_registry(repo_root: Path, records: list[WorktreeRecord]) -> Path:
@@ -280,21 +336,30 @@ def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]
         path = metadata_path(repo_root, git_wt.name)
         existing = load_record(path) or previous.get(git_wt.name)
         facts = collect_worktree_facts(repo_root, git_wt)
+        metadata = WorktreeMetadata(
+            version=1,
+            name=git_wt.name,
+            status=existing.status if existing and existing.status else default_status(git_wt.branch, git_wt.root_checkout),
+            owner=existing.owner if existing else None,
+            priority=normalize_priority(existing.priority) if existing else None,
+            summary=existing.summary if existing and existing.summary is not None else default_summary(git_wt.name),
+            write_scope=existing.write_scope[:] if existing else [],
+            created_at=existing.created_at if existing and existing.created_at else now,
+            updated_at=existing.updated_at if existing and existing.updated_at else now,
+        )
         record = WorktreeRecord(
             version=1,
             name=git_wt.name,
             path=str(git_wt.path),
             branch=git_wt.branch,
             root_checkout=git_wt.root_checkout,
-            status=existing.status if existing else default_status(git_wt.branch, git_wt.root_checkout),
-            owner=existing.owner if existing else None,
-            issue=existing.issue if existing else None,
-            task_id=existing.task_id if existing else None,
-            summary=existing.summary if existing else default_summary(git_wt.name),
-            write_scope=existing.write_scope[:] if existing else [],
-            created_at=existing.created_at if existing and existing.created_at else now,
-            updated_at=now,
-            last_seen_at=now,
+            status=metadata.status,
+            owner=metadata.owner,
+            priority=metadata.priority,
+            summary=metadata.summary,
+            write_scope=metadata.write_scope[:],
+            created_at=metadata.created_at,
+            updated_at=metadata.updated_at,
             dirty=facts["dirty"],
             tracked_changes=facts["tracked_changes"],
             untracked_changes=facts["untracked_changes"],
@@ -308,7 +373,7 @@ def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]
             last_commit_at=facts["last_commit_at"],
             last_commit_subject=facts["last_commit_subject"],
         )
-        save_record(path, record)
+        save_record(path, metadata)
         records.append(record)
     records.sort(key=lambda record: (not record.root_checkout, record.name))
     return records, save_registry(repo_root, records)
@@ -330,8 +395,7 @@ def update_worktree_record(
     name: str,
     *,
     owner: str | None = None,
-    issue: str | None = None,
-    task_id: str | None = None,
+    priority: str | None = None,
     summary: str | None = None,
     status: str | None = None,
     write_scope: list[str] | None = None,
@@ -342,10 +406,8 @@ def update_worktree_record(
     record = record_map[name]
     if owner is not None:
         record.owner = owner
-    if issue is not None:
-        record.issue = issue
-    if task_id is not None:
-        record.task_id = task_id
+    if priority is not None:
+        record.priority = normalize_priority(priority)
     if summary is not None:
         record.summary = summary
     if status is not None:
@@ -354,8 +416,7 @@ def update_worktree_record(
         record.write_scope = write_scope
     now = utc_now()
     record.updated_at = now
-    record.last_seen_at = now
     record_path = metadata_path(repo_root, name)
-    save_record(record_path, record)
+    save_record(record_path, metadata_from_record(record))
     save_registry(repo_root, sorted(record_map.values(), key=lambda rec: (not rec.root_checkout, rec.name)))
     return record, record_path, registry

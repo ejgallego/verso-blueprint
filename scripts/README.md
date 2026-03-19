@@ -28,7 +28,7 @@ If you are starting new implementation work, create a linked worktree through
 the harness:
 
 ```bash
-python3 -m scripts.blueprint_harness create-worktree <name>
+python3 -m scripts.blueprint_harness create-worktree <name> --owner codex --priority P1 --summary "short description"
 ```
 
 That command is intentionally heavyweight by default: it creates the git
@@ -67,6 +67,10 @@ cache, prefer:
 python3 -m scripts.blueprint_harness sync-root-lake
 python3 -m scripts.blueprint_reference_harness sync
 ```
+
+Use `worktree-list` as the local dashboard for parallel work. It combines the
+small manual records under `.worktrees/_meta/` with live Git state such as the
+current branch, dirty status, and commit distance from `main`.
 
 When you run `generate`, `validate`, or `sync` from the root checkout while it
 is on `main`, the reference CLI expects that checkout to stay clean and in

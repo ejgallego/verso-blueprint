@@ -18,6 +18,7 @@ from scripts.blueprint_harness_utils import run
 from scripts.blueprint_harness_worktrees import (
     GitWorktree,
     git_worktrees,
+    normalize_priority,
     resolve_worktree_name,
     sync_worktree_registry,
     update_worktree_record,
@@ -282,6 +283,14 @@ def worktree_is_clean(path: Path) -> bool:
     return not status
 
 
+def text_or_blank(value: object | None) -> str:
+    return "" if value is None else str(value)
+
+
+def bool_or_blank(value: bool | None) -> str:
+    return "" if value is None else str(value).lower()
+
+
 def command_sync_root_lake(_: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
     if not layout.in_linked_worktree:
@@ -318,6 +327,16 @@ def command_create_worktree(args: argparse.Namespace) -> int:
         manifest_path = resolve_manifest_path(None, new_layout.package_root)
         projects = load_project_catalog(manifest_path)
         sync_reference_blueprints(new_layout, projects, warm_build=True, prepare_local_checkout=True)
+    if any(value is not None for value in (args.owner, args.priority, args.summary, args.status, args.scope)):
+        update_worktree_record(
+            layout.repo_root,
+            worktree_name,
+            owner=args.owner,
+            priority=normalize_priority(args.priority),
+            summary=args.summary,
+            status=args.status,
+            write_scope=args.scope,
+        )
 
     print(f"[blueprint-harness] worktree path: {destination}")
     print(f"[blueprint-harness] branch: {branch}")
@@ -526,8 +545,10 @@ def command_worktree_list(_: argparse.Namespace) -> int:
     for record in records:
         scope = ",".join(record.write_scope) if record.write_scope else ""
         print(
-            f"{record.name}\tbranch={record.branch or ''}\tstatus={record.status}\t"
-            f"owner={record.owner or ''}\tissue={record.issue or ''}\tscope={scope}"
+            f"{record.name}\tpriority={record.priority or ''}\tstatus={record.status}\t"
+            f"owner={record.owner or ''}\tbranch={record.branch or ''}\tdirty={bool_or_blank(record.dirty)}\t"
+            f"main_ahead={text_or_blank(record.main_ahead)}\tmain_behind={text_or_blank(record.main_behind)}\t"
+            f"scope={scope}\tsummary={record.summary or ''}"
         )
     return 0
 
@@ -545,22 +566,20 @@ def command_worktree_status(args: argparse.Namespace) -> int:
     print(f"branch={record.branch or ''}")
     print(f"status={record.status}")
     print(f"owner={record.owner or ''}")
-    print(f"issue={record.issue or ''}")
-    print(f"task_id={record.task_id or ''}")
+    print(f"priority={record.priority or ''}")
     print(f"summary={record.summary or ''}")
     print(f"write_scope={','.join(record.write_scope)}")
     print(f"created_at={record.created_at or ''}")
     print(f"updated_at={record.updated_at or ''}")
-    print(f"last_seen_at={record.last_seen_at or ''}")
-    print(f"dirty={'' if record.dirty is None else str(record.dirty).lower()}")
-    print(f"tracked_changes={'' if record.tracked_changes is None else record.tracked_changes}")
-    print(f"untracked_changes={'' if record.untracked_changes is None else record.untracked_changes}")
-    print(f"merged_into_main={'' if record.merged_into_main is None else str(record.merged_into_main).lower()}")
-    print(f"main_ahead={'' if record.main_ahead is None else record.main_ahead}")
-    print(f"main_behind={'' if record.main_behind is None else record.main_behind}")
+    print(f"dirty={bool_or_blank(record.dirty)}")
+    print(f"tracked_changes={text_or_blank(record.tracked_changes)}")
+    print(f"untracked_changes={text_or_blank(record.untracked_changes)}")
+    print(f"merged_into_main={bool_or_blank(record.merged_into_main)}")
+    print(f"main_ahead={text_or_blank(record.main_ahead)}")
+    print(f"main_behind={text_or_blank(record.main_behind)}")
     print(f"upstream={record.upstream or ''}")
-    print(f"upstream_ahead={'' if record.upstream_ahead is None else record.upstream_ahead}")
-    print(f"upstream_behind={'' if record.upstream_behind is None else record.upstream_behind}")
+    print(f"upstream_ahead={text_or_blank(record.upstream_ahead)}")
+    print(f"upstream_behind={text_or_blank(record.upstream_behind)}")
     print(f"last_commit={record.last_commit or ''}")
     print(f"last_commit_at={record.last_commit_at or ''}")
     print(f"last_commit_subject={record.last_commit_subject or ''}")
@@ -574,8 +593,7 @@ def command_worktree_claim(args: argparse.Namespace) -> int:
         layout.repo_root,
         name,
         owner=args.owner,
-        issue=args.issue,
-        task_id=args.task_id,
+        priority=normalize_priority(args.priority),
         summary=args.summary,
         status=args.status,
         write_scope=args.scope,
@@ -585,6 +603,7 @@ def command_worktree_claim(args: argparse.Namespace) -> int:
     print(f"name={record.name}")
     print(f"status={record.status}")
     print(f"owner={record.owner or ''}")
+    print(f"priority={record.priority or ''}")
     print(f"summary={record.summary or ''}")
     print(f"write_scope={','.join(record.write_scope)}")
     return 0
@@ -685,6 +704,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Create only the git worktree and skip both `.lake/` sync and reference-cache warm-up.",
     )
+    create_worktree.add_argument("--owner", default=None, help="Owner or agent responsible for the worktree.")
+    create_worktree.add_argument("--priority", default=None, help="Optional local priority label such as P0, P1, or P2.")
+    create_worktree.add_argument("--summary", default=None, help="Short summary of the worktree purpose.")
+    create_worktree.add_argument("--status", default=None, help="Initial status label such as active, blocked, review, done, or wip.")
+    create_worktree.add_argument("--scope", action="append", default=None, help="Writable scope path. Repeat for multiple scopes.")
     create_worktree.set_defaults(func=command_create_worktree)
 
     worktree_prune_candidates = subparsers.add_parser(
@@ -730,10 +754,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_optional_worktree_name_argument(worktree_claim)
     worktree_claim.add_argument("--owner", default=None, help="Owner or agent responsible for the worktree.")
-    worktree_claim.add_argument("--issue", default=None, help="GitHub issue number or identifier.")
-    worktree_claim.add_argument("--task-id", default=None, help="Local task identifier.")
+    worktree_claim.add_argument("--priority", default=None, help="Optional local priority label such as P0, P1, or P2.")
     worktree_claim.add_argument("--summary", default=None, help="Short summary of the worktree purpose.")
-    worktree_claim.add_argument("--status", default="active", help="Status label such as active, blocked, review, done, or wip.")
+    worktree_claim.add_argument("--status", default=None, help="Status label such as active, blocked, review, done, or wip.")
     worktree_claim.add_argument("--scope", action="append", default=None, help="Writable scope path. Repeat for multiple scopes.")
     worktree_claim.set_defaults(func=command_worktree_claim)
 

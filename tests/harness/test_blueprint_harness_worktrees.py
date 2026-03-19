@@ -95,12 +95,18 @@ branch refs/heads/feat/demo
             self.assertEqual(metadata_path(repo_root, "demo"), repo_root / ".worktrees" / METADATA_DIRNAME / "demo.json")
             self.assertFalse((worktree_dir / ".codex-worktree.json").exists())
             self.assertTrue(registry.exists())
-            root_record = WorktreeRecord(**json.loads(metadata_path(repo_root, "main").read_text(encoding="utf-8")))
-            demo_record = WorktreeRecord(**json.loads(metadata_path(repo_root, "demo").read_text(encoding="utf-8")))
-            self.assertTrue(root_record.dirty)
-            self.assertEqual(root_record.tracked_changes, 1)
-            self.assertEqual(demo_record.main_ahead, 1)
-            self.assertEqual(demo_record.main_behind, 2)
+            root_metadata = json.loads(metadata_path(repo_root, "main").read_text(encoding="utf-8"))
+            demo_metadata = json.loads(metadata_path(repo_root, "demo").read_text(encoding="utf-8"))
+            self.assertEqual(root_metadata["status"], "base")
+            self.assertEqual(demo_metadata["summary"], "demo")
+            self.assertNotIn("path", demo_metadata)
+            self.assertNotIn("dirty", demo_metadata)
+            generated_registry = json.loads(registry.read_text(encoding="utf-8"))
+            by_name = {entry["name"]: WorktreeRecord(**entry) for entry in generated_registry["worktrees"]}
+            self.assertTrue(by_name["main"].dirty)
+            self.assertEqual(by_name["main"].tracked_changes, 1)
+            self.assertEqual(by_name["demo"].main_ahead, 1)
+            self.assertEqual(by_name["demo"].main_behind, 2)
 
     def test_sync_worktree_registry_preserves_created_at_and_refreshes_canonical_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -125,6 +131,7 @@ branch refs/heads/feat/demo
                                 "summary": "main",
                                 "write_scope": [],
                                 "created_at": "2026-03-19T00:00:00Z",
+                                "updated_at": "2026-03-19T01:00:00Z",
                                 "dirty": False,
                                 "tracked_changes": 0,
                                 "untracked_changes": 0,
@@ -145,9 +152,11 @@ branch refs/heads/feat/demo
                                 "branch": "feat/demo",
                                 "root_checkout": False,
                                 "status": "active",
+                                "task_id": "P1",
                                 "summary": "demo",
                                 "write_scope": [],
                                 "created_at": "2026-03-19T00:00:00Z",
+                                "updated_at": "2026-03-19T01:00:00Z",
                                 "dirty": True,
                                 "tracked_changes": 3,
                                 "untracked_changes": 0,
@@ -206,10 +215,17 @@ branch refs/heads/feat/demo
                     setattr(worktrees_mod, name, value)
 
             self.assertEqual([record.name for record in records], ["main", "demo"])
+            demo_metadata = json.loads(metadata_path(repo_root, "demo").read_text(encoding="utf-8"))
+            self.assertEqual(demo_metadata["created_at"], "2026-03-19T00:00:00Z")
+            self.assertEqual(demo_metadata["updated_at"], "2026-03-19T01:00:00Z")
+            self.assertEqual(demo_metadata["priority"], "P1")
+            self.assertNotIn("tracked_changes", demo_metadata)
             rewritten = json.loads(registry.read_text(encoding="utf-8"))
             by_name = {entry["name"]: entry for entry in rewritten["worktrees"]}
             self.assertEqual(by_name["main"]["created_at"], "2026-03-19T00:00:00Z")
             self.assertEqual(by_name["demo"]["created_at"], "2026-03-19T00:00:00Z")
+            self.assertEqual(by_name["demo"]["priority"], "P1")
+            self.assertNotIn("task_id", by_name["demo"])
             self.assertTrue(by_name["demo"]["dirty"])
             self.assertEqual(by_name["demo"]["tracked_changes"], 5)
             self.assertEqual(by_name["demo"]["untracked_changes"], 1)
