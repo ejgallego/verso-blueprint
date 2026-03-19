@@ -32,6 +32,7 @@ The supported repository-local entry points are:
 ./scripts/generate-reference-blueprints.sh
 ./scripts/validate-reference-blueprints.sh
 python3 -m scripts.blueprint_harness create-worktree <name>
+python3 -m scripts.blueprint_harness main-status
 python3 -m scripts.blueprint_harness projects
 python3 -m scripts.blueprint_harness reference-edit <project>
 python3 -m scripts.blueprint_harness reference-sync
@@ -157,7 +158,16 @@ python3 -m scripts.blueprint_harness create-worktree <name>
 
 That command is intentionally heavyweight by default: after `git worktree add`
 it syncs the root checkout's `.lake/` and warms the shared and per-worktree
-reference blueprint clones.
+reference blueprint clones. When `origin/main` exists, new worktrees now base
+off `origin/main` by default rather than local `main`.
+
+If you want to verify that the root checkout has not drifted before branching
+or landing, use:
+
+```bash
+python3 -m scripts.blueprint_harness main-status
+python3 -m scripts.blueprint_harness main-status --require-sync
+```
 
 After creation, ordinary `generate` and `validate` runs reuse the worktree's
 current `.lake/`; they do not automatically resync it from the root checkout.

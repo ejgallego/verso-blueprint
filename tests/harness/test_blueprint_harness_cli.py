@@ -25,12 +25,70 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             parser.parse_args(["reference-sync", "--example", "noperthedron"])
 
+    def test_main_status_parses_require_sync(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["main-status", "--require-sync"])
+        self.assertTrue(args.require_sync)
+
     def test_reference_edit_parses_project_branch_and_base(self) -> None:
         parser = build_parser()
         args = parser.parse_args(["reference-edit", "noperthedron", "--branch", "wip/noperthedron", "--base", "origin/main"])
         self.assertEqual(args.project, "noperthedron")
         self.assertEqual(args.branch, "wip/noperthedron")
         self.assertEqual(args.base, "origin/main")
+
+    def test_create_worktree_uses_preferred_main_ref_by_default(self) -> None:
+        layout = SimpleNamespace(repo_root=Path("/tmp/repo"))
+        original = harness_mod.preferred_main_ref
+        try:
+            harness_mod.preferred_main_ref = lambda _repo_root: "origin/main"
+            self.assertEqual(harness_mod.resolve_create_worktree_base(layout, None), "origin/main")
+        finally:
+            harness_mod.preferred_main_ref = original
+
+    def test_create_worktree_rejects_unsynced_local_main_base(self) -> None:
+        layout = SimpleNamespace(repo_root=Path("/tmp/repo"))
+        originals = {
+            "preferred_main_ref": harness_mod.preferred_main_ref,
+            "main_sync_status": harness_mod.main_sync_status,
+        }
+        try:
+            harness_mod.preferred_main_ref = lambda _repo_root: "origin/main"
+            harness_mod.main_sync_status = lambda _repo_root: harness_mod.RefSyncStatus(
+                local_ref="main",
+                upstream_ref="origin/main",
+                local_oid="abc",
+                upstream_oid="def",
+                relationship="diverged",
+            )
+            with self.assertRaisesRegex(SystemExit, "refusing to use local `main` as the worktree base"):
+                harness_mod.resolve_create_worktree_base(layout, "main")
+        finally:
+            for name, value in originals.items():
+                setattr(harness_mod, name, value)
+
+    def test_main_status_require_sync_returns_nonzero_when_unsynced(self) -> None:
+        args = argparse.Namespace(require_sync=True)
+        layout = SimpleNamespace(repo_root=Path("/tmp/repo"))
+        originals = {
+            "detect_harness_layout": harness_mod.detect_harness_layout,
+            "main_sync_status": harness_mod.main_sync_status,
+            "current_branch_name": harness_mod.current_branch_name,
+        }
+        try:
+            harness_mod.detect_harness_layout = lambda _start=None: layout
+            harness_mod.main_sync_status = lambda _repo_root: harness_mod.RefSyncStatus(
+                local_ref="main",
+                upstream_ref="origin/main",
+                local_oid="abc",
+                upstream_oid="def",
+                relationship="behind",
+            )
+            harness_mod.current_branch_name = lambda _repo_root: "main"
+            self.assertEqual(harness_mod.command_main_status(args), 1)
+        finally:
+            for name, value in originals.items():
+                setattr(harness_mod, name, value)
 
     def test_generate_keeps_example_alias(self) -> None:
         parser = build_parser()

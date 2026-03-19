@@ -34,6 +34,16 @@ class StepFailure:
     step: str
     detail: str
 
+
+@dataclass(frozen=True)
+class RefSyncStatus:
+    local_ref: str
+    upstream_ref: str
+    local_oid: str | None
+    upstream_oid: str | None
+    relationship: str
+
+
 def run_capturing_failure(step: str, command: list[str], *, cwd: Path) -> StepFailure | None:
     try:
         run(command, cwd=cwd)
@@ -238,6 +248,92 @@ def preferred_main_ref(repo_root: Path) -> str:
     ):
         return "origin/main"
     return "main"
+
+
+def current_branch_name(repo_root: Path) -> str | None:
+    branch = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=repo_root,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+    return branch or None
+
+
+def ref_oid(repo_root: Path, ref: str) -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", ref],
+        cwd=repo_root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        return None
+    oid = result.stdout.strip()
+    return oid or None
+
+
+def ref_sync_status(repo_root: Path, local_ref: str, upstream_ref: str) -> RefSyncStatus:
+    local_oid = ref_oid(repo_root, local_ref)
+    upstream_oid = ref_oid(repo_root, upstream_ref)
+
+    if local_oid is None:
+        relationship = "missing_local"
+    elif upstream_oid is None:
+        relationship = "missing_upstream"
+    elif local_oid == upstream_oid:
+        relationship = "in_sync"
+    elif (
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", local_ref, upstream_ref],
+            cwd=repo_root,
+            check=False,
+        ).returncode
+        == 0
+    ):
+        relationship = "behind"
+    elif (
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", upstream_ref, local_ref],
+            cwd=repo_root,
+            check=False,
+        ).returncode
+        == 0
+    ):
+        relationship = "ahead"
+    else:
+        relationship = "diverged"
+
+    return RefSyncStatus(
+        local_ref=local_ref,
+        upstream_ref=upstream_ref,
+        local_oid=local_oid,
+        upstream_oid=upstream_oid,
+        relationship=relationship,
+    )
+
+
+def main_sync_status(repo_root: Path) -> RefSyncStatus:
+    upstream_ref = preferred_main_ref(repo_root)
+    return ref_sync_status(repo_root, "main", upstream_ref)
+
+
+def resolve_create_worktree_base(layout, requested_base: str | None) -> str:
+    preferred_base = preferred_main_ref(layout.repo_root)
+    if requested_base is None:
+        requested_base = preferred_base
+
+    if requested_base == "main" and preferred_base != "main":
+        status = main_sync_status(layout.repo_root)
+        if status.relationship != "in_sync":
+            raise SystemExit(
+                f"[blueprint-harness] local `main` is {status.relationship} relative to `{status.upstream_ref}`; "
+                "refusing to use local `main` as the worktree base. Rebase local `main` first or pass "
+                f"`--base {status.upstream_ref}` explicitly."
+            )
+    return requested_base
 
 
 def ref_merged_into_main(repo_root: Path, ref: str) -> bool:
@@ -495,7 +591,7 @@ def command_create_worktree(args: argparse.Namespace) -> int:
     worktree_name = normalize_worktree_name(args.name)
     destination = worktree_path(layout.repo_root, worktree_name)
     branch = args.branch or default_branch_name(worktree_name)
-    base_ref = args.base
+    base_ref = resolve_create_worktree_base(layout, args.base)
     skip_sync, skip_reference_sync = create_worktree_sync_policy(args)
 
     if destination.exists():
@@ -518,7 +614,25 @@ def command_create_worktree(args: argparse.Namespace) -> int:
 
     print(f"[blueprint-harness] worktree path: {destination}")
     print(f"[blueprint-harness] branch: {branch}")
+    print(f"[blueprint-harness] base ref: {base_ref}")
     print(f"[blueprint-harness] artifact root: {new_layout.artifact_root}")
+    return 0
+
+
+def command_main_status(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    status = main_sync_status(layout.repo_root)
+    print(f"current_branch={current_branch_name(layout.repo_root) or ''}")
+    print(f"preferred_main_ref={status.upstream_ref}")
+    print(f"main_oid={status.local_oid or ''}")
+    print(f"{status.upstream_ref}_oid={status.upstream_oid or ''}")
+    print(f"relationship={status.relationship}")
+    if args.require_sync and status.relationship != "in_sync":
+        print(
+            f"[blueprint-harness] local `main` is {status.relationship} relative to `{status.upstream_ref}`",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 
@@ -532,6 +646,7 @@ def command_paths(_: argparse.Namespace) -> int:
     print(f"artifact_root={layout.artifact_root}")
     print(f"project_manifest={resolve_manifest_path(None, layout.package_root)}")
     print("local_override_strategy=ephemeral_lakefile_rewrite")
+    print(f"preferred_main_ref={preferred_main_ref(layout.repo_root)}")
     print(f"root_lake={layout.repo_root / '.lake'}")
     print(f"reference_output_root={layout.reference_output_root}")
     print(f"reference_cache_root={layout.reference_project_cache_root}")
@@ -892,6 +1007,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sync_root_lake.set_defaults(func=command_sync_root_lake)
 
+    main_status = subparsers.add_parser(
+        "main-status",
+        help="Show whether local `main` is in sync with the preferred main ref.",
+    )
+    main_status.add_argument(
+        "--require-sync",
+        action="store_true",
+        help="Exit nonzero when local `main` is not in sync with the preferred main ref.",
+    )
+    main_status.set_defaults(func=command_main_status)
+
     create_worktree = subparsers.add_parser(
         "create-worktree",
         help=(
@@ -907,8 +1033,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     create_worktree.add_argument(
         "--base",
-        default="main",
-        help="Base ref used when creating a new branch. Ignored if `--branch` already exists.",
+        default=None,
+        help="Base ref used when creating a new branch. Defaults to `origin/main` when available, else `main`.",
     )
     create_worktree.add_argument(
         "--skip-sync",

@@ -32,11 +32,20 @@ python3 -m scripts.blueprint_harness create-worktree <name>
 
 That command is intentionally heavyweight by default: it creates the git
 worktree, syncs the root checkout's `.lake/`, and warms the reference blueprint
-clones used by the current checkout. If you only want the linked checkout
-itself, use:
+clones used by the current checkout. When `origin/main` exists, the new
+worktree defaults to `origin/main` rather than local `main` as its base. If
+you only want the linked checkout itself, use:
 
 ```bash
 python3 -m scripts.blueprint_harness create-worktree <name> --lightweight
+```
+
+If you want to verify that local `main` is still in sync with the preferred
+main ref before branching or landing, use:
+
+```bash
+python3 -m scripts.blueprint_harness main-status
+python3 -m scripts.blueprint_harness main-status --require-sync
 ```
 
 From a linked worktree, do not treat `lake build` or `lake test` as the
