@@ -36,6 +36,7 @@ namespace Informal.Lean
 structure LeanBlockConfig where
   «show» : Bool
   name : Option Lean.Name
+  analyze : Bool := true
 
 abbrev LiterateDef := Data.LiterateDef
 abbrev LiterateThm := Data.LiterateThm
@@ -323,8 +324,9 @@ def elabCommands (config : LeanBlockConfig) (str : StrLit) : DocElabM ElabComman
       cmdState ← Profile.withDocElab "lean" "runCommand" <| runCommand (Command.elabCommand cmd) cmd cctx cmdState
       cmdIndex := cmdIndex + 1
 
-      let analysis := cmdAnalysis cmd cmdIndex
-      cmdAnalyses := cmdAnalyses.push analysis
+      if config.analyze then
+        let analysis := cmdAnalysis cmd cmdIndex
+        cmdAnalyses := cmdAnalyses.push analysis
 
       if Parser.isTerminalCommand cmd then break
 
@@ -353,7 +355,11 @@ def elabCommands (config : LeanBlockConfig) (str : StrLit) : DocElabM ElabComman
       warnLongLines col? str
 
     let block ← toHighlightedLeanBlock config.show hls str
-    let (definedDefs, definedTheorems) ← getDefinedDecls cctx.fileMap envBefore cmdState.env cmdAnalyses
+    let (definedDefs, definedTheorems) ←
+      if config.analyze then
+        getDefinedDecls cctx.fileMap envBefore cmdState.env cmdAnalyses
+      else
+        pure (#[], #[])
     pure { block, definedDefs, definedTheorems }
 where
   runCommand (act : Command.CommandElabM Unit) (stx : Syntax)
