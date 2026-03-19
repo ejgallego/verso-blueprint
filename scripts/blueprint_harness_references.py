@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import subprocess
 from pathlib import Path
 
 from scripts.blueprint_harness_projects import HarnessProject
@@ -112,6 +113,50 @@ def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) ->
     return lakefile
 
 
+def git_tracks_file(project_dir: Path, relative_path: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "ls-files", "--error-unmatch", relative_path],
+            cwd=project_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
+def tracked_project_manifest_path(project_dir: Path) -> Path | None:
+    manifest = project_dir / "lake-manifest.json"
+    if not manifest.exists():
+        return None
+    if not git_tracks_file(project_dir, manifest.name):
+        return None
+    return manifest
+
+
+def discard_untracked_project_manifest(project_dir: Path) -> None:
+    manifest = project_dir / "lake-manifest.json"
+    if manifest.exists() and tracked_project_manifest_path(project_dir) is None:
+        manifest.unlink()
+
+
+def reference_update_command(package_root: Path, project_dir: Path) -> list[str]:
+    manifest = tracked_project_manifest_path(project_dir)
+    if manifest is not None:
+        print(
+            "[blueprint-harness] committed lake-manifest.json detected; "
+            "updating `VersoBlueprint` only to keep `verso` pinned"
+        )
+        return lean_low_priority_command(package_root, "lake", "update", "VersoBlueprint")
+
+    print(
+        "[blueprint-harness] no committed lake-manifest.json detected; "
+        "falling back to full `lake update`"
+    )
+    return lean_low_priority_command(package_root, "lake", "update")
+
+
 def maybe_rewrite_in_repo_blueprint_dependency(project_dir: Path, package_root: Path) -> tuple[Path | None, str | None]:
     lakefile = project_dir / "lakefile.lean"
     if not lakefile.exists():
@@ -135,11 +180,12 @@ def sync_reference_cache_checkout(layout, project: HarnessProject, *, warm_build
     else:
         update_git_checkout(project, cache_dir)
     project_dir = cache_dir / project.project_root
+    discard_untracked_project_manifest(project_dir)
     cache_lakefile = project_dir / "lakefile.lean"
     original_text = cache_lakefile.read_text(encoding="utf-8")
     rewrite_local_blueprint_dependency(project_dir, layout.repo_root)
     try:
-        run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
+        run(reference_update_command(layout.package_root, project_dir), cwd=project_dir)
         if warm_build and project.build_command is not None:
             run(lean_low_priority_command(layout.package_root, *project.build_command), cwd=project_dir)
     finally:
@@ -231,6 +277,7 @@ def generate_git_project(layout, output_root: Path, project: HarnessProject, *, 
     cache_dir = sync_reference_cache_checkout(layout, project, warm_build=not skip_build)
     checkout_root = cache_dir if use_shared_reference_checkout() else sync_reference_local_checkout(layout, project, cache_dir)
     project_dir = checkout_root / project.project_root
+    discard_untracked_project_manifest(project_dir)
     prime_reference_checkout_from_root_lake_cache(layout, project_dir)
     output_dir = output_dir_for(project, output_root)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -238,7 +285,7 @@ def generate_git_project(layout, output_root: Path, project: HarnessProject, *, 
     try:
         rewritten_lakefile = rewrite_local_blueprint_dependency(project_dir, layout.package_root)
         print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
-        run(lean_low_priority_command(layout.package_root, "lake", "update"), cwd=project_dir)
+        run(reference_update_command(layout.package_root, project_dir), cwd=project_dir)
         if not skip_build and project.build_command is not None:
             run(
                 lean_low_priority_command(

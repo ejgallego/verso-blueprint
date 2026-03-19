@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 
@@ -12,7 +13,10 @@ from scripts.blueprint_harness_projects import (
 )
 from scripts.blueprint_harness_references import (
     OFFICIAL_BLUEPRINT_REQUIRE,
+    discard_untracked_project_manifest,
+    reference_update_command,
     rewrite_local_blueprint_dependency,
+    tracked_project_manifest_path,
     use_shared_reference_checkout,
 )
 
@@ -21,6 +25,9 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 
 
 class BlueprintHarnessProjectsTests(unittest.TestCase):
+    def init_git_repo(self, root: Path) -> None:
+        subprocess.run(["git", "init"], cwd=root, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
     def test_default_manifest_contains_current_external_projects(self) -> None:
         manifest = default_project_manifest(PACKAGE_ROOT)
         projects = load_projects_manifest(manifest)
@@ -169,6 +176,87 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
             with self.assertRaisesRegex(SystemExit, "official `leanprover/verso-blueprint` Git source"):
                 rewrite_local_blueprint_dependency(project_dir, PACKAGE_ROOT)
+
+    def test_tracked_project_manifest_path_accepts_git_tracked_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = Path(tmp)
+            self.init_git_repo(project_dir)
+            manifest = project_dir / "lake-manifest.json"
+            manifest.write_text("{}\n", encoding="utf-8")
+            subprocess.run(
+                ["git", "add", "lake-manifest.json"],
+                cwd=project_dir,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+            self.assertEqual(tracked_project_manifest_path(project_dir), manifest)
+
+    def test_tracked_project_manifest_path_ignores_untracked_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = Path(tmp)
+            self.init_git_repo(project_dir)
+            manifest = project_dir / "lake-manifest.json"
+            manifest.write_text("{}\n", encoding="utf-8")
+
+            self.assertIsNone(tracked_project_manifest_path(project_dir))
+
+    def test_discard_untracked_project_manifest_removes_generated_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = Path(tmp)
+            self.init_git_repo(project_dir)
+            manifest = project_dir / "lake-manifest.json"
+            manifest.write_text("{}\n", encoding="utf-8")
+
+            discard_untracked_project_manifest(project_dir)
+
+            self.assertFalse(manifest.exists())
+
+    def test_discard_untracked_project_manifest_preserves_tracked_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = Path(tmp)
+            self.init_git_repo(project_dir)
+            manifest = project_dir / "lake-manifest.json"
+            manifest.write_text("{}\n", encoding="utf-8")
+            subprocess.run(
+                ["git", "add", "lake-manifest.json"],
+                cwd=project_dir,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+            discard_untracked_project_manifest(project_dir)
+
+            self.assertTrue(manifest.exists())
+
+    def test_reference_update_command_targets_blueprint_when_manifest_is_committed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = Path(tmp)
+            self.init_git_repo(project_dir)
+            manifest = project_dir / "lake-manifest.json"
+            manifest.write_text("{}\n", encoding="utf-8")
+            subprocess.run(
+                ["git", "add", "lake-manifest.json"],
+                cwd=project_dir,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+            command = reference_update_command(PACKAGE_ROOT, project_dir)
+
+            self.assertEqual(command[-3:], ["lake", "update", "VersoBlueprint"])
+
+    def test_reference_update_command_falls_back_to_full_update_without_tracked_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = Path(tmp)
+            self.init_git_repo(project_dir)
+
+            command = reference_update_command(PACKAGE_ROOT, project_dir)
+
+            self.assertEqual(command[-2:], ["lake", "update"])
 
     def test_use_shared_reference_checkout_env_switch(self) -> None:
         old = os.environ.get("BP_REFERENCE_CHECKOUT_MODE")

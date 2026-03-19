@@ -244,6 +244,10 @@ python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
 - the Python harness rewrites the cloned project's `lakefile.lean` locally so
   `VersoBlueprint` resolves to the checkout under test before running
   `lake update`
+- external reference repositories should commit `lake-manifest.json`; when that
+  tracked manifest is present, the harness updates only `VersoBlueprint` so
+  transitive dependencies such as `verso` stay pinned to the project's tested
+  revisions
 - the Python harness is maintainer tooling for those validations, not the main
   package-facing authoring interface
 
