@@ -1,6 +1,6 @@
 # Blueprint Design Rationale
 
-Last updated: 2026-03-16
+Last updated: 2026-03-19
 
 This document records the current architecture boundaries and the reasons the
 Blueprint implementation is shaped the way it is.
@@ -128,6 +128,19 @@ info-tree scoped. Isolated renderers therefore cannot rely on shared hover-id
 tables unless they also participate in the surrounding hover environment. That
 is why Blueprint sometimes rewrites isolated hover payloads into self-contained
 HTML.
+
+### Server-Mode Lean Elaboration
+
+Blueprint Lean blocks elaborate both during ordinary document generation and
+inside the interactive Lean server.
+
+Server-mode elaboration is intentionally cheaper. `VersoBlueprint.Lean`
+consults `Elab.inServer` directly instead of threading a block-level flag
+through Blueprint code-block configuration. When `Elab.inServer` is `true`, it
+skips declaration analysis and the expensive full highlighted-code pass, and
+falls back to plain-text block and output payloads. The richer analysis and
+highlighting path remains for non-server document generation, where render
+quality matters more than editor latency.
 
 ## Graph and Completion Rationale
 
