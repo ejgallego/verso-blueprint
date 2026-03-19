@@ -299,7 +299,6 @@ def codeHealthOfCodeRef (kind : Data.NodeKind) (external : ExternalCodeStatus)
     (codeRef? : Option Data.CodeRef) : CodeHealth :=
   match codeRef? with
   | none => {}
-  | some .userOk => { hasAssociatedCode := true }
   | some (.external decls) => codeHealthOfExternalDecls kind external decls
   | some (.literate code) =>
     let statuses :=
@@ -310,7 +309,6 @@ def codeHealthOfBlockSource (kind : Data.NodeKind) (external : ExternalCodeStatu
     (source? : Option Informal.BlockCodeData) : CodeHealth :=
   match source? with
   | none => {}
-  | some .userOk => { hasAssociatedCode := true }
   | some (.external decls) => codeHealthOfExternalDecls kind external decls
   | some (.inline codeData) =>
     let statuses :=

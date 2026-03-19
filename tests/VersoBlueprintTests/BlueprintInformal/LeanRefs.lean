@@ -32,17 +32,6 @@ Simple body.
 :::::::
 
 /--
-error: Label «bad.error» cannot use '(leanok := true)' together with '(lean := ...)'
--/
-#guard_msgs in
-#docs (Manual) conflictingLeanHints "Conflicting Lean Hints" :=
-:::::::
-:::definition "bad.error" (lean := "Nat.add") (leanok := true)
-Simple body.
-:::
-:::::::
-
-/--
 error: Label «bad.duplicate» has duplicate external Lean reference 'Nat.add' (canonical 'Nat.add'); previously declared as 'Nat.add'
 -/
 #guard_msgs in

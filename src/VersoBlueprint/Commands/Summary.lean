@@ -697,8 +697,6 @@ def buildSummary : CoreM Summary := do
       let (leanDecls, sorries, leanObjects, sorryDetails, missingLeanDecls) :=
         match node.code with
         | none => (0, 0, ([] : List Name), ([] : List SorryItem), ([] : List MissingLeanDeclItem))
-        | some .userOk =>
-          (0, 0, ([] : List Name), ([] : List SorryItem), ([] : List MissingLeanDeclItem))
         | some (.external decls) =>
           let leanObjects := nodeLeanObjects node
           let missingDecls :=

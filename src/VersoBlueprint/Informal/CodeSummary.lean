@@ -36,8 +36,8 @@ Public API:
 /--
 Canonical inputs used to compute Lean summary UI for one informal block.
 
-`source` is the resolved optional code source for this block (`none` / `some userOk` /
-`some inline` / `some external`).
+`source` is the resolved optional code source for this block (`none` / `some inline` /
+`some external`).
 Inline declaration summaries come from `.inline`; `codeHref` is used for heading link rendering.
 
 Callers should pass `source` after applying code-source precedence
@@ -213,13 +213,11 @@ private def summaryPreviewItems (cdata : ComputedData)
     inlineDeclSummaryItems codeData.definedDefs codeData.definedTheorems hrefOf
   | some (.external decls) =>
     externalDeclSummaryItems decls hrefOf
-  | some .userOk | none =>
+  | none =>
     #[]
 
-private def summaryPreviewEmptyText (cdata : ComputedData) : String :=
-  match cdata.source with
-  | some .userOk => "Marked complete via (leanok := true)."
-  | _ => "No associated Lean code or declarations."
+private def summaryPreviewEmptyText (_cdata : ComputedData) : String :=
+  "No associated Lean code or declarations."
 
 private def renderSummaryPreview (label : Data.Label) (cdata : ComputedData)
     (hrefOf : Name → Option String) : Output.Html :=
@@ -350,7 +348,6 @@ Compute heading status semantics from canonical block code source using explicit
 statement/proof axis wording.
 
 Case semantics:
-- `.userOk`: always returns a proved mark with explicit manual override text.
 - `.inline`: evaluates statement (`type`) and proof (`body`) sorries independently.
 - `.external`: uses `externalHeadingAggregate` + `externalStatusMark`
   (missing references dominate).
@@ -361,12 +358,6 @@ This function computes mark semantics only. Visibility gating
 `renderParts`.
 -/
 private def statusMarkFromResolvedCodeSource : BlockCodeData → BlockStatusMark
-  | .userOk =>
-    {
-      status := .proved
-      title := "Marked complete via (leanok := true)"
-      symbolOverride? := some "✓ (manually set)"
-    }
   | .external decls =>
     statusMarkFromHealth (Informal.Graph.codeHealthOfBlockSource .definition {} (some (.external decls)))
   | .inline codeData =>
@@ -538,8 +529,6 @@ def renderPanelIndicator (label : Data.Label) (cdata : ComputedData)
     renderInlinePanelIndicator label codeData hrefOf
   | some (.external decls) =>
     renderExternalPanelIndicator decls label hrefOf
-  | some .userOk =>
-    { summaryTitle := "Marked complete via (leanok := true)" }
   | none =>
     { summaryTitle := "No associated Lean declarations" }
 
@@ -548,13 +537,12 @@ Render Lean summary UI for an informal block heading.
 
 Inputs come from canonical block/code data:
 - `codeHref`: link to the generated Lean code block when available.
-- `source`: resolved optional code source (inline/userOk/external).
+- `source`: resolved optional code source (inline/external).
 
 Output policy:
 - `.proof` headings return an empty `RenderParts`.
 - statement headings with external refs always render a status mark and an external-summary tooltip.
-- inline/no-hint headings hide the status mark when `codeHref` is absent,
-  except for manual `(leanok := true)` where the explicit override mark is kept.
+- inline/no-hint headings hide the status mark when `codeHref` is absent.
 -/
 def renderParts (data : BlockData) (cdata : ComputedData) (hrefOf : Name → Option String) : RenderParts :=
   open Verso.Output.Html in
@@ -574,14 +562,11 @@ def renderParts (data : BlockData) (cdata : ComputedData) (hrefOf : Name → Opt
       }
     else
       let inlineData? := cdata.source.bind BlockCodeData.inlineData?
-      let userOk := cdata.source.map BlockCodeData.isUserOk |>.getD false
       let hasInline := cdata.codeHref.isSome || inlineData?.isSome
-      let hasSource := hasInline || userOk
+      let hasSource := hasInline
       let codeEntryTitle : String :=
         if hasInline then
           "Lean declarations"
-        else if userOk then
-          "Marked complete via (leanok := true)"
         else
           "No associated Lean declarations"
       let statusMarkCandidate := statusMarkFromCodeSource cdata.source
@@ -589,9 +574,7 @@ def renderParts (data : BlockData) (cdata : ComputedData) (hrefOf : Name → Opt
         renderCodeEntryWrap cdata.codeHref codeEntryTitle codeEntryTooltip
           (codeEntryVisual hasSource statusMarkCandidate)
       let statusMark : Option BlockStatusMark :=
-        if userOk then
-          some statusMarkCandidate
-        else if cdata.codeHref.isNone then
+        if cdata.codeHref.isNone then
           none
         else
           some statusMarkCandidate

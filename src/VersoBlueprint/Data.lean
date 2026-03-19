@@ -313,10 +313,11 @@ def ExternalRef.ofName (name : Name) (origin : ExternalOrigin := .directiveLean)
 
 inductive CodeRef where
   /-
-  Blueprint code references can currently come from three sources:
+  Blueprint code references can currently come from two sources:
   1. An inline Lean block processed by Verso/Lean integration (`.literate`).
   2. A regular Lean declaration tagged with `@[blueprint "..."]` (`.external`, origin `.blueprintAttr`).
-  3. A `(lean := "...")` directive reference to Lean code we do not directly control (`.external`, origin `.directiveLean`).
+     A `(lean := "...")` directive reference to Lean code we do not directly control
+     also lands in `.external` (origin `.directiveLean`).
 
   Name ownership model:
   - informal object labels are blueprint-owned metadata;
@@ -325,7 +326,6 @@ inductive CodeRef where
   TODO (external-definitions task): complete and encode the intended behavior from
   the "We'd like to:" portion of the design spec.
   -/
-  | userOk
   | external (decls : Array ExternalRef)
   | literate (code : Code)
 deriving Repr, Inhabited
@@ -373,24 +373,15 @@ variable [Monad m] [MonadLog m] [AddMessageContext m] [MonadOptions m]
 private def mergeCodeRef (label : Label) (current : Option CodeRef) (incoming : CodeRef) : m (Option CodeRef) := do
   match current, incoming with
   | none, incoming => return some incoming
-  | some .userOk, .userOk => return current
   | some (.external _), .external _ =>
     logError m!"Label {label} has multiple external Lean reference declarations; external merging is not supported"
     return current
-  | some .userOk, .external ys => return some (.external ys)
-  | some (.external xs), .userOk => return some (.external xs)
   | some (.literate _), .literate _ =>
     logError m!"Label {label} already has code"
     return current
-  | some .userOk, .literate code =>
-    logError m!"Label {label} has both '(leanok := true)' and an associated Lean code block; preferring inline code"
-    return some (.literate code)
   | some (.external _), .literate code =>
     logError m!"Label {label} has both '(lean := ...)' and an associated Lean code block; preferring inline code"
     return some (.literate code)
-  | some (.literate _), .userOk =>
-    logError m!"Label {label} has both an associated Lean code block and '(leanok := true)'; preferring inline code"
-    return current
   | some (.literate _), .external _ =>
     logError m!"Label {label} has both an associated Lean code block and '(lean := ...)'; preferring inline code"
     return current

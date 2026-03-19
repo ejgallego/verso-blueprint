@@ -80,11 +80,9 @@ Resolved block-level code semantics used by informal block rendering.
 This unifies directive hints and inline code payloads (`InlineCodeData`)
 for the HTML phase:
 - `inline` takes precedence whenever code-block data exists,
-- otherwise we fall back to optional directive hints (`userOk` / `external`).
+- otherwise we fall back to optional external declaration hints.
 -/
 inductive BlockCodeData where
-  /-- User asserted completion with `(leanok := true)`. -/
-  | userOk
   /-- Inline/literate code block associated with this label. -/
   | inline (code : InlineCodeData)
   /-- External Lean declarations associated with this label. -/
@@ -94,7 +92,6 @@ deriving Repr, Inhabited, FromJson, ToJson, Quote
 /-- Projection from environment-level `Data.CodeRef` into JSON-safe block payload hints. -/
 def BlockCodeData.ofCodeRefHint (codeRef? : Option Data.CodeRef) : Option BlockCodeData :=
   match codeRef? with
-  | some .userOk => some .userOk
   | some (.external decls) => some (.external decls)
   | _ => none
 
@@ -112,10 +109,6 @@ def BlockCodeData.inlineData? : BlockCodeData → Option InlineCodeData
 def BlockCodeData.externalDecls : BlockCodeData → Array Data.ExternalRef
   | .external decls => decls
   | _ => #[]
-
-def BlockCodeData.isUserOk : BlockCodeData → Bool
-  | .userOk => true
-  | _ => false
 
 structure BlockStatusMark where
   status : Data.ProvedStatus := .proved

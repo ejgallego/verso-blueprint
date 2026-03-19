@@ -70,7 +70,6 @@ structure Config where
   label : Data.Label
   labelSyntax : Syntax := Syntax.missing
   lean : Option String := none
-  leanok : Option Bool := none
   parent : Option Data.Parent := none
   priority : Option String := none
   owner : Option Data.AuthorId := none
@@ -106,13 +105,12 @@ private def normalizeTags (raw : String) : Array String :=
     |>.foldl (init := #[]) fun acc tag => if acc.contains tag then acc else acc.push tag
 
 def Config.parse  : ArgParse m Config :=
-  (fun (labelArg : Verso.ArgParse.WithSyntax String) lean leanok parent priority owner tags effort prUrl =>
+  (fun (labelArg : Verso.ArgParse.WithSyntax String) lean parent priority owner tags effort prUrl =>
     let (externalCode, invalidExternalCode) := ExternalCode.parseExternalCodeList lean
     {
       label := LabelNameParsing.parse labelArg.val
       labelSyntax := labelArg.syntax
       lean := lean
-      leanok := leanok
       parent := parent.map LabelNameParsing.parse
       priority := priority
       owner := owner.map LabelNameParsing.parse
@@ -122,9 +120,8 @@ def Config.parse  : ArgParse m Config :=
       externalCode := externalCode
       invalidExternalCode := invalidExternalCode
     }) <$> .positional `label (.withSyntax .string) <*> .named `lean .string true
-        <*> .named `leanok .bool true <*> .named `parent .string true <*> .named `priority .string true
-        <*> .named `owner .string true <*> .named `tags .string true <*> .named `effort .string true
-        <*> .named `pr_url .string true
+        <*> .named `parent .string true <*> .named `priority .string true <*> .named `owner .string true
+        <*> .named `tags .string true <*> .named `effort .string true <*> .named `pr_url .string true
 
 instance : FromArgs Config m where
   fromArgs := Config.parse
@@ -1869,11 +1866,8 @@ private def expanderImpl (kind : Data.NodeKind) (isProof : Bool := false) : Dire
       if isProof then .proof else .statement kind
     let resolvedExternalCode ← ExternalCode.resolveExternalCodeList label cfg.labelSyntax kind cfg.externalCode
     let hasExternalRaw := !resolvedExternalCode.isEmpty
-    let hasLeanok := cfg.leanok.getD false
     if !cfg.invalidExternalCode.isEmpty then
       logWarningAt cfg.labelSyntax m!"Label {label}: ignoring malformed names in '(lean := ...)' ({String.intercalate ", " cfg.invalidExternalCode.toList})"
-    if hasExternalRaw && hasLeanok then
-      logErrorAt cfg.labelSyntax m!"Label {label} cannot use '(leanok := true)' together with '(lean := ...)'"
     if isProof && hasExternalRaw then
       logErrorAt cfg.labelSyntax m!"Label {label} cannot use '(lean := ...)' in a proof block"
     let priority : Option String ←
@@ -1950,8 +1944,6 @@ private def expanderImpl (kind : Data.NodeKind) (isProof : Bool := false) : Dire
         none
       else if hasExternal then
         some (.external resolvedExternalCode)
-      else if hasLeanok then
-        some .userOk
       else
         none
     let accepted ← Environment.push label envKind codeHint cfg.parent priority owner tags effort prUrl
