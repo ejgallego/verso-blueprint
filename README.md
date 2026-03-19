@@ -155,15 +155,17 @@ Read these in order:
 
 ## Acknowledgements
 
-Verso Blueprint builds directly on:
+Verso Blueprint builds on:
 
 - [Verso](https://github.com/leanprover/verso), the document system used to
   write and render Blueprint documents
 - [Lean 4](https://lean-lang.org/), the language and tooling used to elaborate
   the document and connect it to formal code
 
-Verso Blueprint has also been greatly inspired by:
+Verso Blueprint has been directly inspired by previous blueprint projects:
 
 - [Patrick Massot's Lean blueprints](https://github.com/PatrickMassot/leanblueprint)
 - [LeanArchitect](https://github.com/hanwenzhu/LeanArchitect)
 - Side to side blueprints by Eric Vergo
+
+We are very grateful to the authors of these projects for their hard work and contributions to the Lean community.
