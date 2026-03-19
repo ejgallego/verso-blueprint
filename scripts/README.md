@@ -71,8 +71,8 @@ python3 -m scripts.blueprint_reference_harness sync
 Use `worktree-list` as the local dashboard for parallel work. It combines the
 small manual records under `.worktrees/_meta/` with live Git state such as the
 current branch, dirty status, and commit distance from `main`. `worktree-list`
-already refreshes that metadata before printing, so `worktree-sync` is only
-needed when you want an explicit refresh step.
+already refreshes that metadata before printing; `worktree-sync` remains only
+as a compatibility alias for the same dashboard command.
 
 When you run `generate`, `validate`, or `sync` from the root checkout while it
 is on `main`, the reference CLI expects that checkout to stay clean and in

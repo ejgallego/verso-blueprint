@@ -68,8 +68,8 @@ python3 -m scripts.blueprint_harness worktree-release
 ```
 
 `worktree-list` already refreshes local metadata before printing the dashboard.
-Use `worktree-sync` only when you explicitly want a refresh without any other
-action.
+`worktree-sync` remains available as a compatibility alias for
+`worktree-list`.
 
 By default, only clean up worktrees or branches created or landed by the
 current session. Do not retire or delete unrelated local worktrees unless the

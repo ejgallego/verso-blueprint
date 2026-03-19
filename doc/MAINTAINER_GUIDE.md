@@ -42,7 +42,6 @@ python3 -m scripts.blueprint_reference_harness prune
 python3 -m scripts.blueprint_reference_harness --help
 python3 -m scripts.blueprint_harness paths
 python3 -m scripts.blueprint_harness sync-root-lake
-python3 -m scripts.blueprint_harness worktree-sync
 python3 -m scripts.blueprint_harness worktree-list
 python3 -m scripts.blueprint_harness worktree-claim
 python3 -m scripts.blueprint_harness worktree-status
@@ -236,10 +235,10 @@ python3 -m scripts.blueprint_reference_harness validate --allow-local-build --ru
 
 The local coordination layer is now machine-readable and untracked.
 
-- `worktree-sync` scans `git worktree list` and refreshes local metadata under
-  `.worktrees/`; it prints the same dashboard view as `worktree-list`
-- `worktree-list` shows the current local dashboard, combining local metadata
-  with live Git state
+- `worktree-list` refreshes local metadata under `.worktrees/` and prints the
+  current dashboard view, combining local metadata with live Git state
+- `worktree-sync` remains available as a compatibility alias for
+  `worktree-list`
 - `worktree-claim` records owner, priority, summary, status, and write scope
 - `worktree-status` shows one worktree record
 - `worktree-release` marks a worktree done or otherwise retired
@@ -274,8 +273,7 @@ python3 -m scripts.blueprint_harness worktree-prune-candidates
 python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
 ```
 
-`worktree-list` already refreshes the local metadata before printing. Use
-`worktree-sync` only when you want an explicit refresh step.
+`worktree-list` already refreshes the local metadata before printing.
 
 ## Reference Blueprint Notes
 

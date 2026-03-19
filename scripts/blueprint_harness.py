@@ -541,13 +541,6 @@ def command_worktree_retire(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_worktree_sync(_: argparse.Namespace) -> int:
-    layout = detect_harness_layout(Path(__file__))
-    records, registry = sync_worktree_registry(layout.repo_root)
-    print_worktree_dashboard(records, registry)
-    return 0
-
-
 def command_worktree_list(_: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
     records, registry = sync_worktree_registry(layout.repo_root)
@@ -630,7 +623,7 @@ def command_worktree_release(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python3 -m scripts.blueprint_harness",
-        description="Worktree-aware local harness for blueprint project generation and validation.",
+        description="Worktree, landing, and local coordination CLI for this repository.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -731,15 +724,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     worktree_retire.set_defaults(func=command_worktree_retire)
 
-    worktree_sync = subparsers.add_parser(
-        "worktree-sync",
-        help="Refresh local worktree coordination metadata and print the dashboard view.",
-    )
-    worktree_sync.set_defaults(func=command_worktree_sync)
-
     worktree_list = subparsers.add_parser(
         "worktree-list",
-        help="List local worktree coordination metadata.",
+        aliases=["worktree-sync"],
+        description="Refresh and print the local worktree dashboard. `worktree-sync` is a compatibility alias.",
+        help="Refresh and print the local worktree dashboard.",
     )
     worktree_list.set_defaults(func=command_worktree_list)
 
