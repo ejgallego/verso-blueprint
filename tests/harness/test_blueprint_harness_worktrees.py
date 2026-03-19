@@ -98,7 +98,9 @@ branch refs/heads/feat/demo
             root_metadata = json.loads(metadata_path(repo_root, "main").read_text(encoding="utf-8"))
             demo_metadata = json.loads(metadata_path(repo_root, "demo").read_text(encoding="utf-8"))
             self.assertEqual(root_metadata["status"], "base")
+            self.assertFalse(root_metadata["locked"])
             self.assertEqual(demo_metadata["summary"], "demo")
+            self.assertFalse(demo_metadata["locked"])
             self.assertNotIn("path", demo_metadata)
             self.assertNotIn("dirty", demo_metadata)
             generated_registry = json.loads(registry.read_text(encoding="utf-8"))
@@ -113,29 +115,30 @@ branch refs/heads/feat/demo
             repo_root = Path(tmp)
             worktree_dir = repo_root / ".worktrees" / "demo"
             worktree_dir.mkdir(parents=True)
-            for name, root_checkout, status, summary, priority in [
-                ("main", True, "base", "main", None),
-                ("demo", False, "active", "demo", "P1"),
+            for name, root_checkout, status, summary, priority, locked in [
+                ("main", True, "base", "main", None, False),
+                ("demo", False, "active", "demo", "P1", True),
             ]:
                 path = metadata_path(repo_root, name)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(
-                json.dumps(
-                    {
-                        "version": 1,
-                        "name": name,
-                        "status": status,
-                        "priority": priority,
-                        "summary": summary,
-                        "write_scope": [],
-                        "created_at": "2026-03-19T00:00:00Z",
-                        "updated_at": "2026-03-19T01:00:00Z",
-                    },
-                    indent=2,
+                    json.dumps(
+                        {
+                            "version": 1,
+                            "name": name,
+                            "status": status,
+                            "locked": locked,
+                            "priority": priority,
+                            "summary": summary,
+                            "write_scope": [],
+                            "created_at": "2026-03-19T00:00:00Z",
+                            "updated_at": "2026-03-19T01:00:00Z",
+                        },
+                        indent=2,
+                    )
+                    + "\n",
+                    encoding="utf-8",
                 )
-                + "\n",
-                encoding="utf-8",
-            )
             registry = repo_root / ".worktrees" / "registry.json"
             registry.parent.mkdir(parents=True, exist_ok=True)
             registry.write_text(
@@ -152,6 +155,7 @@ branch refs/heads/feat/demo
                                 "root_checkout": False,
                                 "status": "blocked",
                                 "owner": "legacy",
+                                "locked": False,
                                 "priority": "P2",
                                 "summary": "stale registry data",
                                 "write_scope": ["legacy"],
@@ -218,12 +222,14 @@ branch refs/heads/feat/demo
             demo_metadata = json.loads(metadata_path(repo_root, "demo").read_text(encoding="utf-8"))
             self.assertEqual(demo_metadata["created_at"], "2026-03-19T00:00:00Z")
             self.assertEqual(demo_metadata["updated_at"], "2026-03-19T01:00:00Z")
+            self.assertTrue(demo_metadata["locked"])
             self.assertEqual(demo_metadata["priority"], "P1")
             self.assertNotIn("tracked_changes", demo_metadata)
             rewritten = json.loads(registry.read_text(encoding="utf-8"))
             by_name = {entry["name"]: entry for entry in rewritten["worktrees"]}
             self.assertEqual(by_name["main"]["created_at"], "2026-03-19T00:00:00Z")
             self.assertEqual(by_name["demo"]["created_at"], "2026-03-19T00:00:00Z")
+            self.assertTrue(by_name["demo"]["locked"])
             self.assertEqual(by_name["demo"]["priority"], "P1")
             self.assertEqual(by_name["demo"]["status"], "active")
             self.assertEqual(by_name["demo"]["summary"], "demo")
@@ -256,6 +262,7 @@ branch refs/heads/feat/demo
                                 "root_checkout": False,
                                 "status": "blocked",
                                 "owner": "legacy",
+                                "locked": True,
                                 "priority": "P0",
                                 "summary": "stale registry data",
                                 "write_scope": ["legacy"],
@@ -321,6 +328,7 @@ branch refs/heads/feat/demo
             by_name = {record.name: record for record in records}
             self.assertEqual(by_name["demo"].status, "active")
             self.assertIsNone(by_name["demo"].owner)
+            self.assertFalse(by_name["demo"].locked)
             self.assertIsNone(by_name["demo"].priority)
             self.assertEqual(by_name["demo"].summary, "demo")
 

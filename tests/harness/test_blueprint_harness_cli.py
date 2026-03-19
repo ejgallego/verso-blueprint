@@ -47,6 +47,20 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         args = parser.parse_args(["main-status", "--require-sync"])
         self.assertTrue(args.require_sync)
 
+    def test_create_worktree_parses_lock_flag(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["create-worktree", "demo", "--lock"])
+        self.assertTrue(args.lock)
+
+    def test_worktree_claim_parses_lock_flags(self) -> None:
+        parser = build_parser()
+        lock_args = parser.parse_args(["worktree-claim", "demo", "--lock"])
+        unlock_args = parser.parse_args(["worktree-claim", "demo", "--unlock"])
+        self.assertTrue(lock_args.lock)
+        self.assertFalse(lock_args.unlock)
+        self.assertFalse(unlock_args.lock)
+        self.assertTrue(unlock_args.unlock)
+
     def test_land_main_parses_cleanup_flags(self) -> None:
         parser = build_parser()
         args = parser.parse_args(["land-main", "feat/demo", "--cleanup", "--keep-remote", "--no-push"])
@@ -346,6 +360,7 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         )
         originals = {
             "detect_harness_layout": harness_mod.detect_harness_layout,
+            "worktree_record_map": harness_mod.worktree_record_map,
             "git_worktree_map": harness_mod.git_worktree_map,
             "ref_merged_into_main": harness_mod.ref_merged_into_main,
             "worktree_is_clean": harness_mod.worktree_is_clean,
@@ -358,6 +373,15 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         commands: list[list[str]] = []
         try:
             harness_mod.detect_harness_layout = lambda _start=None: layout
+            harness_mod.worktree_record_map = lambda _repo_root: (
+                {
+                    "reference-edit": SimpleNamespace(
+                        name="reference-edit",
+                        locked=False,
+                    )
+                },
+                Path("/tmp/repo/.worktrees/registry.json"),
+            )
             harness_mod.git_worktree_map = lambda _repo_root: {"reference-edit": detached}
             harness_mod.ref_merged_into_main = lambda _repo_root, ref: ref == "abc123"
             harness_mod.worktree_is_clean = lambda _path: True
@@ -373,6 +397,45 @@ class BlueprintHarnessCliTests(unittest.TestCase):
                 setattr(harness_mod, name, value)
 
         self.assertEqual(commands, [["git", "worktree", "remove", str(detached.path)]])
+
+    def test_worktree_retire_rejects_locked_worktree(self) -> None:
+        args = argparse.Namespace(name="demo", dry_run=False)
+        layout = SimpleNamespace(
+            repo_root=Path("/tmp/repo"),
+            package_root=Path("/tmp/package"),
+            worktree_name=None,
+        )
+        originals = {
+            "detect_harness_layout": harness_mod.detect_harness_layout,
+            "worktree_record_map": harness_mod.worktree_record_map,
+            "git_worktree_map": harness_mod.git_worktree_map,
+        }
+        try:
+            harness_mod.detect_harness_layout = lambda _start=None: layout
+            harness_mod.worktree_record_map = lambda _repo_root: (
+                {
+                    "demo": SimpleNamespace(
+                        name="demo",
+                        locked=True,
+                    )
+                },
+                Path("/tmp/repo/.worktrees/registry.json"),
+            )
+            harness_mod.git_worktree_map = lambda _repo_root: {
+                "demo": GitWorktree(
+                    name="demo",
+                    path=Path("/tmp/repo/.worktrees/demo"),
+                    head="abc123",
+                    branch="feat/demo",
+                    root_checkout=False,
+                )
+            }
+
+            with self.assertRaisesRegex(SystemExit, "is locked; unlock it before retiring"):
+                harness_mod.command_worktree_retire(args)
+        finally:
+            for name, value in originals.items():
+                setattr(harness_mod, name, value)
 
     def test_generate_projects_does_not_auto_sync_root_lake(self) -> None:
         project = HarnessProject(

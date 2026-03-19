@@ -224,23 +224,18 @@ def ref_merged_into_main(repo_root: Path, ref: str) -> bool:
 
 def merged_clean_worktree_candidates(repo_root: Path, current_path: Path) -> list[tuple[str, Path, str]]:
     candidates: list[tuple[str, Path, str]] = []
-    for worktree in git_worktrees(repo_root):
-        if worktree.root_checkout or worktree.path.resolve() == current_path.resolve():
+    records, _registry = worktree_record_map(repo_root)
+    for record in records.values():
+        path = Path(record.path)
+        if record.root_checkout or path.resolve() == current_path.resolve():
             continue
-        if worktree.branch is None or worktree.branch == "main":
+        if record.locked:
             continue
-        if not ref_merged_into_main(repo_root, worktree.branch):
+        if record.branch is None or record.branch == "main":
             continue
-        status = subprocess.run(
-            ["git", "status", "--short"],
-            cwd=worktree.path,
-            check=True,
-            text=True,
-            capture_output=True,
-        ).stdout.strip()
-        if status:
+        if not record.merged_into_main or record.dirty:
             continue
-        candidates.append((worktree.name, worktree.path, worktree.branch))
+        candidates.append((record.name, path, record.branch))
     return candidates
 
 
@@ -291,12 +286,16 @@ def bool_or_blank(value: bool | None) -> str:
     return "" if value is None else str(value).lower()
 
 
+def lock_or_blank(locked: bool) -> str:
+    return "locked" if locked else ""
+
+
 def print_worktree_dashboard(records, registry: Path) -> None:
     print(f"worktree_registry={registry}")
     for record in records:
         scope = ",".join(record.write_scope) if record.write_scope else ""
         print(
-            f"{record.name}\tpriority={record.priority or ''}\tstatus={record.status}\t"
+            f"{record.name}\tlock={lock_or_blank(record.locked)}\tpriority={record.priority or ''}\tstatus={record.status}\t"
             f"owner={record.owner or ''}\tbranch={record.branch or ''}\tdirty={bool_or_blank(record.dirty)}\t"
             f"main_ahead={text_or_blank(record.main_ahead)}\tmain_behind={text_or_blank(record.main_behind)}\t"
             f"scope={scope}\tsummary={record.summary or ''}"
@@ -339,11 +338,12 @@ def command_create_worktree(args: argparse.Namespace) -> int:
         manifest_path = resolve_manifest_path(None, new_layout.package_root)
         projects = load_project_catalog(manifest_path)
         sync_reference_blueprints(new_layout, projects, warm_build=True, prepare_local_checkout=True)
-    if any(value is not None for value in (args.owner, args.priority, args.summary, args.status, args.scope)):
+    if any(value is not None for value in (args.owner, args.priority, args.summary, args.status, args.scope)) or args.lock:
         update_worktree_record(
             layout.repo_root,
             worktree_name,
             owner=args.owner,
+            locked=True if args.lock else None,
             priority=normalize_priority(args.priority),
             summary=args.summary,
             status=args.status,
@@ -489,12 +489,18 @@ def command_worktree_prune_candidates(_: argparse.Namespace) -> int:
 def command_worktree_retire(args: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
     name = resolve_worktree_name(layout.worktree_name, args.name)
+    records, _registry = worktree_record_map(layout.repo_root)
+    if name not in records:
+        raise SystemExit(f"[blueprint-harness] unknown worktree `{name}`")
+    record = records[name]
     worktrees = git_worktree_map(layout.repo_root)
     if name not in worktrees:
         raise SystemExit(f"[blueprint-harness] unknown worktree `{name}`")
     worktree = worktrees[name]
     path = worktree.path
     branch = worktree.branch
+    if record.locked:
+        raise SystemExit(f"[blueprint-harness] worktree `{name}` is locked; unlock it before retiring")
     if worktree.root_checkout:
         raise SystemExit("[blueprint-harness] cannot retire the root checkout")
     if path.resolve() == layout.package_root.resolve():
@@ -561,6 +567,7 @@ def command_worktree_status(args: argparse.Namespace) -> int:
     print(f"branch={record.branch or ''}")
     print(f"status={record.status}")
     print(f"owner={record.owner or ''}")
+    print(f"locked={bool_or_blank(record.locked)}")
     print(f"priority={record.priority or ''}")
     print(f"summary={record.summary or ''}")
     print(f"write_scope={','.join(record.write_scope)}")
@@ -588,6 +595,7 @@ def command_worktree_claim(args: argparse.Namespace) -> int:
         layout.repo_root,
         name,
         owner=args.owner,
+        locked=True if args.lock else (False if args.unlock else None),
         priority=normalize_priority(args.priority),
         summary=args.summary,
         status=args.status,
@@ -598,6 +606,7 @@ def command_worktree_claim(args: argparse.Namespace) -> int:
     print(f"name={record.name}")
     print(f"status={record.status}")
     print(f"owner={record.owner or ''}")
+    print(f"locked={bool_or_blank(record.locked)}")
     print(f"priority={record.priority or ''}")
     print(f"summary={record.summary or ''}")
     print(f"write_scope={','.join(record.write_scope)}")
@@ -611,6 +620,7 @@ def command_worktree_release(args: argparse.Namespace) -> int:
         layout.repo_root,
         name,
         status=args.status,
+        locked=False,
         summary=args.summary,
         write_scope=[],
     )
@@ -700,6 +710,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Create only the git worktree and skip both `.lake/` sync and reference-cache warm-up.",
     )
     create_worktree.add_argument("--owner", default=None, help="Owner or agent responsible for the worktree.")
+    create_worktree.add_argument("--lock", action="store_true", help="Mark the worktree as locked for active exclusive work.")
     create_worktree.add_argument("--priority", default=None, help="Optional local priority label such as P0, P1, or P2.")
     create_worktree.add_argument("--summary", default=None, help="Short summary of the worktree purpose.")
     create_worktree.add_argument("--status", default=None, help="Initial status label such as active, blocked, review, done, or wip.")
@@ -745,6 +756,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_optional_worktree_name_argument(worktree_claim)
     worktree_claim.add_argument("--owner", default=None, help="Owner or agent responsible for the worktree.")
+    lock_group = worktree_claim.add_mutually_exclusive_group()
+    lock_group.add_argument("--lock", action="store_true", help="Mark the worktree as locked for active exclusive work.")
+    lock_group.add_argument("--unlock", action="store_true", help="Clear the worktree lock.")
     worktree_claim.add_argument("--priority", default=None, help="Optional local priority label such as P0, P1, or P2.")
     worktree_claim.add_argument("--summary", default=None, help="Short summary of the worktree purpose.")
     worktree_claim.add_argument("--status", default=None, help="Status label such as active, blocked, review, done, or wip.")

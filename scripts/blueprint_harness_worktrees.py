@@ -27,6 +27,7 @@ class WorktreeMetadata:
     name: str
     status: str
     owner: str | None = None
+    locked: bool = False
     priority: str | None = None
     summary: str | None = None
     write_scope: list[str] = field(default_factory=list)
@@ -43,6 +44,7 @@ class WorktreeRecord:
     root_checkout: bool
     status: str
     owner: str | None = None
+    locked: bool = False
     priority: str | None = None
     summary: str | None = None
     write_scope: list[str] = field(default_factory=list)
@@ -112,6 +114,7 @@ def metadata_from_dict(data: dict[str, object]) -> WorktreeMetadata:
         name=str(data["name"]),
         status=str(data.get("status") or "active"),
         owner=str(data["owner"]) if data.get("owner") is not None else None,
+        locked=bool(data.get("locked", False)),
         priority=normalize_priority(str(data["priority"])) if data.get("priority") is not None else None,
         summary=str(data["summary"]) if data.get("summary") is not None else None,
         write_scope=write_scope,
@@ -126,6 +129,7 @@ def metadata_from_record(record: WorktreeRecord) -> WorktreeMetadata:
         name=record.name,
         status=record.status,
         owner=record.owner,
+        locked=record.locked,
         priority=normalize_priority(record.priority),
         summary=record.summary,
         write_scope=record.write_scope[:],
@@ -326,6 +330,7 @@ def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]
             name=git_wt.name,
             status=existing.status if existing and existing.status else default_status(git_wt.branch, git_wt.root_checkout),
             owner=existing.owner if existing else None,
+            locked=existing.locked if existing else False,
             priority=normalize_priority(existing.priority) if existing else None,
             summary=existing.summary if existing and existing.summary is not None else default_summary(git_wt.name),
             write_scope=existing.write_scope[:] if existing else [],
@@ -340,6 +345,7 @@ def sync_worktree_registry(repo_root: Path) -> tuple[list[WorktreeRecord], Path]
             root_checkout=git_wt.root_checkout,
             status=metadata.status,
             owner=metadata.owner,
+            locked=metadata.locked,
             priority=metadata.priority,
             summary=metadata.summary,
             write_scope=metadata.write_scope[:],
@@ -380,6 +386,7 @@ def update_worktree_record(
     name: str,
     *,
     owner: str | None = None,
+    locked: bool | None = None,
     priority: str | None = None,
     summary: str | None = None,
     status: str | None = None,
@@ -391,6 +398,8 @@ def update_worktree_record(
     record = record_map[name]
     if owner is not None:
         record.owner = owner
+    if locked is not None:
+        record.locked = locked
     if priority is not None:
         record.priority = normalize_priority(priority)
     if summary is not None:
