@@ -5,9 +5,7 @@ open Lake DSL
 -- the parent repo root, which remains a checkout of Verso.
 -- require verso from "../verso"
 require verso from git "https://github.com/leanprover/verso"@"main"
-
--- Blueprints depend directly on Mathlib.
-require mathlib from git "https://github.com/leanprover-community/mathlib4"@"v4.29.0-rc6"
+require proofwidgets from git "https://github.com/leanprover-community/ProofWidgets4"@"v0.0.92"
 
 package VersoBlueprint where
   precompileModules := false
