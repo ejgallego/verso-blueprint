@@ -32,6 +32,7 @@ The supported repository-local entry points are:
 ./scripts/generate-reference-blueprints.sh
 ./scripts/validate-reference-blueprints.sh
 python3 -m scripts.blueprint_harness create-worktree <name>
+python3 -m scripts.blueprint_harness land-main <source-ref>
 python3 -m scripts.blueprint_harness main-status
 python3 -m scripts.blueprint_harness projects
 python3 -m scripts.blueprint_harness reference-edit <project>
@@ -168,6 +169,18 @@ or landing, use:
 python3 -m scripts.blueprint_harness main-status
 python3 -m scripts.blueprint_harness main-status --require-sync
 ```
+
+To land one reviewed branch onto `main` safely from the root checkout, use:
+
+```bash
+python3 -m scripts.blueprint_harness land-main feat/some-branch
+python3 -m scripts.blueprint_harness land-main feat/some-branch --cleanup
+```
+
+`land-main` refuses to proceed unless the root checkout is on a clean, in-sync
+local `main`, and it only accepts fast-forward source refs. With `--cleanup`,
+it also removes the source worktree and deletes the source branch when that can
+be done safely.
 
 After creation, ordinary `generate` and `validate` runs reuse the worktree's
 current `.lake/`; they do not automatically resync it from the root checkout.

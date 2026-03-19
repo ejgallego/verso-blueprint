@@ -320,6 +320,17 @@ def main_sync_status(repo_root: Path) -> RefSyncStatus:
     return ref_sync_status(repo_root, "main", upstream_ref)
 
 
+def is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+            cwd=repo_root,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
 def resolve_create_worktree_base(layout, requested_base: str | None) -> str:
     preferred_base = preferred_main_ref(layout.repo_root)
     if requested_base is None:
@@ -337,12 +348,7 @@ def resolve_create_worktree_base(layout, requested_base: str | None) -> str:
 
 
 def ref_merged_into_main(repo_root: Path, ref: str) -> bool:
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", ref, preferred_main_ref(repo_root)],
-        cwd=repo_root,
-        check=False,
-    )
-    return result.returncode == 0
+    return is_ancestor(repo_root, ref, preferred_main_ref(repo_root))
 
 
 def merged_clean_worktree_candidates(repo_root: Path, current_path: Path) -> list[tuple[str, Path, str]]:
@@ -369,6 +375,30 @@ def merged_clean_worktree_candidates(repo_root: Path, current_path: Path) -> lis
 
 def git_worktree_map(repo_root: Path) -> dict[str, GitWorktree]:
     return {worktree.name: worktree for worktree in git_worktrees(repo_root)}
+
+
+def local_branch_ref(repo_root: Path, branch: str) -> str | None:
+    ref = f"refs/heads/{branch}"
+    if ref_oid(repo_root, ref) is None:
+        return None
+    return branch
+
+
+def origin_branch_exists(repo_root: Path, branch: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "ls-remote", "--exit-code", "--heads", "origin", branch],
+            cwd=repo_root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
+def branch_worktrees(repo_root: Path, branch: str) -> list[GitWorktree]:
+    return [worktree for worktree in git_worktrees(repo_root) if worktree.branch == branch]
 
 
 def worktree_is_clean(path: Path) -> bool:
@@ -633,6 +663,85 @@ def command_main_status(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
+    return 0
+
+
+def cleanup_source_branch(layout, branch: str, *, delete_remote: bool) -> None:
+    worktrees = [worktree for worktree in branch_worktrees(layout.repo_root, branch) if not worktree.root_checkout]
+    if len(worktrees) > 1:
+        names = ", ".join(sorted(worktree.name for worktree in worktrees))
+        raise SystemExit(
+            f"[blueprint-harness] branch `{branch}` is checked out in multiple linked worktrees: {names}; "
+            "clean them up manually."
+        )
+    if worktrees:
+        worktree = worktrees[0]
+        if not worktree_is_clean(worktree.path):
+            raise SystemExit(
+                f"[blueprint-harness] linked worktree `{worktree.name}` for branch `{branch}` has local modifications"
+            )
+        run(["git", "worktree", "remove", str(worktree.path)], cwd=layout.repo_root)
+        print(f"[blueprint-harness] removed worktree `{worktree.name}`")
+
+    if local_branch_ref(layout.repo_root, branch) is not None:
+        run(["git", "branch", "-d", branch], cwd=layout.repo_root)
+        print(f"[blueprint-harness] deleted local branch `{branch}`")
+
+    if delete_remote and origin_branch_exists(layout.repo_root, branch):
+        run(["git", "push", "origin", "--delete", branch], cwd=layout.repo_root)
+        print(f"[blueprint-harness] deleted remote branch `{branch}`")
+
+
+def command_land_main(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    if layout.in_linked_worktree:
+        raise SystemExit("[blueprint-harness] run `land-main` from the root checkout, not from a linked worktree")
+    if current_branch_name(layout.repo_root) != "main":
+        raise SystemExit("[blueprint-harness] root checkout must be on `main` before landing changes")
+    if not worktree_is_clean(layout.package_root):
+        raise SystemExit("[blueprint-harness] root checkout has local modifications; commit or stash them first")
+
+    status = main_sync_status(layout.repo_root)
+    if status.relationship != "in_sync":
+        raise SystemExit(
+            f"[blueprint-harness] local `main` is {status.relationship} relative to `{status.upstream_ref}`; "
+            "sync `main` before landing additional changes"
+        )
+
+    source_ref = args.source
+    if ref_oid(layout.repo_root, source_ref) is None:
+        raise SystemExit(f"[blueprint-harness] unknown source ref `{source_ref}`")
+    if source_ref in {"main", status.upstream_ref}:
+        raise SystemExit("[blueprint-harness] source ref must not be `main` itself")
+    if not is_ancestor(layout.repo_root, "main", source_ref):
+        raise SystemExit(
+            f"[blueprint-harness] source ref `{source_ref}` is not a fast-forward descendant of local `main`; "
+            "rebase or merge it first"
+        )
+
+    run(["git", "merge", "--ff-only", source_ref], cwd=layout.repo_root)
+    print(f"[blueprint-harness] landed `{source_ref}` onto local `main`")
+
+    if preferred_main_ref(layout.repo_root) == "origin/main" and not args.no_push:
+        run(["git", "push", "origin", "main"], cwd=layout.repo_root)
+        print("[blueprint-harness] pushed `main` to origin")
+
+    if args.cleanup:
+        cleanup_branch = None
+        if local_branch_ref(layout.repo_root, source_ref) is not None:
+            cleanup_branch = source_ref
+        elif source_ref.startswith("origin/"):
+            cleanup_branch = source_ref.removeprefix("origin/")
+
+        if cleanup_branch is None:
+            print(
+                "[blueprint-harness] cleanup skipped: source ref is not a branch name tracked locally or under origin"
+            )
+        elif cleanup_branch == "main":
+            print("[blueprint-harness] cleanup skipped: refusing to clean up `main`")
+        else:
+            cleanup_source_branch(layout, cleanup_branch, delete_remote=not args.keep_remote)
+
     return 0
 
 
@@ -1017,6 +1126,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="Exit nonzero when local `main` is not in sync with the preferred main ref.",
     )
     main_status.set_defaults(func=command_main_status)
+
+    land_main = subparsers.add_parser(
+        "land-main",
+        help="Fast-forward land one reviewed source ref onto root `main`, optionally push, and clean up the source branch.",
+    )
+    land_main.add_argument("source", help="Source ref to land onto `main`. This must be a fast-forward descendant of local `main`.")
+    land_main.add_argument(
+        "--no-push",
+        action="store_true",
+        help="Update local `main` but do not push `origin/main` afterward.",
+    )
+    land_main.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="After landing, remove the source worktree and delete the source branch when it can be identified safely.",
+    )
+    land_main.add_argument(
+        "--keep-remote",
+        action="store_true",
+        help="With `--cleanup`, keep the remote source branch instead of deleting it.",
+    )
+    land_main.set_defaults(func=command_land_main)
 
     create_worktree = subparsers.add_parser(
         "create-worktree",

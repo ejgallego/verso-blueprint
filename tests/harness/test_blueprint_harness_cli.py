@@ -30,6 +30,14 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         args = parser.parse_args(["main-status", "--require-sync"])
         self.assertTrue(args.require_sync)
 
+    def test_land_main_parses_cleanup_flags(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["land-main", "feat/demo", "--cleanup", "--keep-remote", "--no-push"])
+        self.assertEqual(args.source, "feat/demo")
+        self.assertTrue(args.cleanup)
+        self.assertTrue(args.keep_remote)
+        self.assertTrue(args.no_push)
+
     def test_reference_edit_parses_project_branch_and_base(self) -> None:
         parser = build_parser()
         args = parser.parse_args(["reference-edit", "noperthedron", "--branch", "wip/noperthedron", "--base", "origin/main"])
@@ -89,6 +97,128 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         finally:
             for name, value in originals.items():
                 setattr(harness_mod, name, value)
+
+    def test_land_main_rejects_unsynced_main(self) -> None:
+        args = argparse.Namespace(source="feat/demo", no_push=False, cleanup=False, keep_remote=False)
+        layout = SimpleNamespace(repo_root=Path("/tmp/repo"), package_root=Path("/tmp/repo"), in_linked_worktree=False)
+        originals = {
+            "detect_harness_layout": harness_mod.detect_harness_layout,
+            "current_branch_name": harness_mod.current_branch_name,
+            "worktree_is_clean": harness_mod.worktree_is_clean,
+            "main_sync_status": harness_mod.main_sync_status,
+        }
+        try:
+            harness_mod.detect_harness_layout = lambda _start=None: layout
+            harness_mod.current_branch_name = lambda _repo_root: "main"
+            harness_mod.worktree_is_clean = lambda _path: True
+            harness_mod.main_sync_status = lambda _repo_root: harness_mod.RefSyncStatus(
+                local_ref="main",
+                upstream_ref="origin/main",
+                local_oid="abc",
+                upstream_oid="def",
+                relationship="behind",
+            )
+            with self.assertRaisesRegex(SystemExit, "sync `main` before landing"):
+                harness_mod.command_land_main(args)
+        finally:
+            for name, value in originals.items():
+                setattr(harness_mod, name, value)
+
+    def test_land_main_fast_forwards_and_pushes(self) -> None:
+        args = argparse.Namespace(source="feat/demo", no_push=False, cleanup=False, keep_remote=False)
+        layout = SimpleNamespace(repo_root=Path("/tmp/repo"), package_root=Path("/tmp/repo"), in_linked_worktree=False)
+        originals = {
+            "detect_harness_layout": harness_mod.detect_harness_layout,
+            "current_branch_name": harness_mod.current_branch_name,
+            "worktree_is_clean": harness_mod.worktree_is_clean,
+            "main_sync_status": harness_mod.main_sync_status,
+            "ref_oid": harness_mod.ref_oid,
+            "is_ancestor": harness_mod.is_ancestor,
+            "preferred_main_ref": harness_mod.preferred_main_ref,
+            "run": harness_mod.run,
+        }
+        commands: list[list[str]] = []
+        try:
+            harness_mod.detect_harness_layout = lambda _start=None: layout
+            harness_mod.current_branch_name = lambda _repo_root: "main"
+            harness_mod.worktree_is_clean = lambda _path: True
+            harness_mod.main_sync_status = lambda _repo_root: harness_mod.RefSyncStatus(
+                local_ref="main",
+                upstream_ref="origin/main",
+                local_oid="abc",
+                upstream_oid="abc",
+                relationship="in_sync",
+            )
+            harness_mod.ref_oid = lambda _repo_root, ref: "deadbeef" if ref == "feat/demo" else None
+            harness_mod.is_ancestor = lambda _repo_root, ancestor, descendant: (ancestor, descendant) == ("main", "feat/demo")
+            harness_mod.preferred_main_ref = lambda _repo_root: "origin/main"
+            harness_mod.run = lambda command, *, cwd: commands.append(command)
+
+            self.assertEqual(harness_mod.command_land_main(args), 0)
+        finally:
+            for name, value in originals.items():
+                setattr(harness_mod, name, value)
+
+        self.assertEqual(commands, [["git", "merge", "--ff-only", "feat/demo"], ["git", "push", "origin", "main"]])
+
+    def test_land_main_cleanup_removes_branch_worktree_and_remote(self) -> None:
+        args = argparse.Namespace(source="feat/demo", no_push=False, cleanup=True, keep_remote=False)
+        layout = SimpleNamespace(repo_root=Path("/tmp/repo"), package_root=Path("/tmp/repo"), in_linked_worktree=False)
+        demo_worktree = GitWorktree(
+            name="demo",
+            path=Path("/tmp/repo/.worktrees/demo"),
+            head="abc123",
+            branch="feat/demo",
+            root_checkout=False,
+        )
+        originals = {
+            "detect_harness_layout": harness_mod.detect_harness_layout,
+            "current_branch_name": harness_mod.current_branch_name,
+            "worktree_is_clean": harness_mod.worktree_is_clean,
+            "main_sync_status": harness_mod.main_sync_status,
+            "ref_oid": harness_mod.ref_oid,
+            "is_ancestor": harness_mod.is_ancestor,
+            "preferred_main_ref": harness_mod.preferred_main_ref,
+            "run": harness_mod.run,
+            "branch_worktrees": harness_mod.branch_worktrees,
+            "local_branch_ref": harness_mod.local_branch_ref,
+            "origin_branch_exists": harness_mod.origin_branch_exists,
+        }
+        commands: list[list[str]] = []
+        try:
+            harness_mod.detect_harness_layout = lambda _start=None: layout
+            harness_mod.current_branch_name = lambda _repo_root: "main"
+            harness_mod.worktree_is_clean = lambda _path: True
+            harness_mod.main_sync_status = lambda _repo_root: harness_mod.RefSyncStatus(
+                local_ref="main",
+                upstream_ref="origin/main",
+                local_oid="abc",
+                upstream_oid="abc",
+                relationship="in_sync",
+            )
+            harness_mod.ref_oid = lambda _repo_root, ref: "deadbeef" if ref in {"feat/demo", "refs/heads/feat/demo", "refs/remotes/origin/feat/demo"} else None
+            harness_mod.is_ancestor = lambda _repo_root, ancestor, descendant: (ancestor, descendant) == ("main", "feat/demo")
+            harness_mod.preferred_main_ref = lambda _repo_root: "origin/main"
+            harness_mod.run = lambda command, *, cwd: commands.append(command)
+            harness_mod.branch_worktrees = lambda _repo_root, branch: [demo_worktree] if branch == "feat/demo" else []
+            harness_mod.local_branch_ref = lambda _repo_root, branch: branch if branch == "feat/demo" else None
+            harness_mod.origin_branch_exists = lambda _repo_root, branch: branch == "feat/demo"
+
+            self.assertEqual(harness_mod.command_land_main(args), 0)
+        finally:
+            for name, value in originals.items():
+                setattr(harness_mod, name, value)
+
+        self.assertEqual(
+            commands,
+            [
+                ["git", "merge", "--ff-only", "feat/demo"],
+                ["git", "push", "origin", "main"],
+                ["git", "worktree", "remove", str(demo_worktree.path)],
+                ["git", "branch", "-d", "feat/demo"],
+                ["git", "push", "origin", "--delete", "feat/demo"],
+            ],
+        )
 
     def test_generate_keeps_example_alias(self) -> None:
         parser = build_parser()

@@ -48,6 +48,13 @@ python3 -m scripts.blueprint_harness main-status
 python3 -m scripts.blueprint_harness main-status --require-sync
 ```
 
+To land one reviewed branch onto `main` from the root checkout, use:
+
+```bash
+python3 -m scripts.blueprint_harness land-main feat/some-branch
+python3 -m scripts.blueprint_harness land-main feat/some-branch --cleanup
+```
+
 From a linked worktree, do not treat `lake build` or `lake test` as the
 default next step. Ordinary `generate` and `validate` runs reuse the current
 worktree `.lake/`; they do not automatically resync it from the root checkout.
