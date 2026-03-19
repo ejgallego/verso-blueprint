@@ -123,6 +123,9 @@ Work:
    rewrite unrelated pinned transitive dependencies or require harness-side
    manifest cleanup to keep `verso` and `subverso` aligned with tracked
    reference manifests
+10. add PR preview deployment that reuses the assembled reference `_site`
+    artifact from CI instead of rebuilding the sites through a separate
+    preview-only workflow
 
 ## UI Follow-Ups
 
