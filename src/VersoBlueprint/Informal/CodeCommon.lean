@@ -214,6 +214,59 @@ def resolveStoredBlockData? (st : TraverseState) (label : Data.Label) : Option B
     | .error _ => none
   | none => none
 
+private def mergeLabelArrays (xs ys : Array Data.Label) : Array Data.Label :=
+  ys.foldl (init := xs) fun acc label =>
+    if acc.contains label then acc else acc.push label
+
+private def mergeStringArrays (xs ys : Array String) : Array String :=
+  ys.foldl (init := xs) fun acc value =>
+    if acc.contains value then acc else acc.push value
+
+def mergeStoredBlockData (existing incoming : BlockData) : BlockData :=
+  let kind :=
+    match existing.kind, incoming.kind with
+    | .statement _, _ => existing.kind
+    | .proof, .statement _ => incoming.kind
+    | .proof, .proof => existing.kind
+  let codeData :=
+    match existing.codeData, incoming.codeData with
+    | some existingData, _ => some existingData
+    | none, some incomingData => some incomingData
+    | none, none => none
+  { existing with
+      kind
+      codeData
+      parent := existing.parent <|> incoming.parent
+      partPrefix := existing.partPrefix <|> incoming.partPrefix
+      globalCount := existing.globalCount <|> incoming.globalCount
+      statementDeps := mergeLabelArrays existing.statementDeps incoming.statementDeps
+      proofDeps := mergeLabelArrays existing.proofDeps incoming.proofDeps
+      owner := existing.owner <|> incoming.owner
+      ownerDisplayName := existing.ownerDisplayName <|> incoming.ownerDisplayName
+      ownerUrl := existing.ownerUrl <|> incoming.ownerUrl
+      ownerImageUrl := existing.ownerImageUrl <|> incoming.ownerImageUrl
+      tags := mergeStringArrays existing.tags incoming.tags
+      effort := existing.effort <|> incoming.effort
+      priority := existing.priority <|> incoming.priority
+      prUrl := existing.prUrl <|> incoming.prUrl
+  }
+
+private def sortStoredBlocks (entries : Array BlockData) : Array BlockData :=
+  entries.qsort fun a b =>
+    let aNum := a.globalCount.getD a.count
+    let bNum := b.globalCount.getD b.count
+    aNum < bNum ||
+      (aNum == bNum && a.label.toString < b.label.toString)
+
+def collectStoredBlocks (state : TraverseState) : Array BlockData :=
+  match state.domains.get? Resolve.informalDomainName with
+  | none => #[]
+  | some domain =>
+    sortStoredBlocks <| domain.objects.foldl (init := #[]) fun acc _canonical obj =>
+      match fromJson? (α := BlockData) obj.data with
+      | .ok block => acc.push block
+      | .error _ => acc
+
 def BlockData.withResolvedNumbering
     (data : BlockData) (st : TraverseState) (fallbackPrefix? : Option String := none) : BlockData :=
   match resolveStoredBlockData? st data.label with

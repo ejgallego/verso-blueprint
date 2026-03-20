@@ -1307,62 +1307,8 @@ def shouldWritePreviewDataByIds [BEq α] (existingIds : Array α) (currentId : �
 private def shouldWritePreviewData (existing? : Option Verso.Multi.Object) (id : Verso.Multi.InternalId) : Bool :=
   shouldWritePreviewDataByIds ((existing?.map (·.ids.toArray)).getD #[]) id
 
-private def mergeLabelArrays (xs ys : Array Data.Label) : Array Data.Label :=
-  ys.foldl (init := xs) fun acc label =>
-    if acc.contains label then acc else acc.push label
-
-private def mergeStringArrays (xs ys : Array String) : Array String :=
-  ys.foldl (init := xs) fun acc value =>
-    if acc.contains value then acc else acc.push value
-
-private def mergeStoredBlockData (existing incoming : BlockData) : BlockData :=
-  let kind :=
-    match existing.kind, incoming.kind with
-    | .statement _, _ => existing.kind
-    | .proof, .statement _ => incoming.kind
-    | .proof, .proof => existing.kind
-  let codeData :=
-    match existing.codeData, incoming.codeData with
-    | some existingData, _ => some existingData
-    | none, some incomingData => some incomingData
-    | none, none => none
-  { existing with
-      kind
-      codeData
-      parent := existing.parent <|> incoming.parent
-      partPrefix := existing.partPrefix <|> incoming.partPrefix
-      globalCount := existing.globalCount <|> incoming.globalCount
-      statementDeps := mergeLabelArrays existing.statementDeps incoming.statementDeps
-      proofDeps := mergeLabelArrays existing.proofDeps incoming.proofDeps
-      owner := existing.owner <|> incoming.owner
-      ownerDisplayName := existing.ownerDisplayName <|> incoming.ownerDisplayName
-      ownerUrl := existing.ownerUrl <|> incoming.ownerUrl
-      ownerImageUrl := existing.ownerImageUrl <|> incoming.ownerImageUrl
-      tags := mergeStringArrays existing.tags incoming.tags
-      effort := existing.effort <|> incoming.effort
-      priority := existing.priority <|> incoming.priority
-      prUrl := existing.prUrl <|> incoming.prUrl
-  }
-
 private def blockSummaryTitle (state : Verso.Genre.Manual.TraverseState) (data : BlockData) : String :=
   data.displayTitle state
-
-private def sortBlockData (entries : Array BlockData) : Array BlockData :=
-  entries.qsort fun a b =>
-    let aNum := a.globalCount.getD a.count
-    let bNum := b.globalCount.getD b.count
-    aNum < bNum ||
-      (aNum == bNum && a.label.toString < b.label.toString)
-
-private def collectStoredBlocks
-    (state : Verso.Genre.Manual.TraverseState) : Array BlockData :=
-  match state.domains.get? informalDomain with
-  | none => #[]
-  | some domain =>
-    sortBlockData <| domain.objects.foldl (init := #[]) fun acc _canonical obj =>
-      match fromJson? (α := BlockData) obj.data with
-      | .ok block => acc.push block
-      | .error _ => acc
 
 private def resolveStoredGroupData?
     (state : Verso.Genre.Manual.TraverseState) (label : Data.Label) : Option GroupBlockData :=
@@ -1909,6 +1855,119 @@ private def renderInformalBlock (data : BlockData) (numberText : String) (attrs 
     </div>
   }}
 
+private def externalDeclsOfBlock (blockData : BlockData) : Array Data.ExternalRef :=
+  match blockData.kind, blockData.codeData with
+  | .statement _, some codeData => codeData.externalDecls
+  | _, _ => #[]
+
+private def registerBlockPreviewData
+    {m}
+    [Monad m]
+    [MonadReaderOf TraverseContext m]
+    [MonadStateOf TraverseState m]
+    [MonadLiftT IO m]
+    (id : Verso.Multi.InternalId)
+    (blockData : BlockData)
+    (contents : Array (Verso.Doc.Block Verso.Genre.Manual)) :
+    m Unit := do
+  let previewFacet := PreviewCache.Facet.ofInProgressKind blockData.kind
+  let previewKey := PreviewCache.key blockData.label previewFacet
+  let previewData := toJson (PreviewCache.Entry.ofBlocks blockData.label previewFacet contents)
+  let existingPreview? := (← get).getDomainObject? informalPreviewDomain previewKey
+  if shouldWritePreviewData existingPreview? id then
+    modify λ s => s.saveDomainObjectData informalPreviewDomain previewKey previewData
+  if existingPreview?.isNone then
+    let path := (← read).path
+    let _ ← Verso.Genre.Manual.externalTag id path s!"--informal-preview-{previewKey}"
+    modify λ s => s.saveDomainObject informalPreviewDomain previewKey id
+
+private def registerExternalCodePreview
+    {m}
+    [Monad m]
+    [MonadReaderOf TraverseContext m]
+    [MonadStateOf TraverseState m]
+    [MonadLiftT IO m]
+    (id : Verso.Multi.InternalId)
+    (decl : Data.ExternalRef) :
+    m Unit := do
+  let codePreviewKey := LeanCodePreview.lookupKey decl.canonical
+  let codePreviewData := toJson (LeanCodePreview.Entry.ofExternalDecl decl.canonical decl)
+  let existingCodePreview? := (← get).getDomainObject? LeanCodePreview.domainName codePreviewKey
+  if shouldWritePreviewData existingCodePreview? id then
+    modify λ s => s.saveDomainObjectData LeanCodePreview.domainName codePreviewKey codePreviewData
+  if existingCodePreview?.isNone then
+    let path := (← read).path
+    let _ ← Verso.Genre.Manual.externalTag id path s!"--lean-code-preview-{codePreviewKey}"
+    modify λ s => s.saveDomainObject LeanCodePreview.domainName codePreviewKey id
+
+private def registerExternalCodePreviews
+    {m}
+    [Monad m]
+    [MonadReaderOf TraverseContext m]
+    [MonadStateOf TraverseState m]
+    [MonadLiftT IO m]
+    (id : Verso.Multi.InternalId)
+    (decls : Array Data.ExternalRef) :
+    m Unit := do
+  for decl in decls do
+    registerExternalCodePreview id decl
+
+private def registerExternalDeclAnchor
+    {m}
+    [Monad m]
+    [MonadReaderOf TraverseContext m]
+    [MonadStateOf TraverseState m]
+    [MonadLiftT IO m]
+    (label : Data.Label)
+    (decl : Data.ExternalRef) :
+    m Unit := do
+  let key := Resolve.externalRenderedDeclTargetKey label decl.canonical
+  if ((← get).getDomainObject? informalExternalDeclDomain key).isNone then
+    let declId ← Verso.Genre.Manual.freshId
+    let path := (← read).path
+    let _ ← Verso.Genre.Manual.externalTag declId path
+      s!"--informal-external-decl-{label}-{decl.canonical}"
+    modify λ s => s.saveDomainObject informalExternalDeclDomain key declId
+
+private def registerExternalDeclAnchors
+    {m}
+    [Monad m]
+    [MonadReaderOf TraverseContext m]
+    [MonadStateOf TraverseState m]
+    [MonadLiftT IO m]
+    (label : Data.Label)
+    (decls : Array Data.ExternalRef) :
+    m Unit := do
+  for decl in decls do
+    registerExternalDeclAnchor label decl
+
+private def storeTraversedBlockData
+    {m}
+    [Monad m]
+    [MonadReaderOf TraverseContext m]
+    [MonadStateOf TraverseState m]
+    [MonadLiftT IO m]
+    (id : Verso.Multi.InternalId)
+    (blockData : BlockData) :
+    m Unit := do
+  let label := blockData.label
+  match (← get).getDomainObject? informalDomain label.toString with
+  | some obj =>
+    let mergedData :=
+      match fromJson? (α := BlockData) obj.data with
+      | .ok existing => mergeStoredBlockData existing blockData
+      | .error _ => blockData
+    modify λ s => s.saveDomainObjectData informalDomain label.toString (toJson mergedData)
+  | none =>
+    let path := (← read).path
+    let _ ← Verso.Genre.Manual.externalTag id path s!"--informal-{label}"
+    modify fun s =>
+      let (globalCount, s) := reserveGlobalBlockNumber s
+      let blockData := { blockData with globalCount := blockData.globalCount <|> some globalCount }
+      s
+        |> (·.saveDomainObject informalDomain label.toString id)
+        |> (·.saveDomainObjectData informalDomain label.toString (toJson blockData))
+
 /- Informal custom blocks -/
 block_extension Block.informal (data : BlockData) where
   -- for TOC
@@ -1923,58 +1982,12 @@ block_extension Block.informal (data : BlockData) where
     | .ok blockData =>
       let partPrefix := numberedPartPrefix? (← read)
       let blockData := { blockData with partPrefix := blockData.partPrefix <|> partPrefix }
-      let label := blockData.label
-      let previewFacet := PreviewCache.Facet.ofInProgressKind blockData.kind
-      let previewKey := PreviewCache.key label previewFacet
-      let previewData := toJson (PreviewCache.Entry.ofBlocks label previewFacet _contents)
-      let existingPreview? := (← get).getDomainObject? informalPreviewDomain previewKey
-      if shouldWritePreviewData existingPreview? id then
-        modify λ s => s.saveDomainObjectData informalPreviewDomain previewKey previewData
-      if existingPreview?.isNone then
-        let path ← (·.path) <$> read
-        let _ ← Verso.Genre.Manual.externalTag id path s!"--informal-preview-{previewKey}"
-        modify λ s => s.saveDomainObject informalPreviewDomain previewKey id
-      let externalDecls :=
-        match blockData.kind, blockData.codeData with
-        | .statement _, some codeData => codeData.externalDecls
-        | _, _ => #[]
-      if !externalDecls.isEmpty then
-        for decl in externalDecls do
-          let codePreviewKey := LeanCodePreview.lookupKey decl.canonical
-          let codePreviewData := toJson (LeanCodePreview.Entry.ofExternalDecl decl.canonical decl)
-          let existingCodePreview? := (← get).getDomainObject? LeanCodePreview.domainName codePreviewKey
-          if shouldWritePreviewData existingCodePreview? id then
-            modify λ s => s.saveDomainObjectData LeanCodePreview.domainName codePreviewKey codePreviewData
-          if existingCodePreview?.isNone then
-            let path ← (·.path) <$> read
-            let _ ← Verso.Genre.Manual.externalTag id path s!"--lean-code-preview-{codePreviewKey}"
-            modify λ s => s.saveDomainObject LeanCodePreview.domainName codePreviewKey id
-      for decl in externalDecls do
-        let key := Resolve.externalRenderedDeclTargetKey label decl.canonical
-        if ((← get).getDomainObject? informalExternalDeclDomain key).isNone then
-          let declId ← Verso.Genre.Manual.freshId
-          let path ← (·.path) <$> read
-          let _ ← Verso.Genre.Manual.externalTag declId path
-            s!"--informal-external-decl-{label}-{decl.canonical}"
-          modify λ s => s.saveDomainObject informalExternalDeclDomain key declId
-      match (← get).getDomainObject? informalDomain label.toString with
-      | some obj =>
-        let mergedData :=
-          match fromJson? (α := BlockData) obj.data with
-          | .ok existing => mergeStoredBlockData existing blockData
-          | .error _ => blockData
-        modify λ s => s.saveDomainObjectData informalDomain label.toString (toJson mergedData)
-        return none
-      | none =>
-        let path ← (·.path) <$> read
-        let _ ← Verso.Genre.Manual.externalTag id path s!"--informal-{label}"
-        modify fun s =>
-          let (globalCount, s) := reserveGlobalBlockNumber s
-          let blockData := { blockData with globalCount := blockData.globalCount <|> some globalCount }
-          s
-            |> (·.saveDomainObject informalDomain label.toString id)
-            |> (·.saveDomainObjectData informalDomain label.toString (toJson blockData))
-        return none
+      let externalDecls := externalDeclsOfBlock blockData
+      registerBlockPreviewData id blockData _contents
+      registerExternalCodePreviews id externalDecls
+      registerExternalDeclAnchors blockData.label externalDecls
+      storeTraversedBlockData id blockData
+      return none
   toTeX := none
   extraCss := Informal.Commands.withPreviewPanelInlinePreviewCssAssets [blueprintCss, blueprintStyleSwitcherCss, Verso.Genre.Manual.docstringStyle]
   extraJs := Informal.Commands.withInlinePreviewJsAssets [] [Informal.Commands.codeSummaryPreviewJs, Informal.Commands.usedByPanelJs, blueprintStyleSwitcherJs]
