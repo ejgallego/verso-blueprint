@@ -1307,9 +1307,6 @@ def shouldWritePreviewDataByIds [BEq α] (existingIds : Array α) (currentId : �
 private def shouldWritePreviewData (existing? : Option Verso.Multi.Object) (id : Verso.Multi.InternalId) : Bool :=
   shouldWritePreviewDataByIds ((existing?.map (·.ids.toArray)).getD #[]) id
 
-private def blockSummaryTitle (state : Verso.Genre.Manual.TraverseState) (data : BlockData) : String :=
-  data.displayTitle state
-
 private def resolveStoredGroupData?
     (state : Verso.Genre.Manual.TraverseState) (label : Data.Label) : Option GroupBlockData :=
   match state.getDomainObject? Resolve.informalGroupDomainName label.toString with
@@ -1324,10 +1321,22 @@ private structure GroupRenderInfo where
   title : String
   declared : Bool := false
 
+private structure RelatedPanelContext where
+  state : Verso.Genre.Manual.TraverseState
+  storedBlocks : Array BlockData
+
+private def mkRelatedPanelContext (state : Verso.Genre.Manual.TraverseState) : RelatedPanelContext := {
+  state
+  storedBlocks := collectStoredBlocks state
+}
+
+private def blockSummaryTitle (ctx : RelatedPanelContext) (data : BlockData) : String :=
+  data.displayTitle ctx.state
+
 private def groupRenderInfo?
-    (state : Verso.Genre.Manual.TraverseState) (data : BlockData) : Option GroupRenderInfo := do
+    (ctx : RelatedPanelContext) (data : BlockData) : Option GroupRenderInfo := do
   let parent ← data.parent
-  match resolveStoredGroupData? state parent with
+  match resolveStoredGroupData? ctx.state parent with
   | some groupData => some { label := parent, title := groupData.header, declared := true }
   | none => some { label := parent, title := parent.toString, declared := false }
 
@@ -1365,8 +1374,8 @@ private def sortUsedByEntries (entries : Array UsedByEntry) : Array UsedByEntry 
       (aNum == bNum && a.source.label.toString < b.source.label.toString)
 
 private def collectUsedByEntries
-    (state : Verso.Genre.Manual.TraverseState) (target : Data.Label) : Array UsedByEntry :=
-  sortUsedByEntries <| (collectStoredBlocks state).foldl (init := #[]) fun acc source =>
+    (ctx : RelatedPanelContext) (target : Data.Label) : Array UsedByEntry :=
+  sortUsedByEntries <| ctx.storedBlocks.foldl (init := #[]) fun acc source =>
     if source.label == target then
       acc
     else
@@ -1378,9 +1387,9 @@ private def collectUsedByEntries
         acc.push { source, inStatement, inProof }
 
 private def collectGroupEntries
-    (state : Verso.Genre.Manual.TraverseState) (target : BlockData) (group : GroupRenderInfo) :
+    (ctx : RelatedPanelContext) (target : BlockData) (group : GroupRenderInfo) :
     Array BlockData :=
-  (collectStoredBlocks state).foldl (init := #[]) fun acc source =>
+  ctx.storedBlocks.foldl (init := #[]) fun acc source =>
     if source.label == target.label then
       acc
     else if source.parent == some group.label then
@@ -1439,12 +1448,12 @@ private def groupMissingNotice (group : GroupRenderInfo) : Output.Html :=
 
 private def mkRelatedPanelEntry {m}
     [Monad m]
-    (state : Verso.Genre.Manual.TraverseState)
+    (ctx : RelatedPanelContext)
     (source : BlockData) (previewId : String) (fallbackBody : Output.Html)
     (metaHtml : Output.Html := .empty) :
     Verso.Doc.Html.HtmlT Verso.Genre.Manual m RelatedPanelEntry := do
-  let previewTitle := blockSummaryTitle state source
-  let href := Resolve.resolveDomainHref? state Resolve.informalDomainName source.label.toString
+  let previewTitle := blockSummaryTitle ctx source
+  let href := Resolve.resolveDomainHref? ctx.state Resolve.informalDomainName source.label.toString
   pure {
     source
     previewId
@@ -1544,15 +1553,15 @@ private def renderRelatedPanel (cfg : RelatedPanelConfig) (entries : Array Relat
 
 private def renderUsedByEntry {m}
     [Monad m]
-    (state : Verso.Genre.Manual.TraverseState)
+    (ctx : RelatedPanelContext)
     (data : BlockData) :
     Verso.Doc.Html.HtmlT Verso.Genre.Manual m Output.Html := do
   match data.kind with
   | .proof => pure .empty
   | .statement _ =>
-    let entries := collectUsedByEntries state data.label
+    let entries := collectUsedByEntries ctx data.label
     let panelEntries ← entries.mapM fun entry =>
-      mkRelatedPanelEntry state entry.source
+      mkRelatedPanelEntry ctx entry.source
         (usedByPreviewId data.label entry.source.label)
         (usedByPreviewFallbackBody entry)
         (metaHtml := {{
@@ -1576,14 +1585,14 @@ private def renderUsedByEntry {m}
 
 private def renderGroupEntry {m}
     [Monad m]
-    (state : Verso.Genre.Manual.TraverseState)
+    (ctx : RelatedPanelContext)
     (data : BlockData) :
     Verso.Doc.Html.HtmlT Verso.Genre.Manual m (Option Output.Html) := do
-  match data.kind, groupRenderInfo? state data with
+  match data.kind, groupRenderInfo? ctx data with
   | .proof, _ => pure none
   | .statement _, none => pure none
   | .statement _, some group =>
-    let siblings := collectGroupEntries state data group
+    let siblings := collectGroupEntries ctx data group
     if group.declared && siblings.isEmpty then
       return none
     let panelEntries ← siblings.mapM fun source =>
@@ -1592,7 +1601,7 @@ private def renderGroupEntry {m}
           groupPreviewFallbackBody group source
         else
           .seq #[groupMissingNotice group, groupPreviewFallbackBody group source]
-      mkRelatedPanelEntry state source
+      mkRelatedPanelEntry ctx source
         (s!"bp-group-{Informal.HoverRender.previewKey (toString data.label)}-{Informal.HoverRender.previewKey (toString source.label)}")
         fallbackBody
         (metaHtml := {{<code>s!"{source.label}"</code>}})
@@ -2003,6 +2012,7 @@ block_extension Block.informal (data : BlockData) where
         let s ← HtmlT.state
         let ctxt ← HtmlT.context
         let data := data.withResolvedNumbering s (numberedPartPrefix? ctxt)
+        let relatedPanelContext := mkRelatedPanelContext s
         let attrs := s.htmlId id
         let codeHref : Option String :=
           match s.resolveDomainObject informalCodeDomain data.label.toString with
@@ -2066,8 +2076,8 @@ block_extension Block.informal (data : BlockData) where
         let externalPanel := (externalParts?.map (·.externalCodePanel)).getD .empty
         let content := (← blocks.mapM goB)
         let codeEntry := (headingParts?.map (·.codeEntry)).getD .empty
-        let groupEntry ← renderGroupEntry s data
-        let usedByEntry ← renderUsedByEntry s data
+        let groupEntry ← renderGroupEntry relatedPanelContext data
+        let usedByEntry ← renderUsedByEntry relatedPanelContext data
         let informalBlock :=
           renderInformalBlock data (data.displayNumber s) attrs codeEntry groupEntry usedByEntry content
         return .seq #[informalBlock, externalPanel]
