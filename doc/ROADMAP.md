@@ -170,6 +170,13 @@ These are secondary to semantic consolidation, but still worthwhile:
 6. revisit the graph page with a CSS-first layout architecture so canvas sizing
    is less runtime-driven
 
+## Open Bugs
+
+1. graph canvas resize persistence is still unstable in the browser runtime:
+   manual canvas height changes do not reliably survive variant switches, and
+   `tests/browser/test_graph_layout_runtime.py::TestGraphLayoutRuntime::test_manual_canvas_height_survives_variant_switch`
+   is the current regression that should stay visible until fixed
+
 ## Risks to Watch
 
 1. silent divergence between local and global status rendering
