@@ -139,6 +139,10 @@ def codeHoverTextItem (text : String) : Output.Html :=
   let body : Output.Html := .text true text
   codeHoverListItem body
 
+def codeHoverEmptyItem (text : String) : Output.Html :=
+  open Verso.Output.Html in
+  {{<li class="bp_code_hover_none">{{.text true text}}</li>}}
+
 def codeHoverCodeItem (text : String) : Output.Html :=
   open Verso.Output.Html in
   let body : Output.Html := {{<code>{{.text true text}}</code>}}

@@ -106,42 +106,33 @@ private def declSummaryStatusClass (item : DeclSummaryItem) : String :=
   else
     "bp_code_decl_status_ok"
 
-private def renderDeclSummaryItems (items : Array DeclSummaryItem) : Output.Html :=
+private def renderDeclSummaryItems (items : Array DeclSummaryItem) : Array Output.Html :=
   open Verso.Output.Html in
-  if items.isEmpty then
-    .empty
-  else
-    .seq <| items.map fun item =>
-      let nameNode : Output.Html :=
-        let txt := {{<code>{{.text true s!"{item.name}"}}</code>}}
-        match item.href with
-        | some href =>
-          Informal.LeanCodeLink.renderResolved
-            item.name txt "" (some href)
-            (previewTitle := s!"{item.name}")
-        | none => txt
-      {{
-        <li class="bp_code_decl_item">
-          <span class="bp_code_decl_name">{{nameNode}}</span>
-          <span class={{s!"bp_code_decl_status {declSummaryStatusClass item}"}}>
-            {{.text true s!"[{declSummaryStatusText item}]"}}
-          </span>
-        </li>
-      }}
+  items.map fun item =>
+    let nameNode : Output.Html :=
+      let txt := {{<code>{{.text true s!"{item.name}"}}</code>}}
+      match item.href with
+      | some href =>
+        Informal.LeanCodeLink.renderResolved
+          item.name txt "" (some href)
+          (previewTitle := s!"{item.name}")
+      | none => txt
+    {{
+      <li class="bp_code_decl_item">
+        <span class="bp_code_decl_name">{{nameNode}}</span>
+        <span class={{s!"bp_code_decl_status {declSummaryStatusClass item}"}}>
+          {{.text true s!"[{declSummaryStatusText item}]"}}
+        </span>
+      </li>
+    }}
 
 private def summaryTooltipSection (tooltipSection : SummaryTooltipSection) : Output.Html :=
-  open Verso.Output.Html in
-  {{
-    <div class="bp_code_hover_section">
-      <span class="bp_code_hover_label">{{.text true tooltipSection.title}}</span>
-      <ul class="bp_code_hover_list">
-        {{if tooltipSection.items.isEmpty then
-            {{<li class="bp_code_hover_none">{{.text true tooltipSection.emptyText}}</li>}}
-          else
-            renderDeclSummaryItems tooltipSection.items}}
-      </ul>
-    </div>
-  }}
+  let items :=
+    if tooltipSection.items.isEmpty then
+      #[codeHoverEmptyItem tooltipSection.emptyText]
+    else
+      renderDeclSummaryItems tooltipSection.items
+  codeHoverSection tooltipSection.title items
 
 private def renderSummaryPreviewBody (sections : Array SummaryTooltipSection) : Output.Html :=
   open Verso.Output.Html in
