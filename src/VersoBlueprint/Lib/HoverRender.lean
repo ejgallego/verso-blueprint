@@ -19,6 +19,7 @@ structure PreviewUi where
 
 abbrev GraphPreviewUi := PreviewUi
 abbrev SummaryPreviewUi := PreviewUi
+abbrev CodeSummaryPreviewUi := PreviewUi
 
 /--
 Preview visibility behavior:
@@ -179,6 +180,17 @@ def summaryPreviewUi
     "bp_summary_preview_panel_close bp_preview_panel_close"
     "bp_summary_preview_panel_body bp_preview_panel_body"
     "Close summary preview"
+    mode placement
+
+def codeSummaryPreviewUi
+    (mode : PreviewMode := .hover) (placement : PreviewPlacement := .anchored) : CodeSummaryPreviewUi :=
+  mkPreviewUi
+    "bp_code_summary_preview_panel bp_preview_panel"
+    "bp_code_summary_preview_header bp_preview_panel_header"
+    "bp_code_summary_preview_title bp_preview_panel_title"
+    "bp_code_summary_preview_close bp_preview_panel_close"
+    "bp_code_summary_preview_body bp_preview_panel_body"
+    "Close Lean summary preview"
     mode placement
 
 def graphGroupPreviewUi

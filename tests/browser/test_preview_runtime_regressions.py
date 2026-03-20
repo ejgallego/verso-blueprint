@@ -6,6 +6,41 @@ from support import assert_no_runtime_errors, record_runtime_errors
 
 
 class TestPreviewRuntimeRegressions:
+    def test_code_summary_preview_opens_from_keyboard_focus_for_nonlink_trigger(
+        self, server: str, page: Page
+    ):
+        errors = record_runtime_errors(page)
+        page.goto(f"{server}/Preview-Relationships/")
+
+        page.locator("body[data-bp-inline-preview-bound='1']").wait_for()
+
+        trigger = page.locator(
+            '.bp_wrapper[title="used_target"] .bp_extra_slot_code .bp_code_summary_preview_wrap_active'
+        ).first
+        expect(trigger).to_have_count(1)
+        expect(trigger).to_have_attribute("tabindex", "0")
+
+        trigger.focus()
+
+        panel = page.locator(
+            '.bp_wrapper[title="used_target"] .bp_extra_slot_code .bp_code_summary_preview_panel'
+        ).first
+        expect(panel).to_be_visible()
+        expect(panel.locator(".bp_code_summary_preview_title")).to_have_text("used_target")
+        expect(panel.locator(".bp_code_decl_item")).to_have_count(1)
+        expect(panel.locator(".bp_code_decl_item").first).to_contain_text("Nat.add")
+
+        bbox = panel.bounding_box()
+        viewport = page.viewport_size
+        assert bbox is not None
+        assert viewport is not None
+        assert bbox["x"] >= 0
+        assert bbox["y"] >= 0
+        assert bbox["x"] + bbox["width"] <= viewport["width"]
+        assert bbox["y"] + bbox["height"] <= viewport["height"]
+
+        assert_no_runtime_errors(errors)
+
     def test_blueprint_summary_decl_link_hover_loads_manifest_backed_code_preview(
         self, server: str, page: Page
     ):

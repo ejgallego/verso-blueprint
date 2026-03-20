@@ -28,7 +28,7 @@ open Verso.VersoBlueprintTests.BlueprintPreviewWiring.Shared
       hasSubstr out "data-bp-used-preview-key" &&
       hasSubstr out ">statement</span>" &&
       hasSubstr out ">proof</span>" &&
-      appearsBefore out "class=\"bp_code_link_wrap\"" "class=\"bp_used_by_wrap\"" &&
+      appearsBefore out "class=\"bp_code_summary_preview_root\"" "class=\"bp_used_by_wrap\"" &&
       match usedByJs? with
       | some usedByJs =>
         hasSubstr usedByJs "function bindUsedByPanel(panel)" &&

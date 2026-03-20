@@ -26,6 +26,7 @@ private def hasSharedPanelScaffolding (html rootClass headerClass titleClass clo
   let graphHtml := (graphPreviewUi.panel).asString
   let groupHtml := (graphGroupPreviewUi.panel).asString
   let summaryHtml := (summaryPreviewUi.panel).asString
+  let codeSummaryHtml := (codeSummaryPreviewUi.panel).asString
   hasSharedPanelScaffolding
       graphHtml
       "bp_graph_preview bp_preview_panel"
@@ -49,7 +50,15 @@ private def hasSharedPanelScaffolding (html rootClass headerClass titleClass clo
       "bp_summary_preview_panel_title bp_preview_panel_title"
       "bp_summary_preview_panel_close bp_preview_panel_close"
       "bp_summary_preview_panel_body bp_preview_panel_body"
-      "Close summary preview"
+      "Close summary preview" &&
+    hasSharedPanelScaffolding
+      codeSummaryHtml
+      "bp_code_summary_preview_panel bp_preview_panel"
+      "bp_code_summary_preview_header bp_preview_panel_header"
+      "bp_code_summary_preview_title bp_preview_panel_title"
+      "bp_code_summary_preview_close bp_preview_panel_close"
+      "bp_code_summary_preview_body bp_preview_panel_body"
+      "Close Lean summary preview"
 
 /-- info: true -/
 #guard_msgs in

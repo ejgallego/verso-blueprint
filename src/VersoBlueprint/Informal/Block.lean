@@ -327,23 +327,152 @@ span[class$="_thmlabel"]::after {
   color: inherit;
 }
 
-.bp_code_hover_wrap,
-.bp_code_link_wrap {
+.bp_code_summary_preview_root {
   position: relative;
   display: inline-flex;
   align-items: center;
-  padding-bottom: 0.45rem;
-  margin-bottom: -0.45rem;
+  min-width: 0;
 }
 
-.bp_code_hover_wrap::after,
-.bp_code_link_wrap::after {
-  content: "";
-  position: absolute;
-  left: -0.25rem;
-  right: -0.25rem;
-  top: 100%;
-  height: 0.45rem;
+.bp_code_summary_preview_wrap {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.bp_code_summary_preview_wrap_active {
+  border-radius: var(--bp-radius-sm);
+  cursor: help;
+}
+
+.bp_code_summary_preview_wrap_active[tabindex="0"] {
+  outline: none;
+}
+
+.bp_code_summary_preview_wrap_active:focus-visible {
+  background: var(--bp-color-focus-surface);
+  box-shadow: 0 0 0 0.16rem var(--bp-color-focus-ring);
+}
+
+.bp_code_summary_preview_panel {
+  position: fixed;
+  z-index: 36;
+  width: min(32rem, calc(100vw - 1.25rem));
+  max-height: min(24rem, 78vh);
+  overflow: hidden;
+}
+
+.bp_code_summary_preview_header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.42rem 0.55rem;
+  border-bottom: 1px solid var(--bp-color-border-soft);
+  background: linear-gradient(180deg, var(--bp-color-surface-muted), var(--bp-color-surface));
+}
+
+.bp_code_summary_preview_title {
+  min-width: 0;
+  color: var(--bp-color-text-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.bp_code_summary_preview_body {
+  padding: 0.55rem 0.6rem 0.6rem;
+  max-height: min(20rem, 68vh);
+  overflow: auto;
+}
+
+.bp_code_summary_preview_content {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.bp_code_summary_preview_panel .bp_code_hover_section {
+  margin-top: 0;
+}
+
+.bp_code_summary_preview_panel .bp_code_hover_section + .bp_code_hover_section {
+  margin-top: 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--bp-color-border-soft);
+}
+
+.bp_code_summary_preview_panel .bp_code_hover_label {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bp-color-text-faint);
+}
+
+.bp_code_summary_preview_panel .bp_code_hover_list {
+  margin: 0.24rem 0 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.bp_code_decl_item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.35rem 0.6rem;
+}
+
+.bp_code_decl_item + .bp_code_decl_item {
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--bp-color-border-soft);
+}
+
+.bp_code_decl_name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bp_code_decl_name code {
+  font-size: 0.76rem;
+}
+
+.bp_code_decl_status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  padding: 0.08rem 0.42rem;
+  border: 1px solid var(--bp-color-border);
+  border-radius: var(--bp-radius-pill);
+  background: var(--bp-color-surface-muted);
+  color: var(--bp-color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.bp_code_decl_status_ok {
+  border-color: rgba(22, 101, 52, 0.18);
+  background: rgba(22, 101, 52, 0.08);
+  color: var(--bp-color-status-success-text);
+}
+
+.bp_code_decl_status_warning,
+.bp_code_decl_status_axiom {
+  border-color: rgba(161, 98, 7, 0.2);
+  background: rgba(161, 98, 7, 0.09);
+  color: var(--bp-color-status-warning-text);
+}
+
+.bp_code_decl_status_missing {
+  border-color: rgba(185, 28, 28, 0.18);
+  background: rgba(185, 28, 28, 0.08);
+  color: var(--bp-color-status-error-text);
 }
 
 .bp_code_hover {
@@ -1774,8 +1903,8 @@ block_extension Block.informal (data : BlockData) where
             |> (·.saveDomainObjectData informalDomain label.toString (toJson blockData))
         return none
   toTeX := none
-  extraCss := Informal.Commands.withInlinePreviewCssAssets [blueprintCss, blueprintStyleSwitcherCss, Verso.Genre.Manual.docstringStyle]
-  extraJs := Informal.Commands.withInlinePreviewJsAssets [] [Informal.Commands.usedByPanelJs, blueprintStyleSwitcherJs]
+  extraCss := Informal.Commands.withPreviewPanelInlinePreviewCssAssets [blueprintCss, blueprintStyleSwitcherCss, Verso.Genre.Manual.docstringStyle]
+  extraJs := Informal.Commands.withInlinePreviewJsAssets [] [Informal.Commands.codeSummaryPreviewJs, Informal.Commands.usedByPanelJs, blueprintStyleSwitcherJs]
   toHtml :=
     open Verso.Doc.Html in
     open Verso.Output.Html in

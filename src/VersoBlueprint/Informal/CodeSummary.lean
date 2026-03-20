@@ -10,6 +10,7 @@ import VersoManual
 import VersoBlueprint.Graph
 import VersoBlueprint.Informal.CodeCommon
 import VersoBlueprint.Informal.LeanCodeLink
+import VersoBlueprint.Lib.HoverRender
 
 namespace Informal
 namespace CodeSummary
@@ -142,11 +143,10 @@ private def summaryTooltipSection (tooltipSection : SummaryTooltipSection) : Out
     </div>
   }}
 
-private def renderSummaryTooltip (title : String) (sections : Array SummaryTooltipSection) : Output.Html :=
+private def renderSummaryPreviewBody (sections : Array SummaryTooltipSection) : Output.Html :=
   open Verso.Output.Html in
   {{
-    <div class="bp_code_hover" role="tooltip">
-      <div class="bp_code_hover_title">{{.text true title}}</div>
+    <div class="bp_code_summary_preview_content">
       {{.seq (sections.map summaryTooltipSection)}}
     </div>
   }}
@@ -219,12 +219,12 @@ private def summaryPreviewItems (cdata : ComputedData)
 private def summaryPreviewEmptyText (_cdata : ComputedData) : String :=
   "No associated Lean code or declarations."
 
-private def renderSummaryPreview (label : Data.Label) (cdata : ComputedData)
+private def renderSummaryPreview (_label : Data.Label) (cdata : ComputedData)
     (hrefOf : Name → Option String) : Output.Html :=
   let items := summaryPreviewItems cdata hrefOf
   let sectionTitle :=
     if items.isEmpty then "Lean status" else "Associated Lean declarations"
-  renderSummaryTooltip s!"{label}" #[
+  renderSummaryPreviewBody #[
     {
       title := sectionTitle
       items
@@ -278,15 +278,42 @@ private def renderCodeEntryNode (href : Option String) (title : String) (visual 
   | none =>
       {{<span class={{linkClass}} title={{title}}>{{body}}</span>}}
 
-private def renderCodeEntryWrap (href : Option String) (title : String)
-    (tooltip : Output.Html) (visual : CodeEntryVisual) : Output.Html :=
+private def codeSummaryPreviewId : String := "bp-code-summary"
+
+private def renderCodeSummaryPreview (previewTitle : String) (trigger : Output.Html)
+    (body : Output.Html) (focusable : Bool := false) (ariaLabel? : Option String := none) : Output.Html :=
   open Verso.Output.Html in
+  let attrs := Id.run do
+    let mut attrs := #[
+      ("class", "bp_code_summary_preview_wrap bp_code_summary_preview_wrap_active"),
+      ("data-bp-preview-id", codeSummaryPreviewId),
+      ("data-bp-preview-title", previewTitle)
+    ]
+    if focusable then
+      attrs := attrs.push ("tabindex", "0")
+      attrs := attrs.push ("role", "button")
+    if let some ariaLabel := ariaLabel? then
+      attrs := attrs.push ("aria-label", ariaLabel)
+    pure attrs
   {{
-    <span class="bp_code_link_wrap">
-      {{renderCodeEntryNode href title visual}}
-      {{tooltip}}
+    <span class="bp_code_summary_preview_root">
+      <span {{attrs}}>
+        {{trigger}}
+      </span>
+      <template class="bp_code_summary_preview_tpl" "data-bp-preview-id"={{codeSummaryPreviewId}}>
+        {{body}}
+      </template>
+      {{Informal.HoverRender.codeSummaryPreviewUi.panel}}
     </span>
   }}
+
+private def renderCodeEntryWrap (href : Option String) (title previewTitle : String)
+    (previewBody : Output.Html) (visual : CodeEntryVisual) : Output.Html :=
+  renderCodeSummaryPreview previewTitle
+    (renderCodeEntryNode href title visual)
+    previewBody
+    (focusable := href.isNone)
+    (ariaLabel? := if href.isNone then some title else none)
 
 private def axisCompletionText : Nat → String
   | 0 => "completed"
@@ -406,15 +433,26 @@ private def codeSummaryText (label : Data.Label)
         String.intercalate ", " (sorries.toList.map fun item => s!"{item.name} [{declSummaryStatusText item}]")
     s!"{label}\nLean definitions: {defs}\nLean theorems/lemmas: {thms}\nSorries: {sorriesTxt}"
 
-private def wrapPanelIndicator (node tooltip : Output.Html) : Output.Html :=
+private def wrapPanelIndicator (label : Data.Label) (summaryTitle : String)
+    (node previewBody : Output.Html) : Output.Html :=
   open Verso.Output.Html in
-  {{<span class="bp_code_hover_wrap bp_code_summary_indicator">{{node}}{{tooltip}}</span>}}
+  {{
+    <span class="bp_code_summary_indicator">
+      {{renderCodeSummaryPreview
+        s!"{label}"
+        node
+        previewBody
+        (focusable := true)
+        (ariaLabel? := some summaryTitle)}}
+    </span>
+  }}
 
 private def renderInlinePanelIndicator (label : Data.Label) (codeData : InlineCodeData)
     (hrefOf : Name → Option String) : PanelIndicatorParts :=
   open Verso.Output.Html in
   let orderedDecls := sortDeclsByCommand (codeData.definedDefs ++ codeData.definedTheorems)
-  let tooltip := renderSummaryPreview label { source := some (.inline codeData) } hrefOf
+  let previewBody := renderSummaryPreview label { source := some (.inline codeData) } hrefOf
+  let summaryTitle := codeSummaryText label codeData.definedDefs codeData.definedTheorems
   let indicator : Output.Html :=
     if orderedDecls.isEmpty then
       .empty
@@ -435,9 +473,9 @@ private def renderInlinePanelIndicator (label : Data.Label) (codeData : InlineCo
           <span class={{cls}} title={{title}} style={{s!"flex: {weight} 1 0%"}}></span>
         }}
       let bar := {{<span class="bp_code_progress" aria-label="Lean declaration progress">{{segments}}</span>}}
-      wrapPanelIndicator bar tooltip
+      wrapPanelIndicator label summaryTitle bar previewBody
   {
-    summaryTitle := codeSummaryText label codeData.definedDefs codeData.definedTheorems
+    summaryTitle
     indicator
   }
 
@@ -501,7 +539,7 @@ private def renderExternalPanelIndicator (decls : Array Data.ExternalRef)
     (label : Data.Label) (hrefOf : Name → Option String) : PanelIndicatorParts :=
   open Verso.Output.Html in
   let health := Informal.Graph.codeHealthOfBlockSource .definition {} (some (.external decls))
-  let tooltip := renderSummaryPreview label { source := some (.external decls) } hrefOf
+  let previewBody := renderSummaryPreview label { source := some (.external decls) } hrefOf
   let (iconClass, iconText, iconTitle) := externalIndicatorStatus health
   let badgeText := externalIndicatorText decls health
   let badge : Output.Html := {{
@@ -510,9 +548,10 @@ private def renderExternalPanelIndicator (decls : Array Data.ExternalRef)
       <span class="bp_external_status_badge_text">{{.text true badgeText}}</span>
     </span>
   }}
+  let summaryTitle := externalCodeEntryTitle health.presentDecls health.totalDecls health.missingDecls health.anyGapCount
   {
-    summaryTitle := externalCodeEntryTitle health.presentDecls health.totalDecls health.missingDecls health.anyGapCount
-    indicator := wrapPanelIndicator badge tooltip
+    summaryTitle
+    indicator := wrapPanelIndicator label summaryTitle badge previewBody
   }
 
 /--
@@ -550,14 +589,15 @@ def renderParts (data : BlockData) (cdata : ComputedData) (hrefOf : Name → Opt
   | .proof => {}
   | .statement statementKind =>
     let externalDecls := cdata.source.map BlockCodeData.externalDecls |>.getD #[]
-    let codeEntryTooltip := renderSummaryPreview data.label cdata hrefOf
+    let codeEntryPreviewBody := renderSummaryPreview data.label cdata hrefOf
+    let previewTitle := s!"{data.label}"
     if !externalDecls.isEmpty then
       let health := Informal.Graph.codeHealthOfBlockSource statementKind {} cdata.source
       let codeEntryTitle := externalCodeEntryTitle health.presentDecls health.totalDecls health.missingDecls health.anyGapCount
       let statusMark := statusMarkFromCodeSource cdata.source
       {
         statusMark := some statusMark
-        codeEntry := renderCodeEntryWrap cdata.codeHref codeEntryTitle codeEntryTooltip
+        codeEntry := renderCodeEntryWrap cdata.codeHref codeEntryTitle previewTitle codeEntryPreviewBody
           (codeEntryVisual true statusMark)
       }
     else
@@ -571,7 +611,7 @@ def renderParts (data : BlockData) (cdata : ComputedData) (hrefOf : Name → Opt
           "No associated Lean declarations"
       let statusMarkCandidate := statusMarkFromCodeSource cdata.source
       let codeEntry : Output.Html :=
-        renderCodeEntryWrap cdata.codeHref codeEntryTitle codeEntryTooltip
+        renderCodeEntryWrap cdata.codeHref codeEntryTitle previewTitle codeEntryPreviewBody
           (codeEntryVisual hasSource statusMarkCandidate)
       let statusMark : Option BlockStatusMark :=
         if cdata.codeHref.isNone then
