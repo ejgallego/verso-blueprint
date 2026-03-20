@@ -37,15 +37,7 @@ def usePreviewLookupKey (label : Data.Label) (block : BlockData) : String :=
   PreviewCache.key label (PreviewCache.Facet.ofInProgressKind block.kind)
 
 private def useLinkPreviewFallbackBody (label : Data.Label) : Verso.Output.Html :=
-  open Verso.Output.Html in
-  {{
-    <div class="bp_code_hover_section">
-      <span class="bp_code_hover_label">"Blueprint label"</span>
-      <ul class="bp_code_hover_list">
-        <li><code>s!"{label}"</code></li>
-      </ul>
-    </div>
-  }}
+  codeHoverSection "Blueprint label" #[codeHoverCodeItem s!"{label}"]
 
 private def wrapUseLinkPreview (node previewBody : Verso.Output.Html)
     (state : Verso.Genre.Manual.TraverseState)

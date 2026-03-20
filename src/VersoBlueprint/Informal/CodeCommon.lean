@@ -130,6 +130,31 @@ def BlockStatusMark.toHtml (s : BlockStatusMark) : Output.Html :=
   open Verso.Output.Html in
   {{ <span class="bp_status_mark" title={{s.title}}>{{.text true s.text}}</span> }}
 
+def codeHoverListItem (body : Output.Html) : Output.Html :=
+  open Verso.Output.Html in
+  {{<li>{{body}}</li>}}
+
+def codeHoverTextItem (text : String) : Output.Html :=
+  open Verso.Output.Html in
+  let body : Output.Html := .text true text
+  codeHoverListItem body
+
+def codeHoverCodeItem (text : String) : Output.Html :=
+  open Verso.Output.Html in
+  let body : Output.Html := {{<code>{{.text true text}}</code>}}
+  codeHoverListItem body
+
+def codeHoverSection (title : String) (items : Array Output.Html) : Output.Html :=
+  open Verso.Output.Html in
+  {{
+    <div class="bp_code_hover_section">
+      <span class="bp_code_hover_label">{{.text true title}}</span>
+      <ul class="bp_code_hover_list">
+        {{.seq items}}
+      </ul>
+    </div>
+  }}
+
 structure BlockData where
   kind : Data.InProgressKind := .proof
   /-- Optional code hint used for statement blocks (`.proof` always ignores this). -/

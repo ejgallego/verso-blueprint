@@ -1468,39 +1468,19 @@ private def renderUsedByAxisBadges (entry : UsedByEntry) : Output.Html :=
   .seq (statementBadge ++ proofBadge)
 
 private def usedByPreviewFallbackBody (entry : UsedByEntry) : Output.Html :=
-  open Verso.Output.Html in
-  {{
-    <div class="bp_code_hover_section">
-      <span class="bp_code_hover_label">"Blueprint label"</span>
-      <ul class="bp_code_hover_list">
-        <li><code>s!"{entry.source.label}"</code></li>
-      </ul>
-    </div>
-    <div class="bp_code_hover_section">
-      <span class="bp_code_hover_label">"Uses target in"</span>
-      <ul class="bp_code_hover_list">
-        {{if entry.inStatement then {{<li>"statement"</li>}} else .empty}}
-        {{if entry.inProof then {{<li>"proof"</li>}} else .empty}}
-      </ul>
-    </div>
-  }}
+  let useSiteItems : Array Output.Html :=
+    (if entry.inStatement then #[codeHoverTextItem "statement"] else #[]) ++
+    (if entry.inProof then #[codeHoverTextItem "proof"] else #[])
+  .seq #[
+    codeHoverSection "Blueprint label" #[codeHoverCodeItem s!"{entry.source.label}"],
+    codeHoverSection "Uses target in" useSiteItems
+  ]
 
 private def groupPreviewFallbackBody (group : GroupRenderInfo) (entry : BlockData) : Output.Html :=
-  open Verso.Output.Html in
-  {{
-    <div class="bp_code_hover_section">
-      <span class="bp_code_hover_label">"Blueprint label"</span>
-      <ul class="bp_code_hover_list">
-        <li><code>s!"{entry.label}"</code></li>
-      </ul>
-    </div>
-    <div class="bp_code_hover_section">
-      <span class="bp_code_hover_label">"Group"</span>
-      <ul class="bp_code_hover_list">
-        <li>{{.text true group.title}}</li>
-      </ul>
-    </div>
-  }}
+  .seq #[
+    codeHoverSection "Blueprint label" #[codeHoverCodeItem s!"{entry.label}"],
+    codeHoverSection "Group" #[codeHoverTextItem group.title]
+  ]
 
 private def groupMissingNotice (group : GroupRenderInfo) : Output.Html :=
   open Verso.Output.Html in
