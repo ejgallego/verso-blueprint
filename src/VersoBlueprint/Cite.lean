@@ -9,6 +9,7 @@ import VersoManual.Bibliography
 import VersoBlueprint.Commands.Common
 import VersoBlueprint.Data
 import VersoBlueprint.Informal.CodeCommon
+import VersoBlueprint.Informal.BlockStore
 import VersoBlueprint.Lib.HoverRender
 import VersoBlueprint.Resolve
 

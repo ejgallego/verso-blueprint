@@ -8,6 +8,7 @@ import VersoManual
 import VersoBlueprint.Commands.Common
 import VersoBlueprint.Environment
 import VersoBlueprint.Informal.Block
+import VersoBlueprint.Informal.BlockStore
 import VersoBlueprint.Lib.HoverRender
 import VersoBlueprint.Lib.PreviewSource
 import VersoBlueprint.PreviewCache

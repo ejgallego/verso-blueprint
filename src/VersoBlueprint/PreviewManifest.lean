@@ -9,6 +9,7 @@ import Lean.Elab.Command
 import Std.Data.HashSet
 import VersoManual
 import VersoBlueprint.Informal.Block
+import VersoBlueprint.Informal.BlockStore
 import VersoBlueprint.Informal.Group
 import VersoBlueprint.Informal.LeanCodePreview
 import VersoBlueprint.PreviewCache

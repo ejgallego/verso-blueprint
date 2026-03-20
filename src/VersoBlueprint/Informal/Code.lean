@@ -8,6 +8,7 @@ import VersoManual
 import VersoBlueprint.Environment
 import VersoBlueprint.Informal.Block
 import VersoBlueprint.Informal.CodeCommon
+import VersoBlueprint.Informal.BlockStore
 import VersoBlueprint.Informal.LeanCodePreview
 import VersoBlueprint.Informal.CodeSummary
 import VersoBlueprint.LabelNameParsing
