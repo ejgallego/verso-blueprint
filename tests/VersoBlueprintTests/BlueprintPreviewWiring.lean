@@ -1,4 +1,5 @@
 import VersoBlueprintTests.BlueprintPreviewWiring.Graph
 import VersoBlueprintTests.BlueprintPreviewWiring.LeanStatus
+import VersoBlueprintTests.BlueprintPreviewWiring.StateShowcase
 import VersoBlueprintTests.BlueprintPreviewWiring.Summary
 import VersoBlueprintTests.BlueprintPreviewWiring.UsedBy

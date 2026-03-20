@@ -27,3 +27,8 @@ lean_exe «verso-blueprint-tests» where
   root := `BlueprintTestMain
   srcDir := "tests"
   supportInterpreter := true
+
+lean_exe «blueprint-test-docs» where
+  root := `BlueprintTestDocsMain
+  srcDir := "tests"
+  supportInterpreter := true

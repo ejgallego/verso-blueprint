@@ -52,6 +52,8 @@ The important files are:
 - a statement linked to an existing Lean declaration
 - group and author metadata
 - rendered progress summary and dependency graph pages
+- one intentionally unfinished theorem so the first graph render shows an
+  in-progress proof state
 - basic math rendering in the informal text
 
 ## Recommended workflow

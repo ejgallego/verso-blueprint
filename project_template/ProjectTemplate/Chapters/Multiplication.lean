@@ -42,3 +42,24 @@ $`(a * b) * c = a * (b * c)`.
 Lean already provides this theorem as `Nat.mul_assoc`, so this Blueprint entry
 links to an existing declaration instead of restating the code locally.
 :::
+
+:::theorem "collatz_even_step_halves" (parent := "multiplication_core") (tags := "playful, incomplete") (effort := "medium")
+A playful future goal: if $`n = 2 * k`$, then one Collatz step sends $`n`$ to
+$`k`$. This leans on {uses "addition_right_identity"}[] and
+{uses "multiplication_one_right"}[] to keep the arithmetic story connected.
+:::
+
+:::proof "collatz_even_step_halves"
+Unfold the even branch, rewrite with the earlier arithmetic lemmas, and
+simplify. This proof is intentionally left unfinished in the starter template so
+the generated graph and summary show an in-progress theorem immediately.
+:::
+
+```lean "collatz_even_step_halves"
+def collatzStep (n : Nat) : Nat :=
+  if n % 2 == 0 then n / 2 else 3 * n + 1
+
+theorem collatz_even_step_halves (k : Nat) :
+    collatzStep (2 * k) = k := by
+  sorry
+```

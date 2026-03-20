@@ -156,6 +156,7 @@ In the root checkout, generated artifacts go under:
 - `_out/reference-blueprints/preview_runtime_showcase/`
 - `_out/reference-blueprints/noperthedron/`
 - `_out/reference-blueprints/spherepackingblueprint/`
+- `_out/test-blueprints/state-showcase/`
 
 In a linked worktree, generated artifacts go under the shared repo-root preview
 area:
@@ -164,6 +165,7 @@ area:
 - `_out/<worktree>/reference-blueprints/preview_runtime_showcase/`
 - `_out/<worktree>/reference-blueprints/noperthedron/`
 - `_out/<worktree>/reference-blueprints/spherepackingblueprint/`
+- `_out/<worktree>/test-blueprints/state-showcase/`
 
 To print the resolved paths for the current checkout, run:
 
@@ -176,6 +178,20 @@ locations used by the harness.
 
 It also prints the shared reference blueprint cache root and the current
 checkout's local clone root.
+
+To generate the curated test-blueprint site fixture, run:
+
+```bash
+./scripts/generate-test-blueprints.sh
+```
+
+By default that renders all curated test-blueprint sites under the current
+checkout's worktree-aware `test-blueprints/` output root. Pass one or more
+slugs to render only a subset, for example:
+
+```bash
+./scripts/generate-test-blueprints.sh state-showcase summary-blockers
+```
 
 ## Working from Linked Worktrees
 

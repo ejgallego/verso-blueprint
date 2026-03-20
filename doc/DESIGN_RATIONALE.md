@@ -154,6 +154,18 @@ The graph pipeline computes two orthogonal tracks per node:
 This keeps "can I state it?" separate from "can I finish the proof?" instead of
 collapsing all progress into one overloaded color.
 
+The current proof fill progression is:
+
+- `not ready`
+- `ready to formalize`
+- `Lean code incomplete`
+- `locally formalized`
+- `locally formalized + dependencies complete`
+
+That third state is intentionally a fill state rather than a warning: it marks
+nodes where associated Lean code exists but is still incomplete, while keeping
+missing-reference and missing-declaration problems in the warning channel.
+
 ### Completion Policy
 
 Completion blocking policy is centralized in `Informal.Data.ProvedStatus` via:
@@ -175,9 +187,12 @@ Inline code has finer-grained provenance than external declaration snapshots.
 The UI should expose useful external information without pretending it has the
 same precision as local literate code.
 
-Warning conditions such as missing external declarations, local `sorry`, and
-Lean-only-without-informal-statement are modeled separately from fill colors.
-That keeps progress state and warning state orthogonal.
+Warning conditions such as missing external declarations, unresolved Blueprint
+references, and Lean-only-without-informal-statement are modeled separately
+from fill colors. Incomplete associated Lean code is instead promoted into the
+proof-fill track so the graph can distinguish "not started", "started but
+incomplete", "locally complete", and "complete with dependencies" directly in
+the node fill.
 
 ## Active Tension Points
 

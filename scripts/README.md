@@ -19,6 +19,7 @@ The normal repository-facing entry points are:
 
 ```bash
 ./scripts/generate-reference-blueprints.sh
+./scripts/generate-test-blueprints.sh
 ./scripts/validate-reference-blueprints.sh
 python3 -m scripts.blueprint_harness --help
 python3 -m scripts.blueprint_reference_harness --help
@@ -116,6 +117,8 @@ as the full command reference.
 
 - `generate-reference-blueprints.sh`
   Thin wrapper for `python3 -m scripts.blueprint_reference_harness generate`.
+- `generate-test-blueprints.sh`
+  Thin wrapper for the curated test-blueprint site generator.
 - `validate-reference-blueprints.sh`
   Thin wrapper for `python3 -m scripts.blueprint_reference_harness validate`.
 - `lean-low-priority`
@@ -151,6 +154,7 @@ If you want to inspect the current harness state instead of reading code, start
 with:
 
 ```bash
+./scripts/generate-test-blueprints.sh
 python3 -m scripts.blueprint_reference_harness projects
 python3 -m scripts.blueprint_harness paths
 ```

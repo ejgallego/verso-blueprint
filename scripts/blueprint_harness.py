@@ -466,6 +466,7 @@ def command_paths(_: argparse.Namespace) -> int:
     print(f"preferred_main_ref={preferred_main_ref(layout.repo_root)}")
     print(f"root_lake={layout.repo_root / '.lake'}")
     print(f"reference_output_root={layout.reference_output_root}")
+    print(f"test_blueprint_output_root={layout.test_blueprint_output_root}")
     print(f"reference_cache_root={layout.reference_project_cache_root}")
     print(f"reference_checkout_root={layout.reference_project_checkout_root}")
     print(f"reference_edit_root={layout.reference_project_edit_root}")

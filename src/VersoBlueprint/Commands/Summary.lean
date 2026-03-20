@@ -445,7 +445,7 @@ partial def downstreamUseCount (reverseMap : NameMap (Array Name))
 private def actionableStage? (node : Data.Node)
     (statementStatus : Informal.Graph.StatementStatus) (proofStatus : Informal.Graph.ProofStatus) : Option String :=
   if node.kind.isTheoremLike then
-    if proofStatus == .ready then
+    if proofStatus == .ready || proofStatus == .incomplete then
       some "proof"
     else if statementStatus == .ready then
       some "statement"

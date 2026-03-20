@@ -86,13 +86,13 @@ def graphStatus : Graph Unit :=
     n.gradientangle?.isNone) &&
   hasNodeWith graphStatus `local_sorry (fun n =>
     n.color == statementBorderFormalizedColor &&
-    n.fillcolor == proofBackgroundReadyColor &&
-    styleHasToken n.style "bold" &&
+    n.fillcolor == proofBackgroundIncompleteColor &&
+    !styleHasToken n.style "bold" &&
     n.gradientangle?.isNone) &&
   hasNodeWith graphStatus `thm_type_sorry (fun n =>
     n.color == statementBorderReadyColor &&
-    n.fillcolor == proofBackgroundReadyColor &&
-    styleHasToken n.style "bold" &&
+    n.fillcolor == proofBackgroundIncompleteColor &&
+    !styleHasToken n.style "bold" &&
     n.gradientangle?.isNone)
 
 /-- info: true -/
@@ -161,10 +161,10 @@ def graphAncestorsBad : Graph Unit := build stateAncestorsBad #[`thm_top_bad]
 #eval
   hasNodeWith graphAncestorsBad `thm_dep_bad (fun n =>
     n.fillcolor == proofBackgroundFormalizedColor &&
-    n.peripheries == 2) &&
+    n.peripheries == 1) &&
   hasNodeWith graphAncestorsBad `thm_top_bad (fun n =>
     n.fillcolor == proofBackgroundFormalizedColor &&
-    n.peripheries == 2)
+    n.peripheries == 1)
 
 def stateExternalCode : Environment.State := mkState [
   (`def_ext_ok,
@@ -230,8 +230,8 @@ def graphExternalCode : Graph Unit :=
     n.color == statementBorderFormalizedColor) &&
   hasNodeWith graphExternalCode `def_ext_bad (fun n =>
     n.color == statementBorderReadyColor &&
-    n.fillcolor == proofBackgroundReadyColor &&
-    styleHasToken n.style "bold" &&
+    n.fillcolor == proofBackgroundIncompleteColor &&
+    !styleHasToken n.style "bold" &&
     n.gradientangle?.isNone) &&
   hasNodeWith graphExternalCode `def_ext_missing (fun n =>
     n.color == statementBorderReadyColor &&
@@ -272,8 +272,8 @@ def graphExternalOverride : Graph Unit :=
 #eval
   hasNodeWith graphExternalOverride `def_ext_override_bad (fun n =>
     n.color == statementBorderReadyColor &&
-    n.fillcolor == proofBackgroundReadyColor &&
-    styleHasToken n.style "bold" &&
+    n.fillcolor == proofBackgroundIncompleteColor &&
+    !styleHasToken n.style "bold" &&
     n.gradientangle?.isNone) &&
   hasNodeWith graphExternalOverride `def_ext_override_missing (fun n =>
     n.color == statementBorderReadyColor &&

@@ -25,13 +25,18 @@ def groupLegend : Array LegendGroup := groupGraphLegendGroups
 #eval
   let hasMathlibLabel : Bool :=
     defaultLegend.any fun group => (group.items.any (·.label == "In Mathlib"))
-  let hasUpdatedWarning : Bool :=
-    defaultLegend.any fun group => (group.items.any (·.label == "Associated Lean code incomplete"))
+  let hasIncompleteProofLabel : Bool :=
+    defaultLegend.any fun group => (group.items.any (·.label == proofStatusIncompleteText))
+  let hasUpdatedProofLabel : Bool :=
+    defaultLegend.any fun group => (group.items.any (·.label == proofStatusFormalizedAncestorsText))
+  let warningHasNoIncompleteCodeItem : Bool :=
+    !(defaultLegend.any fun group => (group.items.any (·.label == proofStatusIncompleteText) && group.title == "Warning Markers"))
   let hasWarningMarkerTitle : Bool :=
     defaultLegend.any (·.title == "Warning Markers")
   let hasUpdatedDashedText : Bool :=
     defaultLegend.any fun group => (group.items.any (·.label == "Dashed: statement deps from box-shaped sources"))
-  !hasMathlibLabel && hasUpdatedWarning && hasWarningMarkerTitle && hasUpdatedDashedText
+  !hasMathlibLabel && hasIncompleteProofLabel && hasUpdatedProofLabel &&
+    warningHasNoIncompleteCodeItem && hasWarningMarkerTitle && hasUpdatedDashedText
 
 /-- info: true -/
 #guard_msgs in
@@ -41,18 +46,17 @@ def groupLegend : Array LegendGroup := groupGraphLegendGroups
 /-- info: true -/
 #guard_msgs in
 #eval
-  match legendGroupByKey defaultLegend "warning" with
+  match legendGroupByKey defaultLegend "proof" with
   | none => false
-  | some warningGroup =>
-    match legendItemByLabel warningGroup "Associated Lean code incomplete" with
+  | some proofGroup =>
+    match legendItemByLabel proofGroup proofStatusIncompleteText with
     | none => false
     | some item =>
       match item.swatch? with
       | none => false
       | some swatch =>
-        swatch.background == definitionBackgroundColor &&
-        swatch.borderWidth == 2 &&
-        warningCodeIncompleteText == "Associated Lean code is incomplete" &&
+        swatch.background == proofBackgroundIncompleteColor &&
+        proofStatusIncompleteText == "Lean code incomplete" &&
         graphLegendGroupViewNote.length > 0
 
 /-- info: true -/

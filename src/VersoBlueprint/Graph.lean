@@ -30,6 +30,7 @@ deriving Inhabited, Repr, DecidableEq, ToJson, FromJson
 inductive ProofStatus where
   | none
   | ready
+  | incomplete
   | formalized
   | formalizedWithAncestors
 deriving Inhabited, Repr, DecidableEq, ToJson, FromJson
@@ -38,8 +39,6 @@ structure WarningFlags where
   unknownRef : Bool := false
   leanOnlyNoStatement : Bool := false
   missingExternalDecl : Bool := false
-  localSorries : Bool := false
-  depsWithSorries : Bool := false
 deriving Inhabited, Repr, ToJson, FromJson
 
 structure GraphNode (Ref : Type) where
@@ -109,6 +108,7 @@ def statementBorderMathlibColor : String := "#14532d"
 
 def proofBackgroundNeutralColor : String := "#f8fafc"
 def proofBackgroundReadyColor : String := "#dbeafe"
+def proofBackgroundIncompleteColor : String := "#fef3c7"
 def proofBackgroundFormalizedColor : String := "#dcfce7"
 def proofBackgroundFormalizedAncColor : String := "#166534"
 
@@ -118,10 +118,19 @@ def unresolvedFillColor : String := "#fee2e2"
 def unresolvedBorderColor : String := "#b91c1c"
 def unresolvedFontColor : String := "#7f1d1d"
 
+def statementStatusBlockedText : String := "blocked"
+def statementStatusReadyText : String := "ready to formalize"
+def statementStatusFormalizedText : String := "formalized"
+def statementStatusMathlibText : String := "in Mathlib"
+
+def proofStatusNoneText : String := "not ready"
+def proofStatusReadyText : String := "ready to formalize"
+def proofStatusIncompleteText : String := "Lean code incomplete"
+def proofStatusFormalizedText : String := "locally formalized"
+def proofStatusFormalizedAncestorsText : String := "locally formalized + dependencies complete"
+
 def warningLeanOnlyText : String := "Lean code present but informal statement is missing"
 def warningMissingExternalText : String := "Associated Lean declaration is missing from the current environment"
-def warningCodeIncompleteText : String := "Associated Lean code is incomplete"
-def warningDepsText : String := "Dependencies are not fully formalized"
 def warningHiddenInGroupViewText : String := "Warning markers are not shown individually in Group View"
 def edgeMixedText : String := "Thicker solid/dashed: statement + proof deps"
 def groupEdgeMixedText : String := "Thicker solid: statement + proof deps"
@@ -161,20 +170,21 @@ def graphLegendGroups (includeMathlib : Bool := false) : Array LegendGroup :=
     },
     {
       key := "proof"
-      title := "Background Status"
+      title := "Proof Status"
       summary? := some "Fill color tracks proof readiness independently from statement progress."
       items := #[
-        legendItem "Not ready" (some { background := proofBackgroundNeutralColor }),
-        legendItem "Ready to formalize" (some { background := proofBackgroundReadyColor }),
-        legendItem "Formalized" (some { background := proofBackgroundFormalizedColor }),
-        legendItem "Formalized + ancestors"
+        legendItem proofStatusNoneText (some { background := proofBackgroundNeutralColor }),
+        legendItem proofStatusReadyText (some { background := proofBackgroundReadyColor }),
+        legendItem proofStatusIncompleteText (some { background := proofBackgroundIncompleteColor }),
+        legendItem proofStatusFormalizedText (some { background := proofBackgroundFormalizedColor }),
+        legendItem proofStatusFormalizedAncestorsText
           (some { background := proofBackgroundFormalizedAncColor, borderColor := statementBorderMathlibColor })
       ]
     },
     {
       key := "warning"
       title := "Warning Markers"
-      summary? := some "Border treatments flag missing references, incomplete code, or dependency gaps."
+      summary? := some "Border treatments flag missing references, missing declarations, or Lean-only nodes without an informal statement."
       items := #[
         legendItem "Unknown reference"
           (some { background := unresolvedFillColor, borderColor := unresolvedBorderColor }),
@@ -187,17 +197,6 @@ def graphLegendGroups (includeMathlib : Bool := false) : Array LegendGroup :=
           (some {
             background := definitionBackgroundColor
             borderStyle := "dotted"
-          }),
-        legendItem "Associated Lean code incomplete"
-          (some {
-            background := definitionBackgroundColor
-            borderWidth := 2
-          }),
-        legendItem "Formalized node with incomplete ancestors"
-          (some {
-            background := definitionBackgroundColor
-            borderWidth := 3
-            borderStyle := "double"
           })
       ]
     },
@@ -346,6 +345,9 @@ def CodeHealth.localStatementFormalized (health : CodeHealth) : Bool :=
 def CodeHealth.localProofFormalized (health : CodeHealth) : Bool :=
   health.hasAssociatedCode && !health.hasMissingExternalDecls && !health.hasAnyGaps
 
+def CodeHealth.incompleteAssociatedCode (health : CodeHealth) : Bool :=
+  health.hasAssociatedCode && !health.hasMissingExternalDecls && health.hasAnyGaps
+
 def CodeHealth.localFormalized (health : CodeHealth) (kind : Data.NodeKind) : Bool :=
   if kind.isTheoremLike then
     health.localProofFormalized
@@ -439,31 +441,32 @@ def statementStatus (external : ExternalCodeStatus) (state : Environment.State) 
 
 def proofStatus (external : ExternalCodeStatus) (state : Environment.State) (_label : Name)
     (node : Data.Node) : ProofStatus :=
+  let health := nodeCodeHealth external node
   if !node.kind.isTheoremLike then
-    if nodeLocalStatementFormalized external node then
+    if health.localStatementFormalized then
       if nodeAncestorsFormalized external state node then .formalizedWithAncestors else .formalized
+    else if health.incompleteAssociatedCode then
+      .incomplete
     else if depsClosureComplete external state .statement (statementDeps node) then
       .ready
     else
       .none
-  else if nodeLocalProofFormalized external node then
+  else if health.localProofFormalized then
     if nodeAncestorsFormalized external state node then .formalizedWithAncestors else .formalized
+  else if health.incompleteAssociatedCode then
+    .incomplete
   else
     let stmtDepsDone := depsClosureComplete external state .statement (statementDeps node)
     let proofDepsDone := depsClosureComplete external state .proof (proofDeps node)
     if stmtDepsDone && proofDepsDone then .ready else .none
 
-def nodeWarnings (external : ExternalCodeStatus) (state : Environment.State) (_label : Name)
+def nodeWarnings (external : ExternalCodeStatus) (_state : Environment.State) (_label : Name)
     (node : Data.Node) : WarningFlags :=
   let health := nodeCodeHealth external node
-  let localProofDone := health.localProofFormalized
-  let ancestorDepsDone := nodeAncestorsFormalized external state node
   {
     unknownRef := false
     leanOnlyNoStatement := health.hasAssociatedCode && node.statement.isNone
     missingExternalDecl := health.hasAssociatedCode && health.hasMissingExternalDecls
-    localSorries := health.hasAssociatedCode && node.statement.isSome && health.hasAnyGaps
-    depsWithSorries := node.kind.isTheoremLike && localProofDone && !ancestorDepsDone
   }
 
 def statementStatusBorderColor : StatementStatus → String
@@ -476,6 +479,7 @@ def proofStatusFillColor (kind : Data.NodeKind) : ProofStatus → String
   | .none =>
     if kind.isTheoremLike then proofBackgroundNeutralColor else definitionBackgroundColor
   | .ready => proofBackgroundReadyColor
+  | .incomplete => proofBackgroundIncompleteColor
   | .formalized => proofBackgroundFormalizedColor
   | .formalizedWithAncestors => proofBackgroundFormalizedAncColor
 
@@ -487,22 +491,21 @@ def kindShape (kind : Data.NodeKind) : String :=
   if kind.isTheoremLike then "ellipse" else "box"
 
 def StatementStatus.toText : StatementStatus → String
-  | .blocked => "blocked"
-  | .ready => "ready"
-  | .formalized => "formalized"
-  | .mathlib => "mathlib"
+  | .blocked => statementStatusBlockedText
+  | .ready => statementStatusReadyText
+  | .formalized => statementStatusFormalizedText
+  | .mathlib => statementStatusMathlibText
 
 def ProofStatus.toText : ProofStatus → String
-  | .none => "none"
-  | .ready => "ready"
-  | .formalized => "formalized"
-  | .formalizedWithAncestors => "formalized + ancestors"
+  | .none => proofStatusNoneText
+  | .ready => proofStatusReadyText
+  | .incomplete => proofStatusIncompleteText
+  | .formalized => proofStatusFormalizedText
+  | .formalizedWithAncestors => proofStatusFormalizedAncestorsText
 
 def warningTooltipParts (warnings : WarningFlags) : List String :=
   (if warnings.leanOnlyNoStatement then [warningLeanOnlyText] else []) ++
-  (if warnings.missingExternalDecl then [warningMissingExternalText] else []) ++
-  (if warnings.localSorries then [warningCodeIncompleteText] else []) ++
-  (if warnings.depsWithSorries then [warningDepsText] else [])
+  (if warnings.missingExternalDecl then [warningMissingExternalText] else [])
 
 private def styleTokensForWarnings (warnings : WarningFlags) : Array String :=
   let tokens : Array String := #["filled"]
@@ -510,8 +513,6 @@ private def styleTokensForWarnings (warnings : WarningFlags) : Array String :=
     if warnings.leanOnlyNoStatement then tokens.push "dashed" else tokens
   let tokens :=
     if warnings.missingExternalDecl then tokens.push "dotted" else tokens
-  let tokens :=
-    if warnings.localSorries then tokens.push "bold" else tokens
   tokens
 
 def mkStyledNode (kind : Data.NodeKind) (label : Name) (deps proofDeps : Array Name)
@@ -540,7 +541,6 @@ def mkStyledNode (kind : Data.NodeKind) (label : Name) (deps proofDeps : Array N
     let baseFill := proofStatusFillColor kind proof
     let styleTokens := styleTokensForWarnings warnings
     let style := String.intercalate "," styleTokens.toList
-    let peripheries := if warnings.depsWithSorries then 2 else 1
     let tooltipParts :=
       [s!"Statement: {statement.toText}", s!"Proof: {proof.toText}"] ++ warningTooltipParts warnings
     let tooltip? :=
@@ -556,7 +556,7 @@ def mkStyledNode (kind : Data.NodeKind) (label : Name) (deps proofDeps : Array N
       color := statementStatusBorderColor statement
       penwidth := "2.2"
       fontcolor := proofStatusFontColor proof
-      peripheries
+      peripheries := 1
       gradientangle? := none
       tooltip?
       ref?

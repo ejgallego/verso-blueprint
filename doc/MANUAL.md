@@ -337,6 +337,35 @@ document.
 Group metadata may be used to organize the presentation, but grouping does not
 change dependency edges.
 
+The graph uses two orthogonal status tracks:
+
+- statement border:
+  `Blocked`, `Ready to formalize`, `Formalized`, `In Mathlib`
+- proof fill:
+  `Not ready`, `Ready to formalize`, `Lean code incomplete`,
+  `Locally formalized`, `Locally formalized + dependencies complete`
+
+This split is intentional. For theorem-like nodes, the statement can already be
+formalized while the proof still remains unstarted, in progress, or complete.
+
+Read the proof fill states as:
+
+- `Not ready`: the proof still depends on unfinished prerequisites
+- `Ready to formalize`: prerequisites are done, but there is no associated Lean
+  proof code yet
+- `Lean code incomplete`: associated Lean code exists, but still has gaps such
+  as `sorry`
+- `Locally formalized`: the node's own Lean code is complete, but some
+  dependency upstream is still not complete
+- `Locally formalized + dependencies complete`: both the node and its full
+  dependency closure are complete
+
+Warning markers are reserved for structural or resolution issues such as:
+
+- unresolved Blueprint references
+- missing external Lean declarations
+- Lean-owned entries that have code but no informal statement body
+
 ### Progress summary
 
 `blueprint_summary` renders a summary page for the current Blueprint document.
