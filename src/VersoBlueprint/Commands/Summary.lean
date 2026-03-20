@@ -14,6 +14,7 @@ import VersoBlueprint.ProvedStatus
 import VersoBlueprint.Environment
 import VersoBlueprint.Graph
 import VersoBlueprint.Informal.CodeCommon
+import VersoBlueprint.Informal.MetadataCommon
 import VersoBlueprint.Informal.LeanCodeLink
 import VersoBlueprint.Informal.LeanCodePreview
 import VersoBlueprint.Lib.HoverRender

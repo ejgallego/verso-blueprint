@@ -159,50 +159,6 @@ def codeHoverSection (title : String) (items : Array Output.Html) : Output.Html 
     </div>
   }}
 
-structure MetadataBadgeSpec where
-  text : String
-  warning : Bool := false
-deriving Repr, Inhabited
-
-structure MetadataActionLink where
-  label : String
-  href : String
-deriving Repr, Inhabited
-
-structure MetadataPresentation where
-  ownerText : Option String := none
-  effort : Option String := none
-  priority : Option String := none
-  prUrl : Option String := none
-  tags : Array String := #[]
-deriving Repr, Inhabited
-
-def MetadataPresentation.hasAny (metadata : MetadataPresentation) : Bool :=
-  metadata.ownerText.isSome || metadata.effort.isSome || metadata.priority.isSome ||
-    metadata.prUrl.isSome || !metadata.tags.isEmpty
-
-def MetadataPresentation.summaryBadgeSpecs (metadata : MetadataPresentation) : Array MetadataBadgeSpec :=
-  let ownerBadges :=
-    match metadata.ownerText with
-    | some owner => #[{ text := s!"owner: {owner}" }]
-    | none => #[]
-  let effortBadges :=
-    match metadata.effort with
-    | some effort => #[{ text := s!"effort: {effort}" }]
-    | none => #[]
-  let priorityBadges :=
-    match metadata.priority with
-    | some priority => #[{ text := s!"priority: {priority}", warning := true }]
-    | none => #[]
-  let tagBadges :=
-    metadata.tags.map fun tag => { text := s!"tag: {tag}" }
-  ownerBadges ++ effortBadges ++ priorityBadges ++ tagBadges
-
-def MetadataPresentation.summaryActionLinks (metadata : MetadataPresentation) : Array MetadataActionLink :=
-  match metadata.prUrl with
-  | some href => #[{ label := "PR", href }]
-  | none => #[]
-
 structure BlockData where
   kind : Data.InProgressKind := .proof
   /-- Optional code hint used for statement blocks (`.proof` always ignores this). -/
@@ -242,14 +198,6 @@ def numberedPartPrefix? (ctxt : TraverseContext) : Option String := Id.run do
     if let some n := header.metadata.bind (·.assignedNumber) then
       return some (toString n)
   none
-
-def BlockData.metadataPresentation (data : BlockData) : MetadataPresentation := {
-  ownerText := data.ownerDisplayName <|> data.owner.map toString
-  effort := data.effort
-  priority := data.priority
-  prUrl := data.prUrl
-  tags := data.tags
-}
 
 structure CodePanelHeader where
   caption : String

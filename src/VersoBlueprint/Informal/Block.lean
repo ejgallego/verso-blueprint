@@ -18,6 +18,7 @@ import VersoBlueprint.Data
 import VersoBlueprint.Environment
 import VersoBlueprint.Informal.CodeCommon
 import VersoBlueprint.Informal.BlockStore
+import VersoBlueprint.Informal.MetadataCommon
 import VersoBlueprint.Informal.LeanCodePreview
 import VersoBlueprint.Informal.CodeSummary
 import VersoBlueprint.Informal.ExternalCode

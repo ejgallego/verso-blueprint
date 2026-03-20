@@ -27,6 +27,7 @@ import VersoBlueprint.Commands.Bibliography
 import VersoBlueprint.Informal.Code
 import VersoBlueprint.Informal.Block
 import VersoBlueprint.Informal.BlockStore
+import VersoBlueprint.Informal.MetadataCommon
 import VersoBlueprint.Informal.LeanDeclPreviewKey
 import VersoBlueprint.Informal.LeanCodePreview
 import VersoBlueprint.Informal.Group
