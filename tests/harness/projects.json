@@ -13,6 +13,20 @@
       "site_subdir": "html-multi"
     },
     {
+      "id": "preview_runtime_showcase",
+      "description": "In-repo browser-regression showcase that owns the local preview runtime test pages.",
+      "source": {
+        "kind": "in_repo_example",
+        "project_root": "tests/test_blueprints/preview_runtime_showcase"
+      },
+      "build_command": ["lake", "build"],
+      "generate_command": ["lake", "exe", "blueprint-gen", "--output", "{output_dir}"],
+      "site_subdir": "html-multi",
+      "validation": {
+        "browser_tests_path": "tests/browser"
+      }
+    },
+    {
       "id": "noperthedron",
       "description": "Mathlib-heavy external blueprint example with browser and panel regressions.",
       "source": {
@@ -25,8 +39,7 @@
       "generate_command": ["lake", "exe", "blueprint-gen", "--output", "{output_dir}"],
       "site_subdir": "html-multi",
       "validation": {
-        "panel_regression_script": "tests/harness/noperthedron/check_blueprint_code_panels.py",
-        "browser_tests_path": "tests/browser"
+        "panel_regression_script": "tests/harness/noperthedron/check_blueprint_code_panels.py"
       }
     },
     {

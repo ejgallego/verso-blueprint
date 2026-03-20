@@ -77,6 +77,10 @@ browser suite now builds and serves
 uv run --project tests/browser --extra test python -m pytest tests/browser -q --browser chromium
 ```
 
+The reference-validation catalog also treats `preview_runtime_showcase` as the
+browser-regression owner. Full `validate` runs therefore execute
+`tests/browser` against that in-repo site instead of against `noperthedron`.
+
 The shared reference cache remains responsible for warmed external-project
 dependency state, including project-specific Mathlib builds.
 

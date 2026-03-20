@@ -74,9 +74,10 @@ and it is the extension point for future ephemeral GitHub checkout validations.
 ./scripts/generate-reference-blueprints.sh
 ```
 
-This builds and renders the current reference blueprint projects:
+This builds and renders the current validation catalog:
 
 - `project-template`
+- `preview_runtime_showcase`
 - `noperthedron`
 - `spherepackingblueprint`
 
@@ -88,9 +89,9 @@ This builds and renders the current reference blueprint projects:
 
 The default validation path:
 
-- generates the reference blueprint sites
+- generates the validation catalog sites
 - runs the static Noperthedron code-panel regression check
-- runs the browser regression suite
+- runs the browser regression suite against `preview_runtime_showcase`
 
 Lean tests are intentionally opt-in:
 
@@ -112,12 +113,12 @@ primary rendering-development oracle.
 
 ### Select Projects or Forward Test Flags
 
-The harness supports narrowing the example set and forwarding extra pytest
+The harness supports narrowing the catalog and forwarding extra pytest
 arguments:
 
 ```bash
 python3 -m scripts.blueprint_reference_harness generate --project noperthedron
-python3 -m scripts.blueprint_reference_harness validate --project noperthedron --pytest-arg -k --pytest-arg preview
+python3 -m scripts.blueprint_reference_harness validate --project preview_runtime_showcase --pytest-arg -k --pytest-arg preview
 ```
 
 Run `python3 -m scripts.blueprint_reference_harness --help` for the full flag surface.
@@ -152,6 +153,7 @@ python3 -m scripts.blueprint_reference_harness prune
 In the root checkout, generated artifacts go under:
 
 - `_out/reference-blueprints/project-template/`
+- `_out/reference-blueprints/preview_runtime_showcase/`
 - `_out/reference-blueprints/noperthedron/`
 - `_out/reference-blueprints/spherepackingblueprint/`
 
@@ -159,6 +161,7 @@ In a linked worktree, generated artifacts go under the shared repo-root preview
 area:
 
 - `_out/<worktree>/reference-blueprints/project-template/`
+- `_out/<worktree>/reference-blueprints/preview_runtime_showcase/`
 - `_out/<worktree>/reference-blueprints/noperthedron/`
 - `_out/<worktree>/reference-blueprints/spherepackingblueprint/`
 
