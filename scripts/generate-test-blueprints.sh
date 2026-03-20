@@ -89,6 +89,7 @@ for project in "${standalone[@]}"; do
 done
 
 output_root="$output_root" selected_docs="$(printf '%s\n' "${docs[@]}")" selected_standalone="$(printf '%s\n' "${standalone[@]}")" python3 - <<'PY'
+from collections import OrderedDict
 import json
 import os
 from pathlib import Path
@@ -102,23 +103,45 @@ meta_by_slug = {entry["slug"]: entry for entry in meta}
 meta_by_slug["preview_runtime_showcase"] = {
     "slug": "preview_runtime_showcase",
     "title": "Preview Runtime Showcase",
+    "category": "Preview Runtime",
     "summary": "Standalone browser-regression showcase with summary, graph, panel, and inline preview pages.",
 }
 entries = [meta_by_slug[slug] for slug in selected if slug in meta_by_slug]
 
-cards = []
+cards_by_category = OrderedDict()
 for entry in entries:
+    category = entry.get("category", "Uncategorized")
     slug = entry["slug"]
     title = entry["title"]
     summary = entry["summary"]
-    cards.append(
+    cards_by_category.setdefault(category, []).append(
         f"""
         <article class="card">
           <h2><a href="./{slug}/html-multi/">{title}</a></h2>
+          <p class="category">{category}</p>
           <p class="slug"><code>{slug}</code></p>
           <p>{summary}</p>
           <p><a href="./{slug}/html-multi/">Open site</a></p>
         </article>
+        """
+    )
+
+nav_links = []
+sections = []
+for category, cards in cards_by_category.items():
+    anchor = category.lower().replace(" ", "-")
+    nav_links.append(f'<a class="chip" href="#{anchor}">{category}</a>')
+    sections.append(
+        f"""
+        <section class="category_section" id="{anchor}">
+          <div class="category_header">
+            <h2>{category}</h2>
+            <p>{len(cards)} site{'s' if len(cards) != 1 else ''}</p>
+          </div>
+          <div class="grid">
+            {''.join(cards)}
+          </div>
+        </section>
         """
     )
 
@@ -168,6 +191,43 @@ html = f"""<!doctype html>
         grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
         gap: 1rem;
       }}
+      .chip_row {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin: 1.1rem 0 1.6rem;
+      }}
+      .chip {{
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel);
+        padding: 0.35rem 0.7rem;
+        font-size: 0.92rem;
+        font-weight: 600;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+      }}
+      .category_section + .category_section {{
+        margin-top: 1.8rem;
+      }}
+      .category_header {{
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
+        margin-bottom: 0.9rem;
+      }}
+      .category_header h2 {{
+        margin: 0;
+        font-size: 1.2rem;
+      }}
+      .category_header p {{
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }}
       .card {{
         border: 1px solid var(--border);
         border-radius: 1rem;
@@ -178,6 +238,14 @@ html = f"""<!doctype html>
       .card h2 {{
         margin: 0 0 0.4rem;
         font-size: 1.05rem;
+      }}
+      .category {{
+        margin: 0.25rem 0 0;
+        color: var(--accent);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }}
       .card p {{
         margin: 0.45rem 0 0;
@@ -202,9 +270,10 @@ html = f"""<!doctype html>
         <h1>Curated Test Blueprints</h1>
         <p class="lede">Generated inspection sites for in-repo Blueprint test fixtures. Use these pages to review graph, summary, preview, hover, and metadata behavior in a real browser without reaching for external reference projects first.</p>
       </header>
-      <section class="grid">
-        {''.join(cards)}
-      </section>
+      <nav class="chip_row">
+        {''.join(nav_links)}
+      </nav>
+      {''.join(sections)}
     </main>
   </body>
 </html>

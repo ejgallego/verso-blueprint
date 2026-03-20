@@ -1,2 +1,4 @@
 import VersoBlueprintTests.Blueprint
 import VersoBlueprintTests.DocGenNameRender
+import VersoBlueprintTests.TestBlueprintRegistry
+import VersoBlueprintTests.TestBlueprintRegistryChecks
