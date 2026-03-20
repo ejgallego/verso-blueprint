@@ -20,6 +20,8 @@ The normal repository-facing entry points are:
 ```bash
 ./scripts/generate-reference-blueprints.sh
 ./scripts/generate-test-blueprints.sh
+./scripts/validate-test-blueprints.sh
+./scripts/validate-branch.sh
 ./scripts/validate-reference-blueprints.sh
 python3 -m scripts.blueprint_harness --help
 python3 -m scripts.blueprint_reference_harness --help
@@ -78,10 +80,19 @@ browser suite now builds and serves
 uv run --project tests/browser --extra test python -m pytest tests/browser -q --browser chromium
 ```
 
-The reference-validation flow now treats `preview_runtime_showcase` as the
-panel/browser-regression owner and limits default `validate` runs to local
-fixtures. External reference blueprints remain part of `generate`, but they are
-not exercised as integration tests during the default validation pass.
+Use `./scripts/validate-test-blueprints.sh` when you want the local panel and
+browser regressions against `_out/test-blueprints/preview_runtime_showcase/`.
+
+Use `./scripts/validate-branch.sh` as the canonical pre-merge check when you
+want all tests plus both artifact families rebuilt:
+
+```bash
+./scripts/validate-branch.sh
+```
+
+That command runs Lean tests, the Python harness/unit tests, regenerates
+`_out/reference-blueprints/`, regenerates `_out/test-blueprints/`, and then
+runs the local panel/browser regressions.
 
 The shared reference cache remains responsible for warmed external-project
 dependency state, including project-specific Mathlib builds.
@@ -119,7 +130,11 @@ as the full command reference.
 - `generate-reference-blueprints.sh`
   Thin wrapper for `python3 -m scripts.blueprint_reference_harness generate`.
 - `generate-test-blueprints.sh`
-  Thin wrapper for the curated test-blueprint site generator.
+  Thin wrapper for the local test-blueprint generator.
+- `validate-test-blueprints.sh`
+  Generate and validate the local test blueprint fixtures.
+- `validate-branch.sh`
+  Full pre-merge validation entry point: all tests plus both artifact families.
 - `validate-reference-blueprints.sh`
   Thin wrapper for `python3 -m scripts.blueprint_reference_harness validate`.
 - `lean-low-priority`

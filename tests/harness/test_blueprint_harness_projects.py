@@ -55,24 +55,16 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
         self.assertEqual(
             [project.project_id for project in projects],
-            ["project-template", "preview_runtime_showcase", "noperthedron", "spherepackingblueprint"],
+            ["project-template", "noperthedron", "spherepackingblueprint"],
         )
         self.assertTrue(projects[0].in_repo_example)
         self.assertTrue(projects[0].in_repo_command_project)
         self.assertEqual(projects[0].project_root, "project_template")
         self.assertEqual(projects[0].generate_command, ("lake", "exe", "blueprint-gen", "--output", "{output_dir}"))
-        self.assertTrue(projects[1].in_repo_example)
-        self.assertTrue(projects[1].in_repo_command_project)
-        self.assertEqual(projects[1].project_root, "tests/test_blueprints/preview_runtime_showcase")
-        self.assertEqual(projects[1].browser_tests_path, "tests/browser")
-        self.assertEqual(
-            projects[1].panel_regression_script,
-            "tests/harness/preview_runtime_showcase/check_blueprint_code_panels.py",
-        )
-        self.assertTrue(projects[2].git_checkout)
-        self.assertEqual(projects[2].repository, "https://github.com/ejgallego/verso-noperthedron.git")
-        self.assertEqual(projects[2].browser_tests_path, None)
-        self.assertEqual(projects[2].panel_regression_script, None)
+        self.assertTrue(projects[1].git_checkout)
+        self.assertEqual(projects[1].repository, "https://github.com/ejgallego/verso-noperthedron.git")
+        self.assertEqual(projects[1].browser_tests_path, None)
+        self.assertEqual(projects[1].panel_regression_script, None)
 
     def test_git_checkout_project_is_supported(self) -> None:
         manifest_data = {

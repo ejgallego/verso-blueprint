@@ -14,8 +14,35 @@ print(layout.test_blueprint_output_root)
 PY
 )"
 
+standalone_slugs=("preview_runtime_showcase")
+
+generate_preview_runtime_showcase() {
+  local project_dir="$package_root/tests/test_blueprints/preview_runtime_showcase"
+  local output_dir="$output_root/preview_runtime_showcase"
+  local manifest="$project_dir/lake-manifest.json"
+
+  mkdir -p "$output_dir"
+
+  (
+    set -euo pipefail
+    backup="$(mktemp)"
+    cp "$manifest" "$backup"
+    restore() {
+      cp "$backup" "$manifest"
+      rm -f "$backup"
+    }
+    trap restore EXIT
+
+    cd "$project_dir"
+    "$package_root/scripts/lean-low-priority" lake update VersoBlueprint
+    "$package_root/scripts/lean-low-priority" lake build
+    "$package_root/scripts/lean-low-priority" lake exe blueprint-gen --output "$output_dir"
+  )
+}
+
 if [ "$#" -eq 0 ]; then
   mapfile -t docs < <(./scripts/lean-low-priority lake exe blueprint-test-docs --list)
+  standalone=("${standalone_slugs[@]}")
   output_root="$output_root" python3 - <<'PY'
 import os
 from pathlib import Path
@@ -26,6 +53,8 @@ for line in os.popen("./scripts/lean-low-priority lake exe blueprint-test-docs -
     slug = line.strip()
     if slug:
         expected.add(slug)
+for slug in ("preview_runtime_showcase",):
+    expected.add(slug)
 if root.exists():
     for child in root.iterdir():
         if child.is_dir() and child.name not in expected:
@@ -33,14 +62,33 @@ if root.exists():
             shutil.rmtree(child)
 PY
 else
-  docs=("$@")
+  docs=()
+  standalone=()
+  for target in "$@"; do
+    case "$target" in
+      preview_runtime_showcase)
+        standalone+=("$target")
+        ;;
+      *)
+        docs+=("$target")
+        ;;
+    esac
+  done
 fi
 
 for doc in "${docs[@]}"; do
   ./scripts/lean-low-priority lake exe blueprint-test-docs "$doc" --output "$output_root/$doc"
 done
 
-output_root="$output_root" selected_docs="$(printf '%s\n' "${docs[@]}")" python3 - <<'PY'
+for project in "${standalone[@]}"; do
+  case "$project" in
+    preview_runtime_showcase)
+      generate_preview_runtime_showcase
+      ;;
+  esac
+done
+
+output_root="$output_root" selected_docs="$(printf '%s\n' "${docs[@]}")" selected_standalone="$(printf '%s\n' "${standalone[@]}")" python3 - <<'PY'
 import json
 import os
 from pathlib import Path
@@ -48,8 +96,14 @@ from pathlib import Path
 root = Path(os.environ["output_root"])
 root.mkdir(parents=True, exist_ok=True)
 selected = [line.strip() for line in os.environ["selected_docs"].splitlines() if line.strip()]
+selected += [line.strip() for line in os.environ["selected_standalone"].splitlines() if line.strip()]
 meta = json.loads(os.popen("./scripts/lean-low-priority lake exe blueprint-test-docs --list-json").read())
 meta_by_slug = {entry["slug"]: entry for entry in meta}
+meta_by_slug["preview_runtime_showcase"] = {
+    "slug": "preview_runtime_showcase",
+    "title": "Preview Runtime Showcase",
+    "summary": "Standalone browser-regression showcase with summary, graph, panel, and inline preview pages.",
+}
 entries = [meta_by_slug[slug] for slug in selected if slug in meta_by_slug]
 
 cards = []

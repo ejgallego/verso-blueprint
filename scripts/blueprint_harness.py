@@ -8,7 +8,11 @@ import sys
 from pathlib import Path
 
 from scripts.blueprint_harness_cli import add_optional_worktree_name_argument
-from scripts.blueprint_harness_paths import canonical_example_site_dir, detect_harness_layout
+from scripts.blueprint_harness_paths import (
+    canonical_example_site_dir,
+    canonical_test_blueprint_site_dir,
+    detect_harness_layout,
+)
 from scripts.blueprint_harness_projects import HarnessProject, load_projects_manifest, resolve_manifest_path
 from scripts.blueprint_harness_references import (
     reference_prune_plan,
@@ -467,6 +471,7 @@ def command_paths(_: argparse.Namespace) -> int:
     print(f"root_lake={layout.repo_root / '.lake'}")
     print(f"reference_output_root={layout.reference_output_root}")
     print(f"test_blueprint_output_root={layout.test_blueprint_output_root}")
+    print(f"preview_runtime_showcase_test_site={canonical_test_blueprint_site_dir('preview_runtime_showcase', Path(__file__))}")
     print(f"reference_cache_root={layout.reference_project_cache_root}")
     print(f"reference_checkout_root={layout.reference_project_checkout_root}")
     print(f"reference_edit_root={layout.reference_project_edit_root}")

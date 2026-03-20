@@ -42,6 +42,16 @@ class HarnessEntrypointSmokeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         self.assertIn("python3 -m scripts.blueprint_reference_harness", result.stdout)
 
+    def test_validate_test_blueprints_wrapper_help(self) -> None:
+        result = self.run_command(["bash", "scripts/validate-test-blueprints.sh", "--help"])
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("preview_runtime_showcase", result.stdout)
+
+    def test_validate_branch_wrapper_help(self) -> None:
+        result = self.run_command(["bash", "scripts/validate-branch.sh", "--help"])
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("branch-validation workflow", result.stdout)
+
     def test_project_template_fresh_repo_smoke_help(self) -> None:
         result = self.run_command([sys.executable, "scripts/check_project_template_fresh_repo.py", "--help"])
         self.assertEqual(result.returncode, 0, msg=result.stderr)

@@ -257,6 +257,20 @@ def discard_untracked_project_manifest(project_dir: Path) -> None:
         manifest.unlink()
 
 
+def snapshot_tracked_project_manifest(project_dir: Path) -> tuple[Path, str] | None:
+    manifest = tracked_project_manifest_path(project_dir)
+    if manifest is None:
+        return None
+    return manifest, manifest.read_text(encoding="utf-8")
+
+
+def restore_tracked_project_manifest(snapshot: tuple[Path, str] | None) -> None:
+    if snapshot is None:
+        return
+    manifest, original_text = snapshot
+    manifest.write_text(original_text, encoding="utf-8")
+
+
 def reference_update_command(package_root: Path, project_dir: Path) -> list[str]:
     manifest = tracked_project_manifest_path(project_dir)
     if manifest is not None:
@@ -334,6 +348,7 @@ def generate_in_repo_command_project(layout, output_root: Path, project: Harness
     output_dir = output_dir_for(project, output_root)
     output_dir.mkdir(parents=True, exist_ok=True)
     discard_untracked_project_manifest(project_dir)
+    original_manifest = snapshot_tracked_project_manifest(project_dir)
     rewritten_lakefile, original_lakefile_text = maybe_rewrite_in_repo_blueprint_dependency(project_dir, layout.package_root)
     if rewritten_lakefile is not None:
         print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
@@ -369,6 +384,7 @@ def generate_in_repo_command_project(layout, output_root: Path, project: Harness
             cwd=project_dir,
         )
     finally:
+        restore_tracked_project_manifest(original_manifest)
         if rewritten_lakefile is not None and original_lakefile_text is not None:
             rewritten_lakefile.write_text(original_lakefile_text, encoding="utf-8")
 

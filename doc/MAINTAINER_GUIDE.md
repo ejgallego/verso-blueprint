@@ -67,11 +67,10 @@ Rule of thumb:
 - if the task is about building, validating, syncing, editing, or pruning the
   reference projects, use `blueprint_reference_harness`
 
-The default project catalog lives at `tests/harness/projects.json`. It
-currently includes two in-repo projects (`project-template` and
-`preview_runtime_showcase`) plus the two external reference blueprint
-repositories, and it is the extension point for future ephemeral GitHub
-checkout validations.
+The default reference project catalog lives at `tests/harness/projects.json`.
+It currently includes the in-repo `project-template` plus the two external
+reference blueprint repositories, and it is the extension point for future
+ephemeral GitHub checkout validations.
 
 ## Everyday Workflows
 
@@ -84,28 +83,46 @@ checkout validations.
 This builds and renders the current generation catalog:
 
 - `project-template`
-- `preview_runtime_showcase`
 - `noperthedron`
 - `spherepackingblueprint`
 
-Only `project-template`, `noperthedron`, and `spherepackingblueprint` are
-currently staged for GitHub Pages publication. `preview_runtime_showcase`
-remains a validation-focused in-repo project.
-
-### Run the Default Validation Flow
+### Generate the Test Blueprints
 
 ```bash
-./scripts/validate-reference-blueprints.sh
+./scripts/generate-test-blueprints.sh
 ```
 
-The default validation path:
+This builds the local inspection fixtures under `_out/test-blueprints/`,
+including:
 
-- generates the local validation fixtures
+- the curated test-doc sites emitted by `lake exe blueprint-test-docs`
+- the standalone `preview_runtime_showcase` browser-regression site
+
+### Validate the Test Blueprints
+
+```bash
+./scripts/validate-test-blueprints.sh
+```
+
+This path:
+
+- generates the local test blueprint fixtures
 - runs the static local code-panel regression check
 - runs the browser regression suite against `preview_runtime_showcase`
 
-External reference blueprints still belong to `generate`, but they are no
-longer part of the default validation flow.
+### Branch Validation
+
+```bash
+./scripts/validate-branch.sh
+```
+
+This is the canonical pre-merge validation command for feature branches. It:
+
+- runs Lean tests
+- runs the Python harness/unit tests
+- builds the reference blueprints under `_out/reference-blueprints/`
+- builds the test blueprints under `_out/test-blueprints/`
+- runs the local panel/browser regressions against `preview_runtime_showcase`
 
 Lean tests are intentionally opt-in:
 
@@ -113,8 +130,10 @@ Lean tests are intentionally opt-in:
 ./scripts/validate-reference-blueprints.sh --run-lean-tests
 ```
 
-For day-to-day rendering and browser regression work, prefer the in-repo test
-blueprint showcase instead of the external reference blueprints:
+`validate-reference-blueprints.sh` remains available when you specifically want
+to rebuild the reference blueprint catalog. For day-to-day rendering and
+browser regression work, prefer the in-repo test blueprints instead of the
+external reference blueprints:
 
 ```bash
 uv run --project tests/browser --extra test python -m pytest tests/browser -q --browser chromium
@@ -122,17 +141,24 @@ uv run --project tests/browser --extra test python -m pytest tests/browser -q --
 
 That path builds and serves the default showcase under
 `tests/test_blueprints/preview_runtime_showcase/`. The reference blueprints are
-still useful as broader integration coverage, but they are no longer the
-primary rendering-development oracle.
+useful as release-facing artifacts, but the local test blueprint outputs are
+the primary rendering-development oracle.
 
 ### Select Projects or Forward Test Flags
 
-The harness supports narrowing the catalog and forwarding extra pytest
-arguments:
+The reference harness supports narrowing the catalog:
 
 ```bash
 python3 -m scripts.blueprint_reference_harness generate --project noperthedron
-python3 -m scripts.blueprint_reference_harness validate --project preview_runtime_showcase --pytest-arg -k --pytest-arg preview
+python3 -m scripts.blueprint_reference_harness validate --project project-template --run-lean-tests
+```
+
+For local fixture/browser filtering, pass pytest args through
+`validate-test-blueprints.sh` or `validate-branch.sh`:
+
+```bash
+./scripts/validate-test-blueprints.sh -k preview
+./scripts/validate-branch.sh -k preview
 ```
 
 Run `python3 -m scripts.blueprint_reference_harness --help` for the full flag surface.
@@ -167,18 +193,20 @@ python3 -m scripts.blueprint_reference_harness prune
 In the root checkout, generated artifacts go under:
 
 - `_out/reference-blueprints/project-template/`
-- `_out/reference-blueprints/preview_runtime_showcase/`
 - `_out/reference-blueprints/noperthedron/`
 - `_out/reference-blueprints/spherepackingblueprint/`
+- `_out/test-blueprints/<slug>/`
+- `_out/test-blueprints/preview_runtime_showcase/`
 - `_out/test-blueprints/state-showcase/`
 
 In a linked worktree, generated artifacts go under the shared repo-root preview
 area:
 
 - `_out/<worktree>/reference-blueprints/project-template/`
-- `_out/<worktree>/reference-blueprints/preview_runtime_showcase/`
 - `_out/<worktree>/reference-blueprints/noperthedron/`
 - `_out/<worktree>/reference-blueprints/spherepackingblueprint/`
+- `_out/<worktree>/test-blueprints/<slug>/`
+- `_out/<worktree>/test-blueprints/preview_runtime_showcase/`
 - `_out/<worktree>/test-blueprints/state-showcase/`
 
 To print the resolved paths for the current checkout, run:
@@ -394,8 +422,8 @@ pushes to `main`, and manual dispatch, it:
 - uses the shared reference-checkout mode in CI to avoid duplicating warmed
   `.lake/` trees on the GitHub runner
 
-`preview_runtime_showcase` remains part of the local validation catalog, but it
-is not currently staged into the Pages artifact.
+`preview_runtime_showcase` remains part of the local test-blueprint fixture
+set, but it is not currently staged into the Pages artifact.
 
 `reference-blueprints-deploy.yml` is the deployment workflow. It runs after a
 successful `reference-blueprints.yml` run on `main`, downloads the site
