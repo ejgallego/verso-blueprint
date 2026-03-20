@@ -20,22 +20,30 @@ Those responsibilities live in
 
 ### Canonical Semantic Source
 
-The canonical persisted semantic source remains `Environment.State`. Its node
-corpus lives in `Environment.State.data`, with companion group and author
-metadata in the same environment state. That state is exported through oleans,
-so elaboration and compilation record one node-level semantic summary per
-informal object rather than trying to precompute whole-site presentation.
+Blueprint's core semantic model is a database of hybrid informal/formal
+objects, each identified by a global label.
+
+A labeled object may carry the informal statement or proof text, ownership and
+group metadata, and links to formal material such as inline Lean code,
+attributed compiled declarations, or external `(lean := "...")` references.
+
+That database lives in `Environment.State`. Its object corpus lives in
+`Environment.State.data`, with companion group and author metadata in the same
+environment state. Elaboration and compilation are responsible for recording
+the object-level facts and persisting them through Lean's compiled environment
+data (oleans), rather than trying to precompute whole-site presentation.
 
 Later, the generator binary re-enters that persisted state during Verso
 traversal and assembles the final rendered metadata in document context.
-Traversal resolves numbering, hrefs, cross-page references, and other
-relationships that depend on the whole rendered site rather than one compiled
-node in isolation.
+Traversal resolves numbering, hrefs, cross-page references, previews, and
+other relationships that depend on the whole rendered site rather than one
+compiled object in isolation.
 
 That boundary is deliberate. The environment answers "what is this informal
-object?" The traversal/rendering pass answers "how does this object sit inside
-this rendered site?" Rendering and UI layers are expected to project from those
-two stages rather than invent parallel sources of truth.
+object, and what local formal/informal data belongs to it?" The
+traversal/rendering pass answers "how do these objects sit inside this rendered
+site?" Rendering and UI layers are expected to project from those two stages
+rather than invent parallel sources of truth.
 
 ### Command Split
 
