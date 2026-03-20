@@ -22,6 +22,8 @@ class TestBlueprintGroupPreview:
 
         items = panel.locator(".bp_used_by_item")
         expect(items).to_have_count(2)
+        expect(panel.locator(".bp_used_by_item.bp_used_by_item_active")).to_have_count(1)
+        expect(panel.locator(".bp_used_by_preview_body")).to_contain_text("First peer in the same group.")
         items.nth(1).hover()
 
         expect(panel.locator(".bp_used_by_preview_body")).to_contain_text("Second peer in the same group.")

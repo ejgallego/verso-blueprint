@@ -1847,6 +1847,12 @@ def usedByPanelJs : String := r##"(function () {
         activate(item);
       });
     });
+    const initialItem = items.find(function (item) {
+      return item instanceof Element && item.classList.contains("bp_used_by_item_active");
+    }) || items[0];
+    if (initialItem instanceof Element) {
+      activate(initialItem, { openWrap: false });
+    }
 
     if (wrap instanceof Element && chip instanceof Element) {
       setExpanded(wrap.classList.contains("bp_used_by_wrap_open"));

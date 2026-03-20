@@ -183,15 +183,14 @@ class TestPreviewRuntimeRegressions:
         chip = wrap.locator(".bp_used_by_chip").first
         chip.hover()
 
-        item = wrap.locator(".bp_used_by_item").first
-        expect(item).to_have_count(1)
-        item.hover()
+        expect(wrap.locator(".bp_used_by_item.bp_used_by_item_active")).to_have_count(1)
 
         body = wrap.locator(".bp_used_by_preview_body")
         page.wait_for_function(
             "(el) => !!el && el.innerHTML.includes('<p')",
             arg=body.element_handle(),
         )
+        expect(body).to_contain_text("Statement depends on")
 
         assert_no_runtime_errors(errors)
 

@@ -1550,30 +1550,44 @@ private def renderRelatedPanel (cfg : RelatedPanelConfig) (entries : Array Relat
       (previewLookupKey? := some entry.previewKey)
       (previewFallbackLabel? := some s!"{entry.source.label}")
   else
-    let rows : Array Output.Html :=
-      entries.map fun entry =>
-        let rowNode : Output.Html :=
-          let titleNode := {{<span class="bp_used_by_target_title">{{.text true entry.previewTitle}}</span>}}
-          let metaNode := {{
-            <span class="bp_used_by_target_meta">
-              {{entry.metaHtml}}
-            </span>
-          }}
-          if let some href := entry.href then
-            {{<a class="bp_used_by_target" href={{href}}>{{titleNode}}{{metaNode}}</a>}}
-          else
-            {{<span class="bp_used_by_target">{{titleNode}}{{metaNode}}</span>}}
-        {{
-          <li class="bp_used_by_item"
-              "data-bp-used-preview-id"={{entry.previewId}}
-              "data-bp-used-preview-key"={{entry.previewKey}}
-              "data-bp-used-preview-title"={{entry.previewTitle}}>
-            {{rowNode}}
-            <template class="bp_used_by_preview_fallback_tpl" "data-bp-used-preview-id"={{entry.previewId}}>
-              {{entry.previewFallbackBody}}
-            </template>
-          </li>
+    let renderRow (itemClass : String) (entry : RelatedPanelEntry) : Output.Html :=
+      let rowNode : Output.Html :=
+        let titleNode := {{<span class="bp_used_by_target_title">{{.text true entry.previewTitle}}</span>}}
+        let metaNode := {{
+          <span class="bp_used_by_target_meta">
+            {{entry.metaHtml}}
+          </span>
         }}
+        if let some href := entry.href then
+          {{<a class="bp_used_by_target" href={{href}}>{{titleNode}}{{metaNode}}</a>}}
+        else
+          {{<span class="bp_used_by_target">{{titleNode}}{{metaNode}}</span>}}
+      {{
+        <li class={{itemClass}}
+            "data-bp-used-preview-id"={{entry.previewId}}
+            "data-bp-used-preview-key"={{entry.previewKey}}
+            "data-bp-used-preview-title"={{entry.previewTitle}}>
+          {{rowNode}}
+          <template class="bp_used_by_preview_fallback_tpl" "data-bp-used-preview-id"={{entry.previewId}}>
+            {{entry.previewFallbackBody}}
+          </template>
+        </li>
+      }}
+    let (selectedEntry?, rows) :=
+      entries.foldl (init := (none, #[])) fun (selectedEntry?, acc) entry =>
+        match selectedEntry? with
+        | none =>
+          (some entry, acc.push (renderRow "bp_used_by_item bp_used_by_item_active" entry))
+        | some selectedEntry =>
+          (some selectedEntry, acc.push (renderRow "bp_used_by_item" entry))
+    let previewTitle :=
+      match selectedEntry? with
+      | some entry => entry.previewTitle
+      | none => cfg.previewDefaultTitle
+    let previewBody : Output.Html :=
+      match selectedEntry? with
+      | some entry => entry.previewFallbackBody
+      | none => {{<div class="bp_used_by_preview_empty">{{.text true cfg.previewEmptyText}}</div>}}
     {{
       <div class="bp_used_by_wrap">
         <button type="button" class={{cfg.chipClass}} title={{cfg.chipTitle entries.size}} "aria-expanded"="false">
@@ -1591,10 +1605,10 @@ private def renderRelatedPanel (cfg : RelatedPanelConfig) (entries : Array Relat
             <div class="bp_used_by_preview_surface">
               <div class="bp_used_by_preview_header">
                 <div class="bp_used_by_preview_label">"Preview"</div>
-                <div class="bp_used_by_preview_title">{{.text true cfg.previewDefaultTitle}}</div>
+                <div class="bp_used_by_preview_title">{{.text true previewTitle}}</div>
               </div>
               <div class="bp_used_by_preview_body">
-                <div class="bp_used_by_preview_empty">{{.text true cfg.previewEmptyText}}</div>
+                {{previewBody}}
               </div>
             </div>
           </div>

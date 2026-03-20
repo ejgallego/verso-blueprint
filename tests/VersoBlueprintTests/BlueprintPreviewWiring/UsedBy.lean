@@ -23,7 +23,9 @@ open Verso.VersoBlueprintTests.BlueprintPreviewWiring.Shared
       hasSubstr out "class=\"bp_extra_slot bp_extra_slot_used_by\"" &&
       hasSubstr out "class=\"bp_used_by_wrap\"" &&
       hasSubstr out "class=\"bp_used_by_panel\"" &&
+      hasSubstr out "class=\"bp_used_by_item bp_used_by_item_active\"" &&
       hasSubstr out "class=\"bp_used_by_preview_fallback_tpl\"" &&
+      !hasSubstr out "class=\"bp_used_by_preview_empty\"" &&
       hasSubstr out "data-bp-used-preview-id" &&
       hasSubstr out "data-bp-used-preview-key" &&
       hasSubstr out ">statement</span>" &&
@@ -34,9 +36,11 @@ open Verso.VersoBlueprintTests.BlueprintPreviewWiring.Shared
         hasSubstr usedByJs "function bindUsedByPanel(panel)" &&
         hasSubstr usedByJs "previewUtils.loadSharedPreviewEntry(previewKey)" &&
         hasSubstr usedByJs "const fallbackTemplates = collectPanelFallbackTemplates(panel);" &&
+        hasSubstr usedByJs "const initialItem = items.find(function (item) {" &&
+        hasSubstr usedByJs "item.classList.contains(\"bp_used_by_item_active\")" &&
+        hasSubstr usedByJs "activate(initialItem, { openWrap: false })" &&
         hasSubstr usedByJs "item.addEventListener(\"mouseenter\"" &&
-        hasSubstr usedByJs "item.addEventListener(\"focusin\"" &&
-        !hasSubstr usedByJs "activate(items[0], { openWrap: false })"
+        hasSubstr usedByJs "item.addEventListener(\"focusin\""
       | none => false
     )
 
@@ -71,6 +75,8 @@ open Verso.VersoBlueprintTests.BlueprintPreviewWiring.Shared
       hasSubstr out "class=\"bp_extra_slot bp_extra_slot_used_by\"" &&
       appearsBefore out "class=\"bp_extra_slot bp_extra_slot_group\"" "class=\"bp_extra_slot bp_extra_slot_used_by\"" &&
       hasSubstr out "Hover another entry in this group to preview it." &&
+      hasSubstr out "class=\"bp_used_by_item bp_used_by_item_active\"" &&
+      !hasSubstr out "class=\"bp_used_by_preview_empty\"" &&
       hasSubstr out "data-bp-used-preview-id=\"bp-group-" &&
       hasSubstr out "Preview group title." &&
       hasSubstr out "used by 1" &&
@@ -78,7 +84,7 @@ open Verso.VersoBlueprintTests.BlueprintPreviewWiring.Shared
       | some usedByJs =>
         hasSubstr usedByJs "function bindUsedByPanel(panel)" &&
         hasSubstr usedByJs "previewUtils.loadSharedPreviewEntry(previewKey)" &&
-        !hasSubstr usedByJs "activate(items[0], { openWrap: false })"
+        hasSubstr usedByJs "activate(initialItem, { openWrap: false })"
       | none => false
     )
 
