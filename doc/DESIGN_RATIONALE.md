@@ -22,8 +22,20 @@ Those responsibilities live in
 
 The canonical persisted semantic source remains `Environment.State`. Its node
 corpus lives in `Environment.State.data`, with companion group and author
-metadata in the same environment state. Rendering and UI layers are expected to
-project from that state rather than invent parallel sources of truth.
+metadata in the same environment state. That state is exported through oleans,
+so elaboration and compilation record one node-level semantic summary per
+informal object rather than trying to precompute whole-site presentation.
+
+Later, the generator binary re-enters that persisted state during Verso
+traversal and assembles the final rendered metadata in document context.
+Traversal resolves numbering, hrefs, cross-page references, and other
+relationships that depend on the whole rendered site rather than one compiled
+node in isolation.
+
+That boundary is deliberate. The environment answers "what is this informal
+object?" The traversal/rendering pass answers "how does this object sit inside
+this rendered site?" Rendering and UI layers are expected to project from those
+two stages rather than invent parallel sources of truth.
 
 ### Command Split
 
