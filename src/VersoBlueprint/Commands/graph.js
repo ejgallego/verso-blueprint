@@ -44,13 +44,15 @@
     const flowBottom = readGraphCanvasFlowBottom(graphRoot);
     const trailingHeight = Math.max(0, flowBottom - rect.bottom);
     const availableHeight = Math.max(1, Math.floor(viewportHeight - rect.top - bottomGap - trailingHeight));
-    const maxHeight = Math.min(viewportMaxHeight, availableHeight);
-    const minHeight = Math.min(maxHeight, 280);
+    const autoHeight = Math.min(viewportMaxHeight, availableHeight);
+    const minHeight = Math.min(autoHeight, 280);
     const currentHeight = parsePixelSize(graphRoot.style.height);
     const state = graphState && typeof graphState === "object" ? graphState : null;
 
     graphRoot.style.minHeight = minHeight + "px";
-    graphRoot.style.maxHeight = maxHeight + "px";
+    // Keep the initial auto-fit height flow-aware, but leave headroom for explicit
+    // user resizing instead of clamping the canvas back to the auto height.
+    graphRoot.style.maxHeight = viewportMaxHeight + "px";
     if (
       state &&
       Number.isFinite(currentHeight) &&
@@ -60,15 +62,15 @@
       state.canvasUserResized = true;
     }
     if (state && state.canvasUserResized && Number.isFinite(currentHeight)) {
-      const clampedHeight = Math.max(minHeight, Math.min(currentHeight, maxHeight));
+      const clampedHeight = Math.max(minHeight, Math.min(currentHeight, viewportMaxHeight));
       if (Math.abs(clampedHeight - currentHeight) > 1) {
         graphRoot.style.height = clampedHeight + "px";
       }
       state.canvasAutoHeight = clampedHeight;
       return;
     }
-    graphRoot.style.height = maxHeight + "px";
-    if (state) state.canvasAutoHeight = maxHeight;
+    graphRoot.style.height = autoHeight + "px";
+    if (state) state.canvasAutoHeight = autoHeight;
   }
 
   function load(src) {

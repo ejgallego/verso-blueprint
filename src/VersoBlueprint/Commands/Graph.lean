@@ -363,7 +363,8 @@ def mkGraphVariants (graphData : GraphBlockData) (resolveHref : Name → Option 
 
 -- Keep this binding in Lean so asset updates flow through the command module rebuild.
 -- Updated when the runtime asset changes; current runtime leaves block placement to CSS
--- and relies on graphviz auto-fit plus flow-aware canvas sizing for initial placement.
+-- and relies on graphviz auto-fit plus flow-aware canvas sizing for initial placement
+-- plus user-controlled resize persistence.
 def loadD3Dot := include_str "graph.js"
 
 -- Keep this binding adjacent to `loadD3Dot` so runtime graph asset updates
