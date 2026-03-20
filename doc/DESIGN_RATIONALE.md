@@ -72,18 +72,14 @@ Per-command CSS overlays stay with their commands:
 
 ## Rendering Clients
 
-Active consumers of Blueprint traversal data fall into three broad groups:
+The same Blueprint object data is consumed in three broad ways:
 
-1. local link and block rendering:
-   - `Inline.informal`
-   - `Block.informal`
-   - `Block.informalCode`
-2. global rendered outputs:
-   - `Block.graph`
-   - `Block.summary`
-   - `Block.bibliography`
-3. widget/runtime clients:
-   - preview consumers built on `PreviewSource`
+1. local chapter content:
+   inline references, informal blocks, and attached code snippets
+2. global overview pages:
+   graphs, summaries, and bibliography-style rollups
+3. interactive clients:
+   previews, widgets, and other runtime surfaces
 
 This split is why one-source-of-truth pressure matters so much: local blocks,
 global pages, and runtime widgets all need to agree on the same semantics while
@@ -91,13 +87,17 @@ projecting them differently.
 
 ## External Declaration Model
 
-The external declaration flow is intentionally staged:
+External Lean declarations are handled in stages.
 
-1. `(lean := "...")` references become `Data.ExternalRef`.
-2. Snapshot and enrichment add presence, provenance, optional `sourceHref?`,
-   and declaration rendering results.
-3. Informal block rendering turns those snapshots into hover and panel views.
-4. Summary and graph logic read the same snapshots for status reporting.
+1. A `(lean := "...")` reference first becomes a stable record saying "this
+   Blueprint object points at this Lean declaration."
+2. That record is then enriched with facts such as whether the declaration is
+   present, where it came from, whether a source link is available, and what
+   rendered declaration content was produced.
+3. Local block rendering uses that enriched record to build hover and panel
+   views.
+4. Global summaries and graphs read the same enriched record for status and
+   reporting.
 
 The goal is to avoid a world where local rendering, global status, and preview
 surfaces each re-resolve external declarations differently.
@@ -116,9 +116,9 @@ quietly rewrite or reinterpret external Lean declaration names.
 
 ### Shared Browser Runtime
 
-Preview behavior is correctness-sensitive and previously drifted through
-copy-paste. The shared browser-side runtime therefore owns reusable preview
-operations such as:
+Preview behavior is correctness-sensitive, and it is easy for multiple page
+features to drift apart if each one hand-rolls its own browser logic. The
+shared browser-side runtime therefore owns reusable operations such as:
 
 - template collection and decoding
 - math rendering for inserted preview bodies
@@ -144,8 +144,8 @@ The UI can converge while the identity schemes remain distinct.
 ### One Retrieval Surface for Callers
 
 Call sites that only need "give me the preview for this label" behavior should
-prefer `PreviewSource` rather than decode traversal or environment payloads
-directly.
+prefer one shared retrieval surface (`PreviewSource`) rather than decode
+multiple storage formats directly.
 
 That convergence is not complete yet. Manifest construction still decodes
 `PreviewCache` and `Informal.LeanCodePreview` entries directly because it
@@ -153,11 +153,10 @@ enumerates stored preview domains to emit the shared browser manifest.
 
 ### Self-Contained Snippet Rendering
 
-Rendered HTML hovers are page-output scoped, while editor and LSP hovers are
-info-tree scoped. Isolated renderers therefore cannot rely on shared hover-id
-tables unless they also participate in the surrounding hover environment. That
-is why Blueprint sometimes rewrites isolated hover payloads into self-contained
-HTML.
+Some previews are rendered inside a full page, while others are rendered in
+isolated contexts such as editor or LSP hovers. Isolated renderers therefore
+cannot rely on page-global hover tables. That is why Blueprint sometimes
+rewrites hover payloads into self-contained HTML.
 
 ### Server-Mode Lean Elaboration
 
@@ -198,12 +197,8 @@ missing-reference and missing-declaration problems in the warning channel.
 
 ### Completion Policy
 
-Completion blocking policy is centralized in `Informal.Data.ProvedStatus` via:
-
-- `blocksStatementCompletion`
-- `blocksProofCompletion`
-- `anyBlocksStatementCompletion`
-- `anyBlocksProofCompletion`
+Completion blocking policy is centralized in one place so summary pages, graph
+coloring, and other status views do not silently drift apart.
 
 Definitions and theorem-like nodes intentionally differ:
 
