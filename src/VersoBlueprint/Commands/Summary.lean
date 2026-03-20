@@ -676,6 +676,22 @@ private def priorityItem? (state : Environment.State) (external : Informal.Graph
           leanObjects := nodeLeanObjects node
         }
 
+private def metadataPresentationOfPriorityItem (item : PriorityItem) : MetadataPresentation := {
+  ownerText := item.ownerDisplayName
+  effort := item.effort
+  priority := item.priority
+  prUrl := item.prUrl
+  tags := item.tags.toArray
+}
+
+private def metadataPresentationOfMetadataEntryItem (item : MetadataEntryItem) : MetadataPresentation := {
+  ownerText := item.ownerDisplayName
+  effort := item.effort
+  priority := item.priority
+  prUrl := item.prUrl
+  tags := item.tags.toArray
+}
+
 private def addParentTheoremLikeItem (groups : NameMap (List IndexItem)) (parent : Name) (item : IndexItem) :
     NameMap (List IndexItem) :=
   groups.insert parent (item :: groups.getD parent [])
@@ -1191,6 +1207,16 @@ block_extension Block.summary (summary : Summary) where
           .empty
         else
           {{ <div class="bp_summary_badge_row">{{badges}}</div> }}
+      let mkMetadataBadges (metadata : MetadataPresentation) : Array Output.Html :=
+        metadata.summaryBadgeSpecs.map fun badge =>
+          mkBadge badge.text <|
+            if badge.warning then
+              "bp_summary_badge bp_summary_badge_warn"
+            else
+              "bp_summary_badge"
+      let mkMetadataActionLinks (metadata : MetadataPresentation) : Array Output.Html :=
+        metadata.summaryActionLinks.map fun action =>
+          {{ <a class="bp_code_link" href={{action.href}}>{{.text true action.label}}</a> }}
       let capRows (rows : Array Output.Html) (noun : String) : Array Output.Html :=
         let visible := (rows.toList.take triageVisibleLimit).toArray
         let hidden := (rows.toList.drop triageVisibleLimit).toArray
@@ -1284,38 +1310,21 @@ block_extension Block.summary (summary : Summary) where
       let mkPriorityRow (item : PriorityItem) := do
         let entryRef ← mkEntryRef item.label
         let associatedDecls := !item.leanObjects.isEmpty
-        let priorityBadges : Array Output.Html :=
-          match item.priority with
-          | Option.some priority => #[mkBadge s!"priority: {priority}" "bp_summary_badge bp_summary_badge_warn"]
-          | Option.none => #[]
-        let ownerBadges : Array Output.Html :=
-          match item.ownerDisplayName with
-          | Option.some owner => #[mkBadge s!"owner: {owner}"]
-          | Option.none => #[]
-        let effortBadges : Array Output.Html :=
-          match item.effort with
-          | Option.some effort => #[mkBadge s!"effort: {effort}"]
-          | Option.none => #[]
+        let metadata := metadataPresentationOfPriorityItem item
+        let metadataBadges := mkMetadataBadges metadata
         let proofBadges : Array Output.Html :=
           if item.proofStatus.isEmpty then
             #[]
           else
             #[mkBadge s!"proof: {item.proofStatus}"]
-        let tagBadges : Array Output.Html :=
-          item.tags.toArray.map fun tag => mkBadge s!"tag: {tag}"
-        let actionLinks : Array Output.Html :=
-          let prLinks :=
-            match item.prUrl with
-            | Option.some href => #[{{ <a class="bp_code_link" href={{href}}>"PR"</a> }}]
-            | Option.none => #[]
-          prLinks
+        let actionLinks := mkMetadataActionLinks metadata
         let badges :=
-          priorityBadges ++ ownerBadges ++ effortBadges ++ #[
+          metadataBadges ++ #[
             mkBadge s!"stage: {item.stage}",
             mkBadge s!"statement: {item.statementStatus}",
             mkBadge s!"direct uses: {item.directUses}",
             mkBadge s!"downstream unlocks: {item.downstreamUses}"
-          ] ++ proofBadges ++ tagBadges
+          ] ++ proofBadges
         pure {{
           <li class="bp_summary_item">
             <div class="bp_summary_item_top">
@@ -1476,27 +1485,9 @@ block_extension Block.summary (summary : Summary) where
       let mkMetadataEntryRow (item : MetadataEntryItem) (bodyText : String) := do
         let entryRef ← mkEntryRef item.label
         let associatedDecls := !item.leanObjects.isEmpty
-        let ownerBadges : Array Output.Html :=
-          match item.ownerDisplayName with
-          | Option.some owner => #[mkBadge s!"owner: {owner}"]
-          | Option.none => #[]
-        let effortBadges : Array Output.Html :=
-          match item.effort with
-          | Option.some effort => #[mkBadge s!"effort: {effort}"]
-          | Option.none => #[]
-        let priorityBadges : Array Output.Html :=
-          match item.priority with
-          | Option.some priority => #[mkBadge s!"priority: {priority}" "bp_summary_badge bp_summary_badge_warn"]
-          | Option.none => #[]
-        let tagBadges : Array Output.Html :=
-          item.tags.toArray.map fun tag => mkBadge s!"tag: {tag}"
-        let actionLinks : Array Output.Html :=
-          let prLinks :=
-            match item.prUrl with
-            | Option.some href => #[{{ <a class="bp_code_link" href={{href}}>"PR"</a> }}]
-            | Option.none => #[]
-          prLinks
-        let badges := ownerBadges ++ effortBadges ++ priorityBadges ++ tagBadges
+        let metadata := metadataPresentationOfMetadataEntryItem item
+        let badges := mkMetadataBadges metadata
+        let actionLinks := mkMetadataActionLinks metadata
         pure {{
           <li class="bp_summary_item">
             <div class="bp_summary_item_top">

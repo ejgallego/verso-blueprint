@@ -1797,32 +1797,30 @@ private def renderOwnerMetadataItem (data : BlockData) : Output.Html :=
 
 private def renderStatementMetadataPanel (data : BlockData) : Output.Html :=
   open Verso.Output.Html in
+  let metadata := data.metadataPresentation
   let ownerItem := renderOwnerMetadataItem data
   let effortNode : Output.Html :=
-    match data.effort with
+    match metadata.effort with
     | some effort => renderMetadataItem "Effort" (renderMetadataTextValue effort)
     | none => .empty
   let priorityNode : Output.Html :=
-    match data.priority with
+    match metadata.priority with
     | some priority => renderMetadataItem "Priority" (renderMetadataTextValue priority)
     | none => .empty
   let prNode : Output.Html :=
-    match data.prUrl with
+    match metadata.prUrl with
     | some href => renderMetadataItem "PR" (renderMetadataLinkValue href "link")
     | none => .empty
   let tagNodes : Output.Html :=
-    if data.tags.isEmpty then
+    if metadata.tags.isEmpty then
       .empty
     else
       renderMetadataItem "Tags" {{
         <span class="bp_metadata_tags">
-          {{data.tags.map (fun tag => {{ <span class="bp_metadata_tag">{{.text true tag}}</span> }})}}
+          {{metadata.tags.map (fun tag => {{ <span class="bp_metadata_tag">{{.text true tag}}</span> }})}}
         </span>
       }}
-  let hasMetadata :=
-    data.owner.isSome || data.ownerDisplayName.isSome || !data.tags.isEmpty ||
-      data.effort.isSome || data.priority.isSome || data.prUrl.isSome
-  if hasMetadata then
+  if metadata.hasAny then
     {{
       <div class="bp_metadata_panel">
         {{ownerItem}}
