@@ -69,13 +69,8 @@
   - `./scripts/validate-reference-blueprints.sh --run-lean-tests`
 - Harness commands:
   - `python3 -m scripts.blueprint_harness --help`
-  - `python3 -m scripts.blueprint_harness projects`
-  - `python3 -m scripts.blueprint_harness generate`
-  - `python3 -m scripts.blueprint_harness validate`
   - `python3 -m scripts.blueprint_harness sync-root-lake`
   - `python3 -m scripts.blueprint_harness paths`
-  - `python3 -m scripts.blueprint_harness reference-sync`
-  - `python3 -m scripts.blueprint_harness reference-prune`
   - `python3 -m scripts.blueprint_harness worktree-sync`
   - `python3 -m scripts.blueprint_harness worktree-list`
   - `python3 -m scripts.blueprint_harness worktree-status`
@@ -83,16 +78,23 @@
   - `python3 -m scripts.blueprint_harness worktree-release`
   - `python3 -m scripts.blueprint_harness worktree-prune-candidates`
   - `python3 -m scripts.blueprint_harness worktree-retire`
+  - `python3 -m scripts.blueprint_reference_harness --help`
+  - `python3 -m scripts.blueprint_reference_harness projects`
+  - `python3 -m scripts.blueprint_reference_harness generate`
+  - `python3 -m scripts.blueprint_reference_harness validate`
+  - `python3 -m scripts.blueprint_reference_harness sync`
+  - `python3 -m scripts.blueprint_reference_harness edit <project>`
+  - `python3 -m scripts.blueprint_reference_harness prune`
 - The Python harness is maintainer tooling for this repository's in-repo
   own tests plus ephemeral checkout validations, not the preferred end-user
   interface.
-- Default reference blueprint output in the root checkout:
-  - `_out/reference-blueprints/{noperthedron,spherepackingblueprint}/`
-- Default reference blueprint output in a linked worktree:
-  - `_out/<worktree>/reference-blueprints/{noperthedron,spherepackingblueprint}/`
-- Shared warmed reference blueprint cache:
+- Default validation-catalog output in the root checkout:
+  - `_out/reference-blueprints/{project-template,preview_runtime_showcase,noperthedron,spherepackingblueprint}/`
+- Default validation-catalog output in a linked worktree:
+  - `_out/<worktree>/reference-blueprints/{project-template,preview_runtime_showcase,noperthedron,spherepackingblueprint}/`
+- Shared warmed reference blueprint cache for external git-checkout projects:
   - `.worktrees/_reference-blueprints/cache/{noperthedron,spherepackingblueprint}/`
-- Current-checkout local reference blueprint clones:
+- Current-checkout local reference blueprint clones for external git-checkout projects:
   - `.worktrees/_reference-blueprints/by-worktree/<checkout>/{noperthedron,spherepackingblueprint}/`
 
 ## Mathlib and Worktree Reuse

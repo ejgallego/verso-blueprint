@@ -1,17 +1,20 @@
 # Blueprint Maintainer Guide
 
-Last updated: 2026-03-19
+Last updated: 2026-03-20
 
 This document is the repository-level workflow guide for maintaining Blueprint
-support in `verso-blueprint` and its published reference blueprints.
+support in `verso-blueprint`, its in-repo validation projects, and its
+published reference blueprints.
 
 It focuses on:
 
 - generation and validation commands
 - output locations
-- CI and GitHub Pages publication for the reference blueprints
+- CI and GitHub Pages publication for the published subset of the validation
+  catalog
 - linked-worktree usage
-- repository-local policy for the external reference-blueprint validation harness
+- repository-local policy for the validation harness and reference-project
+  tooling
 
 End-user onboarding lives in
 [`../project_template/README.md`](../project_template/README.md),
@@ -35,6 +38,8 @@ python3 -m scripts.blueprint_harness create-worktree <name>
 python3 -m scripts.blueprint_harness land-main <source-ref>
 python3 -m scripts.blueprint_harness main-status
 python3 -m scripts.blueprint_harness --help
+python3 -m scripts.blueprint_reference_harness generate
+python3 -m scripts.blueprint_reference_harness validate
 python3 -m scripts.blueprint_reference_harness projects
 python3 -m scripts.blueprint_reference_harness edit <project>
 python3 -m scripts.blueprint_reference_harness sync
@@ -62,9 +67,11 @@ Rule of thumb:
 - if the task is about building, validating, syncing, editing, or pruning the
   reference projects, use `blueprint_reference_harness`
 
-The default project catalog lives at `tests/harness/projects.json`. It includes
-the in-repo starter template plus the external reference blueprint repositories,
-and it is the extension point for future ephemeral GitHub checkout validations.
+The default project catalog lives at `tests/harness/projects.json`. It
+currently includes two in-repo projects (`project-template` and
+`preview_runtime_showcase`) plus the two external reference blueprint
+repositories, and it is the extension point for future ephemeral GitHub
+checkout validations.
 
 ## Everyday Workflows
 
@@ -80,6 +87,10 @@ This builds and renders the current generation catalog:
 - `preview_runtime_showcase`
 - `noperthedron`
 - `spherepackingblueprint`
+
+Only `project-template`, `noperthedron`, and `spherepackingblueprint` are
+currently staged for GitHub Pages publication. `preview_runtime_showcase`
+remains a validation-focused in-repo project.
 
 ### Run the Default Validation Flow
 
@@ -245,8 +256,8 @@ The harness is worktree-aware:
   own Mathlib versions
 - each checkout uses its own local reference blueprint clones under
   `.worktrees/_reference-blueprints/by-worktree/<checkout>/`
-- local `lake build` and `lake test` in a linked worktree are disabled by
-  default to avoid unnecessary dependency rebuilds
+- the reference CLI avoids local `lake build` and `lake test` in a linked
+  worktree by default to avoid unnecessary dependency rebuilds
 
 If you only want a bare linked checkout and plan to bootstrap it yourself, use:
 
@@ -320,8 +331,9 @@ python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
 - `ejgallego/verso-noperthedron` has a heavy dependency footprint, so linked
   worktrees should normally sync `.lake/` from the root checkout before
   external validation
-- the default baseline projects now live in external repositories, not inside
-  this package checkout
+- the default validation catalog mixes in-repo projects with external reference
+  blueprints; the larger published reference blueprints live in external
+  repositories
 - the harness warms shared reference blueprint checkouts once under
   `.worktrees/_reference-blueprints/cache/`
 - each checkout gets its own local clone under
@@ -329,9 +341,9 @@ python3 -m scripts.blueprint_harness worktree-retire <name> --dry-run
   shared cache so transitive build artifacts stay warm across worktrees
 - editable reference-project clones live separately under
   `.worktrees/_reference-blueprints/edit/<checkout>/` and are not touched by
-  `reference-sync`, `generate`, or `reference-prune`
-- `reference-prune` cleans up stale project caches and local clones when
-  worktrees or manifest entries disappear
+  `sync`, `generate`, or `prune`
+- `prune` cleans up stale project caches and local clones when worktrees or
+  manifest entries disappear
 - the Python harness rewrites the cloned project's `lakefile.lean` locally so
   `VersoBlueprint` resolves to the checkout under test before running
   `lake update`
@@ -368,14 +380,22 @@ pull requests and pushes to `main`:
 - `Blueprint Tests`
 - `Harness Tests`
 
+On pull requests it also runs `Project Template Fresh Repo`, which materializes
+the in-repo template as a fresh standalone repository and smoke-tests the
+template-owned CI path.
+
 `reference-blueprints.yml` is the shared build workflow. On pull requests,
 pushes to `main`, and manual dispatch, it:
 
-- builds the three reference blueprints
+- builds the three projects currently published to Pages:
+  `project-template`, `noperthedron`, and `spherepackingblueprint`
 - stages a site artifact under `_site/`
 - uploads that assembled site as a normal workflow artifact
 - uses the shared reference-checkout mode in CI to avoid duplicating warmed
   `.lake/` trees on the GitHub runner
+
+`preview_runtime_showcase` remains part of the local validation catalog, but it
+is not currently staged into the Pages artifact.
 
 `reference-blueprints-deploy.yml` is the deployment workflow. It runs after a
 successful `reference-blueprints.yml` run on `main`, downloads the site
@@ -385,6 +405,7 @@ GitHub Pages.
 The staged Pages artifact layout is:
 
 - `_site/index.html`
+- `_site/reference-blueprints/project-template/`
 - `_site/reference-blueprints/noperthedron/`
 - `_site/reference-blueprints/spherepackingblueprint/`
 

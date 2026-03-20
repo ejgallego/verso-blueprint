@@ -1,6 +1,6 @@
 # Blueprint Design Rationale
 
-Last updated: 2026-03-19
+Last updated: 2026-03-20
 
 This document records the current architecture boundaries and the reasons the
 Blueprint implementation is shaped the way it is.
@@ -20,9 +20,10 @@ Those responsibilities live in
 
 ### Canonical Semantic Source
 
-The canonical semantic source remains `Environment.State.data`. Rendering and
-UI layers are expected to project from that state, not invent parallel sources
-of truth.
+The canonical persisted semantic source remains `Environment.State`. Its node
+corpus lives in `Environment.State.data`, with companion group and author
+metadata in the same environment state. Rendering and UI layers are expected to
+project from that state rather than invent parallel sources of truth.
 
 ### Command Split
 
@@ -31,14 +32,19 @@ Command modules are split by concern:
 - `VersoBlueprint/Commands/Graph.lean`
 - `VersoBlueprint/Commands/Summary.lean`
 - `VersoBlueprint/Commands/Bibliography.lean`
-- shared command JS in `VersoBlueprint/Commands/Common.lean`
+- shared command CSS and preview/runtime JS in `VersoBlueprint/Commands/Common.lean`
 
 Shared preview and rendering helpers live in `VersoBlueprint/Lib/`, notably:
 
 - `HoverRender.lean`
 - `PreviewSource.lean`
 
-Command CSS is likewise split per command:
+Graph-specific browser assets stay with the graph command:
+
+- `Commands/graph.js`
+- `Commands/graph-toc-toggle.js`
+
+Per-command CSS overlays stay with their commands:
 
 - `Commands/graph.css`
 - `Commands/summary.css`
@@ -117,9 +123,13 @@ The UI can converge while the identity schemes remain distinct.
 
 ### One Retrieval Surface for Callers
 
-Even though traversal-time and widget/runtime paths use different internal
-storage boundaries, call sites should converge on `PreviewSource` rather than
-decode multiple payload forms directly.
+Call sites that only need "give me the preview for this label" behavior should
+prefer `PreviewSource` rather than decode traversal or environment payloads
+directly.
+
+That convergence is not complete yet. Manifest construction still decodes
+`PreviewCache` and `Informal.LeanCodePreview` entries directly because it
+enumerates stored preview domains to emit the shared browser manifest.
 
 ### Self-Contained Snippet Rendering
 
