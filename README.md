@@ -32,6 +32,8 @@ Today a Blueprint project usually owns three things:
 `verso-blueprint` provides the Blueprint directives, rendering commands, preview
 runtime, and support library code. The starter layout in
 [project_template/](./project_template/) shows the recommended shape.
+If you want to inspect that starter as a generated site before copying it, see
+the [rendered project template](https://leanprover.github.io/verso-blueprint/reference-blueprints/project-template/).
 
 ## Core Features
 
@@ -123,6 +125,8 @@ you want to enable it.
 
 The repository also tracks larger reference blueprints.
 
+- [project_template/](./project_template/),
+  [rendered site](https://leanprover.github.io/verso-blueprint/reference-blueprints/project-template/)
 - [`ejgallego/verso-noperthedron`](https://github.com/ejgallego/verso-noperthedron),
   [rendered site](https://leanprover.github.io/verso-blueprint/reference-blueprints/noperthedron/)
 - [`ejgallego/verso-sphere-packing`](https://github.com/ejgallego/verso-sphere-packing),

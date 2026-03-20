@@ -2,6 +2,9 @@
 
 This folder is a copyable starter Blueprint project.
 
+If you want to inspect the current generated output before copying it, see the
+[rendered project template](https://leanprover.github.io/verso-blueprint/reference-blueprints/project-template/).
+
 The goal is not to show every feature. The goal is to give you one small
 project that already has the right moving parts:
 
