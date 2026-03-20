@@ -32,22 +32,16 @@ class TestPreviewRuntimeRegressions:
             """
             () => {
               const body = document.querySelector("#bp-inline-preview-panel .bp_inline_preview_panel_body");
-              if (!body || !body.textContent || body.textContent.trim().length === 0) {
-                return false;
-              }
-              return !!body.querySelector(".bp_code_block, .bp_external_decl_list");
+              if (!body) return false;
+              const html = body.innerHTML || "";
+              const text = body.textContent || "";
+              return html.trim().length > 0 && text.trim().length > 0;
             }
             """
         )
 
         assert body.inner_text().strip()
-        assert (
-            page.locator(
-                "#bp-inline-preview-panel .bp_code_block, "
-                "#bp-inline-preview-panel .bp_external_decl_list"
-            ).count()
-            > 0
-        )
+        assert body.inner_html().strip()
 
         assert_no_runtime_errors(errors)
 

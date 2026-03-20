@@ -61,6 +61,16 @@ def selected_projects(catalog: list[HarnessProject], values: list[str] | None) -
     return result
 
 
+def validation_projects(catalog: list[HarnessProject]) -> list[HarnessProject]:
+    return [
+        project
+        for project in catalog
+        if project.in_repo_example
+        or project.panel_regression_script is not None
+        or project.browser_tests_path is not None
+    ]
+
+
 def load_project_catalog(manifest_path: Path) -> list[HarnessProject]:
     try:
         return load_projects_manifest(manifest_path)
@@ -313,7 +323,8 @@ def command_validate(args: argparse.Namespace) -> int:
     require_safe_root_main(layout, allow_unsafe=args.allow_unsafe_root_main, command_name="validate")
     output_root = resolve_output_root(args.output_root, Path(__file__))
     manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
-    projects = selected_projects(load_project_catalog(manifest_path), args.project)
+    catalog = load_project_catalog(manifest_path)
+    projects = selected_projects(validation_projects(catalog), args.project)
     failures: list[StepFailure] = []
 
     print(f"[blueprint-reference-harness] validation output root: {output_root}")

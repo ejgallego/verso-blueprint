@@ -14,6 +14,62 @@ from scripts.blueprint_harness_worktrees import GitWorktree
 
 
 class BlueprintHarnessCliTests(unittest.TestCase):
+    def test_validation_projects_excludes_external_examples_without_local_checks(self) -> None:
+        local_generate_only = HarnessProject(
+            project_id="project-template",
+            source_kind="in_repo_example",
+            project_root="project_template",
+            build_target=None,
+            generator=None,
+            repository=None,
+            ref=None,
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen", "--output", "{output_dir}"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+        local_validated = HarnessProject(
+            project_id="preview_runtime_showcase",
+            source_kind="in_repo_example",
+            project_root="tests/test_blueprints/preview_runtime_showcase",
+            build_target=None,
+            generator=None,
+            repository=None,
+            ref=None,
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen", "--output", "{output_dir}"),
+            site_subdir="html-multi",
+            panel_regression_script="tests/harness/preview_runtime_showcase/check_blueprint_code_panels.py",
+            browser_tests_path="tests/browser",
+            description=None,
+        )
+        external_generate_only = HarnessProject(
+            project_id="noperthedron",
+            source_kind="git_checkout",
+            project_root=".",
+            build_target=None,
+            generator=None,
+            repository="https://github.com/example/noperthedron.git",
+            ref="main",
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen", "--output", "{output_dir}"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+
+        selected = reference_harness_mod.validation_projects(
+            [local_generate_only, local_validated, external_generate_only]
+        )
+
+        self.assertEqual(
+            [project.project_id for project in selected],
+            ["project-template", "preview_runtime_showcase"],
+        )
+
     def test_create_worktree_sync_policy_respects_lightweight_mode(self) -> None:
         args = argparse.Namespace(skip_sync=False, skip_reference_sync=False, lightweight=True)
         self.assertEqual(create_worktree_sync_policy(args), (True, True))

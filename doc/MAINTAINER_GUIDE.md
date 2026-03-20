@@ -74,7 +74,7 @@ and it is the extension point for future ephemeral GitHub checkout validations.
 ./scripts/generate-reference-blueprints.sh
 ```
 
-This builds and renders the current validation catalog:
+This builds and renders the current generation catalog:
 
 - `project-template`
 - `preview_runtime_showcase`
@@ -89,9 +89,12 @@ This builds and renders the current validation catalog:
 
 The default validation path:
 
-- generates the validation catalog sites
-- runs the static Noperthedron code-panel regression check
+- generates the local validation fixtures
+- runs the static local code-panel regression check
 - runs the browser regression suite against `preview_runtime_showcase`
+
+External reference blueprints still belong to `generate`, but they are no
+longer part of the default validation flow.
 
 Lean tests are intentionally opt-in:
 
