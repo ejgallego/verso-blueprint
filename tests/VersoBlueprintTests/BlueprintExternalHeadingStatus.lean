@@ -104,7 +104,7 @@ private def proofGapExternalRef (name : Lean.Name) : Data.ExternalRef :=
     (fun _ => none)
   let html := parts.indicator.asString
   hasSubstr parts.summaryTitle "status.inline.panel" &&
-  hasSubstr parts.summaryTitle "inlineThm [in proof]" &&
+  hasSubstr parts.summaryTitle "inlineThm [sorry in proof]" &&
   hasSubstr headingHtml "L∃∀N" &&
   hasSubstr headingHtml "class=\"bp_code_decl_item\"" &&
   hasSubstr headingHtml "Associated Lean declarations" &&
@@ -113,7 +113,7 @@ private def proofGapExternalRef (name : Lean.Name) : Data.ExternalRef :=
   hasSubstr html "inlineDef" &&
   hasSubstr html "inlineThm" &&
   hasSubstr html ">[complete]</span>" &&
-  hasSubstr html ">[in proof]</span>"
+  hasSubstr html ">[sorry in proof]</span>"
 
 /-- info: true -/
 #guard_msgs in
@@ -141,7 +141,7 @@ private def proofGapExternalRef (name : Lean.Name) : Data.ExternalRef :=
   hasSubstr html "class=\"bp_code_decl_item\"" &&
   hasSubstr html "Ext.external.proof_gap" &&
   hasSubstr html "Ext.external.missing" &&
-  hasSubstr html ">[in proof]</span>" &&
+  hasSubstr html ">[sorry in proof]</span>" &&
   hasSubstr html ">[missing declaration]</span>"
 
 end Verso.VersoBlueprintTests.BlueprintExternalHeadingStatus

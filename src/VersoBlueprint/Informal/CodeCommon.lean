@@ -257,7 +257,7 @@ def provedStatusSummaryText (status : Data.ProvedStatus) : String :=
   match status with
   | .missing => "missing declaration"
   | .axiomLike => "axiom-like (no body)"
-  | .containsSorry _ => provedStatusLocationText status
+  | .containsSorry _ => s!"sorry {provedStatusLocationText status}"
   | .proved => "unknown"
 
 def externalDeclHasGap (decl : Data.ExternalRef) : Bool :=
