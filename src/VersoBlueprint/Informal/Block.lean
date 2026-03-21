@@ -16,6 +16,7 @@ import VersoManual
 import VersoBlueprint.Commands.Common
 import VersoBlueprint.Data
 import VersoBlueprint.Environment
+import VersoBlueprint.Informal.BlockAssets
 import VersoBlueprint.Informal.CodeCommon
 import VersoBlueprint.Informal.BlockStore
 import VersoBlueprint.Informal.MetadataCommon
@@ -28,7 +29,6 @@ import VersoBlueprint.Lib.HoverRender
 import VersoBlueprint.PreviewCache
 import VersoBlueprint.PreviewRender
 import VersoBlueprint.Resolve
-import VersoBlueprint.StyleSwitcher
 import VersoBlueprint.Profiling
 
 set_option doc.verso true
@@ -1299,10 +1299,6 @@ div.proof_content {
 }
 "##
 
-def blueprintStyleSwitcherCss : String := StyleSwitcher.css
-
-def blueprintStyleSwitcherJs : String := StyleSwitcher.jsInteractive
-
 def shouldWritePreviewDataByIds [BEq α] (existingIds : Array α) (currentId : α) : Bool :=
   existingIds.isEmpty || existingIds.contains currentId
 
@@ -1998,8 +1994,8 @@ block_extension Block.informal (data : BlockData) where
       storeTraversedBlockData id blockData
       return none
   toTeX := none
-  extraCss := Informal.Commands.withPreviewPanelInlinePreviewCssAssets [blueprintCss, blueprintStyleSwitcherCss, Verso.Genre.Manual.docstringStyle]
-  extraJs := Informal.Commands.withInlinePreviewJsAssets [] [Informal.Commands.codeSummaryPreviewJs, Informal.Commands.usedByPanelJs, blueprintStyleSwitcherJs]
+  extraCss := Informal.BlockAssets.blockCssAssets blueprintCss
+  extraJs := Informal.BlockAssets.blockJsAssets
   toHtml :=
     open Verso.Doc.Html in
     open Verso.Output.Html in

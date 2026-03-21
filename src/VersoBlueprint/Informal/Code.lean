@@ -6,6 +6,7 @@ Author: Emilio J. Gallego Arias
 
 import VersoManual
 import VersoBlueprint.Environment
+import VersoBlueprint.Informal.BlockAssets
 import VersoBlueprint.Informal.Block
 import VersoBlueprint.Informal.CodeCommon
 import VersoBlueprint.Informal.BlockStore
@@ -68,7 +69,7 @@ block_extension Block.informalCode (data : InlineCodeData) where
       modify λ s => s.saveDomainObjectData informalCodeDomain label.toString (toJson cdata)
       pure none
   toTeX := none
-  extraCss := Informal.Commands.withBlueprintCssAssets [blueprintCss, Verso.Genre.Manual.docstringStyle]
+  extraCss := Informal.BlockAssets.codeCssAssets blueprintCss
   extraJs := ([] : List String)
   toHtml :=
     open Verso.Doc.Html in
