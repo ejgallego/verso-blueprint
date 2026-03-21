@@ -52,7 +52,26 @@ Command modules are split by concern:
 - `VersoBlueprint/Commands/Graph.lean`
 - `VersoBlueprint/Commands/Summary.lean`
 - `VersoBlueprint/Commands/Bibliography.lean`
-- shared command CSS and preview/runtime JS in `VersoBlueprint/Commands/Common.lean`
+- generic command CSS and shared preview/runtime primitives in
+  `VersoBlueprint/Commands/Common.lean`
+
+Informal-block support is now split across smaller modules instead of one large
+`Block.lean` bucket:
+
+- `Informal/Block.lean`:
+  statement/proof block elaboration plus the top-level HTML block renderer
+- `Informal/BlockAssets.lean`:
+  block-specific CSS and browser JS bundles, including the block-owned preview
+  handlers (`used by` and code-summary preview wiring)
+- `Informal/BlockStore.lean`:
+  stored-block lookup, merge, and numbering-resolution helpers used during
+  traversal/rendering
+- `Informal/MetadataCommon.lean`:
+  shared metadata presentation policy used by block rendering and summary
+  badges
+- `Informal/CodeCommon.lean`:
+  shared block/code data structures and lightweight code-hover/panel markup
+  helpers
 
 Shared preview and rendering helpers live in `VersoBlueprint/Lib/`, notably:
 
@@ -128,6 +147,14 @@ shared browser-side runtime therefore owns reusable operations such as:
 
 The goal is consistent preview behavior across inline references, summary
 panels, graph panels, and other Blueprint surfaces.
+
+That runtime boundary is now explicit:
+
+- `Commands/Common.lean` owns the generic preview runtime and reusable browser
+  primitives
+- feature-specific browser behavior stays with the owning feature when the code
+  is not meaningfully shared; for example, informal-block preview handlers now
+  live in `Informal/BlockAssets.lean`
 
 ### Separate Informal and Lean-Code Preview Identities
 
