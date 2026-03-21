@@ -1179,12 +1179,12 @@ div.proof_content {
 }
 "##
 
-def codeCssAssets (blockCss : String) : List String :=
-  Informal.Commands.withBlueprintCssAssets [blockCss, Verso.Genre.Manual.docstringStyle]
+def codeCssAssets : List String :=
+  Informal.Commands.withBlueprintCssAssets [css, Verso.Genre.Manual.docstringStyle]
 
-def blockCssAssets (blockCss : String) : List String :=
+def blockCssAssets : List String :=
   Informal.Commands.withPreviewPanelInlinePreviewCssAssets
-    [blockCss, Informal.StyleSwitcher.css, Verso.Genre.Manual.docstringStyle]
+    [css, Informal.StyleSwitcher.css, Verso.Genre.Manual.docstringStyle]
 
 def blockJsAssets : List String :=
   Informal.Commands.withInlinePreviewJsAssets

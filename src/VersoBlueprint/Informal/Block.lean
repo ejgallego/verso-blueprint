@@ -130,8 +130,6 @@ instance : FromArgs Config m where
 
 end
 
-def blueprintCss : String := Informal.BlockAssets.css
-
 def shouldWritePreviewDataByIds [BEq α] (existingIds : Array α) (currentId : α) : Bool :=
   existingIds.isEmpty || existingIds.contains currentId
 
@@ -827,7 +825,7 @@ block_extension Block.informal (data : BlockData) where
       storeTraversedBlockData id blockData
       return none
   toTeX := none
-  extraCss := Informal.BlockAssets.blockCssAssets blueprintCss
+  extraCss := Informal.BlockAssets.blockCssAssets
   extraJs := Informal.BlockAssets.blockJsAssets
   toHtml :=
     open Verso.Doc.Html in

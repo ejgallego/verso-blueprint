@@ -69,7 +69,7 @@ block_extension Block.informalCode (data : InlineCodeData) where
       modify λ s => s.saveDomainObjectData informalCodeDomain label.toString (toJson cdata)
       pure none
   toTeX := none
-  extraCss := Informal.BlockAssets.codeCssAssets blueprintCss
+  extraCss := Informal.BlockAssets.codeCssAssets
   extraJs := ([] : List String)
   toHtml :=
     open Verso.Doc.Html in
