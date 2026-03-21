@@ -69,7 +69,7 @@ Informal-block support is now split across smaller modules instead of one large
 - `Informal/MetadataCommon.lean`:
   shared metadata presentation policy used by block rendering and summary
   badges
-- `Informal/CodeCommon.lean`:
+- `Informal/BlockCommon.lean`:
   shared block/code data structures and lightweight code-hover/panel markup
   helpers
 

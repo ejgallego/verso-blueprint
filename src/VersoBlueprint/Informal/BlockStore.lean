@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Emilio J. Gallego Arias
 -/
 
-import VersoBlueprint.Informal.CodeCommon
+import VersoBlueprint.Informal.BlockCommon
 
 namespace Informal
 
@@ -22,6 +22,13 @@ def nextGlobalBlockNumber (st : TraverseState) : Nat :=
 def reserveGlobalBlockNumber (st : TraverseState) : Nat × TraverseState :=
   let next := nextGlobalBlockNumber st
   (next, st.set numberingCounterState (next + 1))
+
+/-- The first numbered part above the current block, used for chapter-style sub-numbering. -/
+def numberedPartPrefix? (ctxt : TraverseContext) : Option String := Id.run do
+  for header in ctxt.headers[1:] do
+    if let some n := header.metadata.bind (·.assignedNumber) then
+      return some (toString n)
+  none
 
 def resolveStoredBlockData? (st : TraverseState) (label : Data.Label) : Option BlockData :=
   match st.getDomainObject? Resolve.informalDomainName label.toString with

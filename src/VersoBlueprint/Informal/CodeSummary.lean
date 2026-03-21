@@ -8,7 +8,7 @@ import Lean
 import Verso
 import VersoManual
 import VersoBlueprint.Graph
-import VersoBlueprint.Informal.CodeCommon
+import VersoBlueprint.Informal.BlockCommon
 import VersoBlueprint.Informal.LeanCodeLink
 import VersoBlueprint.Lib.HoverRender
 

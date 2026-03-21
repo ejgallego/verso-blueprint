@@ -192,13 +192,6 @@ structure BlockData where
   prUrl : Option String := none
 deriving FromJson, ToJson, Quote
 
-/-- The first numbered part above the current block, used for chapter-style sub-numbering. -/
-def numberedPartPrefix? (ctxt : TraverseContext) : Option String := Id.run do
-  for header in ctxt.headers[1:] do
-    if let some n := header.metadata.bind (·.assignedNumber) then
-      return some (toString n)
-  none
-
 structure CodePanelHeader where
   caption : String
   number? : Option String := none
