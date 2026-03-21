@@ -417,13 +417,12 @@ pushes to `main`, and manual dispatch, it:
 
 - builds the three projects currently published to Pages:
   `project-template`, `noperthedron`, and `spherepackingblueprint`
+- builds the local `test-blueprints/` artifact set, including
+  `preview_runtime_showcase`
 - stages a site artifact under `_site/`
 - uploads that assembled site as a normal workflow artifact
 - uses the shared reference-checkout mode in CI to avoid duplicating warmed
   `.lake/` trees on the GitHub runner
-
-`preview_runtime_showcase` remains part of the local test-blueprint fixture
-set, but it is not currently staged into the Pages artifact.
 
 `reference-blueprints-deploy.yml` is the deployment workflow. It runs after a
 successful `reference-blueprints.yml` run on `main`, downloads the site
@@ -436,6 +435,9 @@ The staged Pages artifact layout is:
 - `_site/reference-blueprints/project-template/`
 - `_site/reference-blueprints/noperthedron/`
 - `_site/reference-blueprints/spherepackingblueprint/`
+- `_site/test-blueprints/index.html`
+- `_site/test-blueprints/preview_runtime_showcase/`
+- `_site/test-blueprints/<slug>/`
 
 The staging helper is:
 

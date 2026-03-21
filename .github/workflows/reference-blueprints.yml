@@ -60,11 +60,43 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_path }}
 
+  build-test-blueprints:
+    name: Build Test Blueprints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Restore Lake package cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/packages/mathlib
+            .lake/packages/verso
+          key: ${{ runner.os }}-lake-packages-v2-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+          restore-keys: |
+            ${{ runner.os }}-lake-packages-v2-
+      - name: Show tool versions
+        run: |
+          lean --version
+          lake --version
+          python3 --version
+      - name: Generate test blueprints
+        run: ./scripts/generate-test-blueprints.sh
+      - name: Upload test blueprint artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-blueprints
+          path: _out/test-blueprints
+
   build-site-artifact:
     name: Build Site Artifact
     runs-on: ubuntu-latest
     needs:
       - build-reference-blueprints
+      - build-test-blueprints
     steps:
       - uses: actions/checkout@v4
       - name: Download sphere packing artifact
@@ -82,6 +114,11 @@ jobs:
         with:
           name: reference-blueprints-noperthedron
           path: _out/reference-blueprints/noperthedron
+      - name: Download test blueprints artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: test-blueprints
+          path: _out/test-blueprints
       - name: Prepare site artifact
         run: python3 ./scripts/prepare_reference_blueprints_pages.py
       - name: Upload site artifact

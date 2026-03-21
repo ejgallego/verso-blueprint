@@ -159,8 +159,8 @@ as the full command reference.
 - `blueprint_harness_worktrees.py`
   Local worktree-coordination helpers for ignored metadata under `.worktrees/`.
 - `prepare_reference_blueprints_pages.py`
-  Helper used by the Pages publication flow to stage a site artifact from
-  generated reference blueprint output.
+  Helper used by the Pages publication flow to stage a combined site artifact
+  from generated reference and test blueprint output.
 - `__init__.py`
   Package marker for `python3 -m scripts ...` entry points.
 

@@ -34,6 +34,8 @@ runtime, and support library code. The starter layout in
 [project_template/](./project_template/) shows the recommended shape.
 If you want to inspect that starter as a generated site before copying it, see
 the [rendered project template](https://leanprover.github.io/verso-blueprint/reference-blueprints/project-template/).
+For the broader rendered artifact index, including local test fixtures, see the
+[published rendered artifact index](https://leanprover.github.io/verso-blueprint/).
 
 ## Core Features
 
@@ -131,6 +133,14 @@ The repository also tracks larger reference blueprints.
   [rendered site](https://leanprover.github.io/verso-blueprint/reference-blueprints/noperthedron/)
 - [`ejgallego/verso-sphere-packing`](https://github.com/ejgallego/verso-sphere-packing),
   [rendered site](https://leanprover.github.io/verso-blueprint/reference-blueprints/spherepackingblueprint/)
+
+## Rendered Test Blueprints
+
+The deployed test-fixture sites live under the GitHub Pages `test-blueprints`
+tree:
+
+- [categorized test blueprint index](https://leanprover.github.io/verso-blueprint/test-blueprints/)
+- [preview runtime showcase](https://leanprover.github.io/verso-blueprint/test-blueprints/preview_runtime_showcase/html-multi/)
 
 ## Documentation
 
