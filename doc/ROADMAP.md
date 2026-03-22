@@ -1,6 +1,6 @@
 # Blueprint Roadmap
 
-Last updated: 2026-03-19
+Last updated: 2026-03-22
 
 This document tracks active cleanup and follow-up work for Blueprint support in
 this repository.
@@ -169,13 +169,15 @@ These are secondary to semantic consolidation, but still worthwhile:
 5. consider a compact-mode toggle once the semantics are stable
 6. revisit the graph page with a CSS-first layout architecture so canvas sizing
    is less runtime-driven
+7. remove the graph-local TOC hide toggle and upstream any needed page-shell
+   TOC/layout behavior to `verso` instead of carrying Blueprint-specific CSS
+   and runtime hooks for it
 
 ## Open Bugs
 
-1. graph canvas resize persistence is still unstable in the browser runtime:
-   manual canvas height changes do not reliably survive variant switches, and
-   `tests/browser/test_graph_layout_runtime.py::TestGraphLayoutRuntime::test_manual_canvas_height_survives_variant_switch`
-   is the current regression that should stay visible until fixed
+No currently pinned graph-runtime bugs. Keep
+`tests/browser/test_graph_layout_runtime.py` visible as the regression surface
+for graph page behavior.
 
 ## Risks to Watch
 
