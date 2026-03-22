@@ -56,6 +56,12 @@ class HarnessEntrypointSmokeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         self.assertIn("python3 -m scripts.blueprint_reference_harness", result.stdout)
 
+    def test_generate_review_artifacts_wrapper_help(self) -> None:
+        result = self.run_command(["bash", "scripts/generate-review-artifacts.sh", "--help"])
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("reference blueprints", result.stdout)
+        self.assertIn("test blueprints", result.stdout)
+
     def test_validate_reference_wrapper_help(self) -> None:
         result = self.run_command(["bash", "scripts/validate-reference-blueprints.sh", "--help"])
         self.assertEqual(result.returncode, 0, msg=result.stderr)

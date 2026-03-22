@@ -18,6 +18,7 @@ for the full workflow.
 The normal repository-facing entry points are:
 
 ```bash
+./scripts/generate-review-artifacts.sh
 ./scripts/generate-reference-blueprints.sh
 ./scripts/generate-test-blueprints.sh
 ./scripts/validate-test-blueprints.sh
@@ -83,6 +84,19 @@ uv run --project tests/browser --extra test python -m pytest tests/browser -q --
 Use `./scripts/validate-test-blueprints.sh` when you want the local panel and
 browser regressions against `_out/test-blueprints/preview_runtime_showcase/`.
 
+Use `./scripts/generate-review-artifacts.sh` when you want the local artifact
+set that is most useful during patch review:
+
+```bash
+./scripts/generate-review-artifacts.sh
+./scripts/generate-review-artifacts.sh preview_runtime_showcase summary-blockers
+```
+
+That command always rebuilds the full reference blueprint catalog under
+`_out/.../reference-blueprints/`. By default it also rebuilds all local test
+blueprints under `_out/.../test-blueprints/`; when you pass slugs, it narrows
+only the test-blueprint side.
+
 The local HTML fixture metadata now comes from two sources that are unified by
 the generator:
 
@@ -141,6 +155,10 @@ as the full command reference.
 
 - `generate-reference-blueprints.sh`
   Thin wrapper for `python3 -m scripts.blueprint_reference_harness generate`.
+- `generate-review-artifacts.sh`
+  Thin wrapper for patch-review artifact generation: always rebuilds the full
+  reference blueprint catalog and then generates all or selected local test
+  blueprints.
 - `generate-test-blueprints.sh`
   Thin wrapper for the local test-blueprint generator.
 - `validate-test-blueprints.sh`

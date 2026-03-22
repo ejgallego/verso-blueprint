@@ -32,6 +32,7 @@ for starting a Blueprint project or learning every Blueprint directive.
 The supported repository-local entry points are:
 
 ```bash
+./scripts/generate-review-artifacts.sh
 ./scripts/generate-reference-blueprints.sh
 ./scripts/validate-reference-blueprints.sh
 python3 -m scripts.blueprint_harness create-worktree <name>
@@ -118,6 +119,22 @@ Metadata now comes from two sources that are unified at generation time:
 Each generated site carries one primary category from the shared vocabulary and
 optional tags for cross-cutting topics such as `preview`, `graph`, or
 `relationships`.
+
+### Generate Review Artifacts
+
+```bash
+./scripts/generate-review-artifacts.sh
+./scripts/generate-review-artifacts.sh preview_runtime_showcase summary-blockers
+```
+
+Use this when you want the local artifact set that is most useful for patch
+review without running the full validation stack. This path:
+
+- always builds the full reference blueprint catalog under
+  `_out/.../reference-blueprints/`
+- builds all local test blueprints under `_out/.../test-blueprints/` when no
+  slugs are provided
+- lets you narrow only the test-blueprint side by passing one or more slugs
 
 ### Validate the Test Blueprints
 
