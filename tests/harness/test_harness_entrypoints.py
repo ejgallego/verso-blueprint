@@ -32,6 +32,12 @@ class HarnessEntrypointSmokeTests(unittest.TestCase):
         self.assertIn("sync", result.stdout)
         self.assertIn("edit", result.stdout)
 
+    def test_blueprint_test_blueprints_help(self) -> None:
+        result = self.run_command([sys.executable, "-m", "scripts.blueprint_test_blueprints", "--help"])
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("list-json", result.stdout)
+        self.assertIn("generate", result.stdout)
+
     def test_blueprint_test_blueprints_list_json(self) -> None:
         result = self.run_command([sys.executable, "-m", "scripts.blueprint_test_blueprints", "list-json"])
         self.assertEqual(result.returncode, 0, msg=result.stderr)

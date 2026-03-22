@@ -187,6 +187,13 @@ The active project catalog lives in
 workflow and flag semantics live in
 [`doc/MAINTAINER_GUIDE.md`](../doc/MAINTAINER_GUIDE.md).
 
+The local HTML-producing test fixtures use a second metadata source:
+
+- curated doc fixtures in
+  [`tests/VersoBlueprintTests/TestBlueprintRegistry.lean`](../tests/VersoBlueprintTests/TestBlueprintRegistry.lean)
+- standalone test package fixtures in
+  [`tests/harness/test_blueprints.json`](../tests/harness/test_blueprints.json)
+
 ## Read Next
 
 - [`../README.md`](../README.md) for the package overview and end-user entry

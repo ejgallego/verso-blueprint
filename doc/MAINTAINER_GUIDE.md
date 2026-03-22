@@ -72,6 +72,13 @@ It currently includes the in-repo `project-template` plus the two external
 reference blueprint repositories, and it is the extension point for future
 ephemeral GitHub checkout validations.
 
+The local test blueprint metadata is intentionally separate:
+
+- curated doc-backed fixtures live in
+  `tests/VersoBlueprintTests/TestBlueprintRegistry.lean`
+- standalone test package fixtures live in
+  `tests/harness/test_blueprints.json`
+
 ## Everyday Workflows
 
 ### Generate the Reference Blueprints
@@ -178,6 +185,7 @@ To inspect the active catalog:
 
 ```bash
 python3 -m scripts.blueprint_reference_harness projects
+python3 -m scripts.blueprint_test_blueprints list-json
 ```
 
 To warm the shared reference blueprint cache and prepare local clones for the
