@@ -31,6 +31,7 @@ project_template/
     Chapters/
       Addition.lean
       Multiplication.lean
+      Collatz.lean
   ProjectTemplateMain.lean
   scripts/
     ci-pages.sh
@@ -40,6 +41,8 @@ The important files are:
 
 - `ProjectTemplate/Chapters/Addition.lean`: the first chapter
 - `ProjectTemplate/Chapters/Multiplication.lean`: the second chapter
+- `ProjectTemplate/Chapters/Collatz.lean`: a separate exploratory chapter with
+  the intentionally unfinished conjecture
 - `ProjectTemplate/Blueprint.lean`: the Blueprint top-level file
 - `ProjectTemplateMain.lean`: the rendering entry point
 - `lakefile.lean`: the package definition and the `blueprint-gen` executable
@@ -55,8 +58,8 @@ The important files are:
 - a statement linked to an existing Lean declaration
 - group and author metadata
 - rendered progress summary and dependency graph pages
-- one intentionally unfinished theorem so the first graph render shows an
-  in-progress proof state
+- a separate Collatz chapter with one intentionally unfinished theorem so the
+  first graph render shows an in-progress proof state
 - basic math rendering in the informal text
 
 ## Recommended workflow
@@ -64,7 +67,8 @@ The important files are:
 1. Copy this folder into a new repository.
 2. Rename `ProjectTemplate` to your project name.
 3. Keep the `blueprint-gen` executable and top-level file structure.
-4. Replace the addition and multiplication chapters with your own content.
+4. Replace the addition, multiplication, and Collatz chapters with your own
+   content.
 
 Typical commands:
 

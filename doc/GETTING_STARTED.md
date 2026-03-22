@@ -53,6 +53,8 @@ Its key files are:
 
 - `ProjectTemplate/Chapters/Addition.lean`: the first chapter
 - `ProjectTemplate/Chapters/Multiplication.lean`: the second chapter
+- `ProjectTemplate/Chapters/Collatz.lean`: a third chapter with a deliberately
+  unfinished open problem
 - `ProjectTemplate/Blueprint.lean`: the Blueprint top-level file
 - `ProjectTemplateMain.lean`: the generator entry point
 - `lakefile.lean`: package configuration, including the generator executable
@@ -76,7 +78,9 @@ You can get a long way just by following those three patterns in the template.
 The starter chapters in
 [project_template/ProjectTemplate/Chapters/Addition.lean](../project_template/ProjectTemplate/Chapters/Addition.lean)
 and
-[project_template/ProjectTemplate/Chapters/Multiplication.lean](../project_template/ProjectTemplate/Chapters/Multiplication.lean)
+[project_template/ProjectTemplate/Chapters/Multiplication.lean](../project_template/ProjectTemplate/Chapters/Multiplication.lean),
+plus
+[project_template/ProjectTemplate/Chapters/Collatz.lean](../project_template/ProjectTemplate/Chapters/Collatz.lean)
 show the most important authoring patterns:
 
 - definition, theorem, and proof blocks
@@ -86,9 +90,9 @@ show the most important authoring patterns:
 - a statement linked to an existing Lean declaration
 - optional metadata such as `parent`, `owner`, `tags`, `effort`, and `priority`
 
-The examples are about addition and multiplication on natural numbers on
-purpose: they read like a real mathematical story, but they are still small
-enough to copy and adapt.
+The examples are about basic arithmetic on natural numbers, followed by a small
+Collatz chapter. They read like a real mathematical story, but they are still
+small enough to copy and adapt.
 
 ## Read the Blueprint top-level file
 
@@ -101,7 +105,8 @@ does two jobs:
 
 The starter template includes:
 
-- the chapter pages with `{include 0 ProjectTemplate.Chapters.Addition}`
+- the chapter pages with `{include 0 ProjectTemplate.Chapters.Addition}` and
+  the other chapter includes
 - a dependency graph with `{blueprint_graph}`
 - a progress summary with `{blueprint_summary}`
 
@@ -132,7 +137,8 @@ After copying the template:
 
 1. rename `ProjectTemplate` to your project name
 2. change the document title in the Blueprint top-level file
-3. replace the addition and multiplication chapters with your own first chapters
+3. replace the addition, multiplication, and Collatz chapters with your own
+   first chapters
 4. keep the generator executable and top-level file structure until your project
    is stable
 

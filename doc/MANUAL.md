@@ -71,6 +71,7 @@ ProjectTemplate/
   Chapters/
     Addition.lean
     Multiplication.lean
+    Collatz.lean
 ProjectTemplate.lean
 ProjectTemplateMain.lean
 lakefile.lean
@@ -81,6 +82,8 @@ The role of each file is:
 - `ProjectTemplate/Chapters/Addition.lean`: a chapter with Blueprint blocks
 - `ProjectTemplate/Chapters/Multiplication.lean`: another chapter with the same
   pattern
+- `ProjectTemplate/Chapters/Collatz.lean`: a separate chapter for an
+  intentionally unfinished open problem
 - `ProjectTemplate/Blueprint.lean`: the Blueprint top-level file
 - `ProjectTemplateMain.lean`: the renderer entry point
 - `lakefile.lean`: the package definition and the generator executable
@@ -98,6 +101,7 @@ import VersoBlueprint
 import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
 import ProjectTemplate.Chapters.Addition
+import ProjectTemplate.Chapters.Collatz
 import ProjectTemplate.Chapters.Multiplication
 
 open Verso.Genre
@@ -106,11 +110,12 @@ open Informal
 
 #doc (Manual) "Starter Blueprint" =>
 
-This small Blueprint tracks a few basic facts about addition and multiplication
-on natural numbers.
+This small Blueprint tracks a few basic arithmetic facts on natural numbers,
+then ends with a separate Collatz chapter that is intentionally unfinished.
 
 {include 0 ProjectTemplate.Chapters.Addition}
 {include 0 ProjectTemplate.Chapters.Multiplication}
+{include 0 ProjectTemplate.Chapters.Collatz}
 
 {blueprint_graph}
 {blueprint_summary}
