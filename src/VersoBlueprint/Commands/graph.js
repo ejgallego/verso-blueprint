@@ -177,6 +177,22 @@
     graphState.lastCanvasHeight = Math.round(graphRoot.clientHeight);
   }
 
+  function resizeRenderedGraphToCanvas(graphRoot, graphState) {
+    if (!(graphRoot instanceof Element)) return false;
+    const svg = graphRoot.querySelector("svg");
+    if (!(svg instanceof SVGElement)) return false;
+    const nextWidth = Math.round(graphRoot.clientWidth);
+    const nextHeight = Math.round(graphRoot.clientHeight);
+    if (!(nextWidth > 0) || !(nextHeight > 0)) return false;
+    svg.setAttribute("width", String(nextWidth));
+    svg.setAttribute("height", String(nextHeight));
+    if (graphState && typeof graphState === "object") {
+      graphState.lastCanvasWidth = nextWidth;
+      graphState.lastCanvasHeight = nextHeight;
+    }
+    return true;
+  }
+
   function parsePreviewEntry(entry) {
     const utils = window.bpPreviewUtils;
     if (utils && typeof utils.readPreviewTemplate === "function") {
@@ -795,7 +811,11 @@
           graphState.canvasUserResized = false;
           graphState.canvasAutoHeight = null;
           graphRoot.style.height = "";
-          renderGraph();
+          layoutGraphCanvas(graphRoot, graphState);
+          rememberGraphLayoutMeasurements(graphBlock, graphRoot, graphState);
+          if (!resizeRenderedGraphToCanvas(graphRoot, graphState)) {
+            renderGraph();
+          }
         };
 
         function renderGraph() {
@@ -881,13 +901,20 @@
                   return;
                 }
                 if (entry.target === graphRoot) {
-                  if (
-                    Math.abs(nextWidth - graphState.lastCanvasWidth) > 1 ||
-                    Math.abs(nextHeight - graphState.lastCanvasHeight) > 1
-                  ) {
+                  const widthChanged = Math.abs(nextWidth - graphState.lastCanvasWidth) > 1;
+                  const heightChanged = Math.abs(nextHeight - graphState.lastCanvasHeight) > 1;
+                  if (widthChanged) {
                     graphState.lastCanvasWidth = nextWidth;
                     graphState.lastCanvasHeight = nextHeight;
                     shouldRender = true;
+                    return;
+                  }
+                  if (heightChanged) {
+                    graphState.lastCanvasWidth = nextWidth;
+                    graphState.lastCanvasHeight = nextHeight;
+                    if (!resizeRenderedGraphToCanvas(graphRoot, graphState)) {
+                      shouldRender = true;
+                    }
                   }
                 }
               });
