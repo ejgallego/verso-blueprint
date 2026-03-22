@@ -502,9 +502,6 @@ block_extension Block.graph (graphData : GraphBlockData) where
                 {{graphVariantOptions}}
               </select>
             </div>
-            <div class="bp_graph_controls_actions">
-              <button type="button" class="bp_graph_controls_button bp_graph_fit_canvas">"Fit canvas"</button>
-            </div>
           </div>
           {{fullLegendHtml}}
           {{groupLegendHtml}}

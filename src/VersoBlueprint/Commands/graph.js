@@ -607,7 +607,6 @@
         if (graphContainer.empty()) return;
         const graphState = ensureGraphBlockState(graphBlock);
         const selector = graphBlock.querySelector(".bp_graph_view_select");
-        const fitCanvasButton = graphBlock.querySelector(".bp_graph_fit_canvas");
         const previewMap = collectPreviewTemplates(graphBlock);
         const previewPanelNode = graphBlock.querySelector(".bp_graph_preview");
         const previewClose = previewPanelNode
@@ -807,17 +806,6 @@
           renderGraph();
         }, 180);
 
-        const fitCanvas = function () {
-          graphState.canvasUserResized = false;
-          graphState.canvasAutoHeight = null;
-          graphRoot.style.height = "";
-          layoutGraphCanvas(graphRoot, graphState);
-          rememberGraphLayoutMeasurements(graphBlock, graphRoot, graphState);
-          if (!resizeRenderedGraphToCanvas(graphRoot, graphState)) {
-            renderGraph();
-          }
-        };
-
         function renderGraph() {
           const activeVariant = getActiveVariant();
           if (!activeVariant || !activeVariant.dot) return;
@@ -872,13 +860,6 @@
         if (selector) {
           selector.addEventListener("change", function () {
             switchVariant(selector.value);
-          });
-        }
-        if (fitCanvasButton && fitCanvasButton.getAttribute("data-bp-fit-bound") !== "1") {
-          fitCanvasButton.setAttribute("data-bp-fit-bound", "1");
-          fitCanvasButton.addEventListener("click", function (ev) {
-            ev.preventDefault();
-            fitCanvas();
           });
         }
 
