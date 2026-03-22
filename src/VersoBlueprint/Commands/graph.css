@@ -185,6 +185,7 @@ html.bp-graph-toc-hidden .with-toc > main {
   margin-top: 0.75rem;
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
@@ -204,6 +205,22 @@ html.bp-graph-toc-hidden .with-toc > main {
   padding: 0.35rem 0.55rem;
   font-size: 0.87rem;
   line-height: 1.2;
+}
+
+.bp_graph_controls_button {
+  border: 1px solid var(--bp-color-border);
+  border-radius: var(--bp-radius-md);
+  background: var(--bp-color-surface-subtle);
+  color: var(--bp-color-text-strong);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.bp_graph_controls_button:hover {
+  background: var(--bp-color-surface);
 }
 
 .bp_graph_legend_group {

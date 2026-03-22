@@ -190,3 +190,42 @@ class TestGraphLayoutRuntime:
             }""",
             arg=desired_height,
         )
+
+    def test_fit_canvas_restores_auto_height(self, server: str, page: Page):
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.goto(f"{server}/Dependency-Graph/")
+        wait_for_graph(page)
+
+        canvas = page.locator(".bp_graph_canvas").first
+        fit_button = page.locator(".bp_graph_fit_canvas").first
+
+        auto_height = canvas.evaluate("el => el.getBoundingClientRect().height")
+        desired_height = canvas.evaluate(
+            """(el) => {
+                const style = getComputedStyle(el);
+                const currentHeight = el.getBoundingClientRect().height;
+                const maxHeight = parseFloat(style.maxHeight) || currentHeight;
+                const desired = Math.min(maxHeight - 10, currentHeight + 40);
+                el.style.height = `${desired}px`;
+                return desired;
+            }"""
+        )
+        assert desired_height > auto_height + 10
+        page.wait_for_function(
+            """(desiredHeight) => {
+                const canvas = document.querySelector(".bp_graph_canvas");
+                if (!canvas) return false;
+                return Math.abs(canvas.getBoundingClientRect().height - desiredHeight) < 3;
+            }""",
+            arg=desired_height,
+        )
+
+        fit_button.click()
+        page.wait_for_function(
+            """(autoHeight) => {
+                const canvas = document.querySelector(".bp_graph_canvas");
+                if (!canvas) return false;
+                return Math.abs(canvas.getBoundingClientRect().height - autoHeight) < 3;
+            }""",
+            arg=auto_height,
+        )

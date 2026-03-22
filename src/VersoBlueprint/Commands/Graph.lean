@@ -497,6 +497,7 @@ block_extension Block.graph (graphData : GraphBlockData) where
             <select id={{graphViewSelectId}} class="bp_graph_controls_select bp_graph_view_select">
               {{graphVariantOptions}}
             </select>
+            <button type="button" class="bp_graph_controls_button bp_graph_fit_canvas">"Fit canvas"</button>
           </div>
           {{fullLegendHtml}}
           {{groupLegendHtml}}
