@@ -161,15 +161,24 @@ Work:
 
 These are secondary to semantic consolidation, but still worthwhile:
 
-1. hide zero-value summary cards and sections by default
-2. collapse duplicate blocker lists into one filtered blockers section
-3. prefer one primary theorem list by default instead of parallel repeated
-   views
-4. use compact status chips where possible
-5. consider a compact-mode toggle once the semantics are stable
-6. revisit the graph page with a CSS-first layout architecture so canvas sizing
+The default summary page now leads with overview, blockers, and next ready
+work. The next summary follow-ups are about separating audiences rather than
+adding more material to that default surface.
+
+1. split `blueprint_summary` into a user-facing overview/work-queue page and a
+   separate maintainer-oriented audit/dashboard page
+2. keep the overview page focused on overall progress, current blockers, and
+   next ready work items
+3. move metadata audit, owner/tag rollups, dependency insights, and
+   debt/structure analysis to the maintainer page so the default summary stays
+   small on large projects
+4. further reduce repeated list content after that split, so one primary list
+   answers each question by default
+5. use compact status chips where possible
+6. consider a compact-mode toggle once the semantics are stable
+7. revisit the graph page with a CSS-first layout architecture so canvas sizing
    is less runtime-driven
-7. remove the graph-local TOC hide toggle and upstream any needed page-shell
+8. remove the graph-local TOC hide toggle and upstream any needed page-shell
    TOC/layout behavior to `verso` instead of carrying Blueprint-specific CSS
    and runtime hooks for it
 
