@@ -22,7 +22,7 @@ EOF
   exit 0
 fi
 
-./scripts/lean-low-priority lake test
+./scripts/lean-low-priority lake --no-ansi test
 
 python3 -m unittest \
   tests.harness.test_blueprint_test_blueprints \

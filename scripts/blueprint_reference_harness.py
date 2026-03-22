@@ -321,8 +321,8 @@ def command_validate(args: argparse.Namespace) -> int:
     if args.run_lean_tests:
         if use_local_build:
             failure = run_capturing_failure(
-                "lake test",
-                lean_low_priority_command(layout.package_root, "lake", "test"),
+                "lake --no-ansi test",
+                lean_low_priority_command(layout.package_root, "lake", "--no-ansi", "test"),
                 cwd=layout.package_root,
             )
             if failure is not None:

@@ -114,9 +114,11 @@ def update_git_checkout(project: HarnessProject, checkout_root: Path) -> None:
         return
     run(["git", "fetch", "--depth", "1", "origin", project.ref], cwd=checkout_root)
     discard_untracked_project_manifest(checkout_root / project.project_root)
+    # Harness-managed clones are disposable. Clean tracked edits left by a
+    # previous run before switching refs so `git checkout` does not abort on
+    # rewritten files such as `lakefile.lean` or `lake-manifest.json`.
+    run(["git", "reset", "--hard", "HEAD"], cwd=checkout_root)
     run(["git", "checkout", "--detach", "FETCH_HEAD"], cwd=checkout_root)
-    # Harness-managed clones are disposable; keep them clean even if a previous
-    # run rewrote tracked files such as `lakefile.lean`.
     run(["git", "reset", "--hard", "FETCH_HEAD"], cwd=checkout_root)
 
 

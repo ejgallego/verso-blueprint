@@ -406,6 +406,57 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
             self.assertEqual(tracked_project_manifest_path(checkout), manifest)
             self.assertEqual(manifest.read_text(encoding="utf-8"), '{"version":"1.1.0"}\n')
 
+    def test_update_git_checkout_resets_tracked_files_before_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote = root / "remote.git"
+            seed = root / "seed"
+            checkout = root / "checkout"
+
+            subprocess.run(["git", "init", "--bare", str(remote)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            seed.mkdir()
+            self.init_git_repo(seed)
+            (seed / "lakefile.lean").write_text("import Lake\n", encoding="utf-8")
+            (seed / "lake-manifest.json").write_text('{"version":"1.1.0"}\n', encoding="utf-8")
+            self.run_git(seed, "add", "lakefile.lean", "lake-manifest.json")
+            target = self.commit(seed, "seed")
+            self.run_git(seed, "branch", "-M", "main")
+            self.run_git(seed, "remote", "add", "origin", str(remote))
+            self.run_git(seed, "push", "-u", "origin", "main")
+
+            subprocess.run(["git", "clone", str(remote), str(checkout)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            (checkout / "lakefile.lean").write_text('require VersoBlueprint from "../local"\n', encoding="utf-8")
+            (checkout / "lake-manifest.json").write_text('{"version":"dirty"}\n', encoding="utf-8")
+
+            project = HarnessProject(
+                project_id="external-blueprint",
+                source_kind="git_checkout",
+                project_root=".",
+                build_target=None,
+                generator=None,
+                repository=str(remote),
+                ref=target,
+                build_command=None,
+                generate_command=("lake", "exe", "blueprint-gen"),
+                site_subdir="html-multi",
+                panel_regression_script=None,
+                browser_tests_path=None,
+                description=None,
+            )
+
+            update_git_checkout(project, checkout)
+
+            self.assertEqual((checkout / "lakefile.lean").read_text(encoding="utf-8"), "import Lake\n")
+            self.assertEqual((checkout / "lake-manifest.json").read_text(encoding="utf-8"), '{"version":"1.1.0"}\n')
+            status = subprocess.run(
+                ["git", "status", "--short"],
+                cwd=checkout,
+                check=True,
+                text=True,
+                capture_output=True,
+            ).stdout.strip()
+            self.assertEqual(status, "")
+
     def test_use_shared_reference_checkout_env_switch(self) -> None:
         old = os.environ.get("BP_REFERENCE_CHECKOUT_MODE")
         try:
