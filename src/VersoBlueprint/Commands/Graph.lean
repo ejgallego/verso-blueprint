@@ -496,11 +496,15 @@ block_extension Block.graph (graphData : GraphBlockData) where
       return {{
         <div class="bp_graph_fullwidth">
           <div class="bp_graph_controls">
-            <label class="bp_graph_controls_label" for={{graphViewSelectId}}>"View"</label>
-            <select id={{graphViewSelectId}} class="bp_graph_controls_select bp_graph_view_select">
-              {{graphVariantOptions}}
-            </select>
-            <button type="button" class="bp_graph_controls_button bp_graph_fit_canvas">"Fit canvas"</button>
+            <div class="bp_graph_controls_primary">
+              <label class="bp_graph_controls_label" for={{graphViewSelectId}}>"View"</label>
+              <select id={{graphViewSelectId}} class="bp_graph_controls_select bp_graph_view_select">
+                {{graphVariantOptions}}
+              </select>
+            </div>
+            <div class="bp_graph_controls_actions">
+              <button type="button" class="bp_graph_controls_button bp_graph_fit_canvas">"Fit canvas"</button>
+            </div>
           </div>
           {{fullLegendHtml}}
           {{groupLegendHtml}}

@@ -160,19 +160,39 @@
 
 .bp_graph_controls {
   margin-top: 0.75rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+}
+
+.bp_graph_controls_primary,
+.bp_graph_controls_actions {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
+.bp_graph_controls_primary {
+  flex: 1 1 22rem;
+  min-width: min(100%, 22rem);
+}
+
+.bp_graph_controls_actions {
+  flex: 0 0 auto;
+}
+
 .bp_graph_controls_label {
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--bp-color-text-muted);
+  white-space: nowrap;
 }
 
 .bp_graph_controls_select {
+  flex: 1 1 18rem;
   min-width: min(28rem, 88vw);
   max-width: 100%;
   border: 1px solid var(--bp-color-border);
@@ -194,10 +214,17 @@
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .bp_graph_controls_button:hover {
   background: var(--bp-color-surface);
+}
+
+.bp_graph_controls_button:focus-visible,
+.bp_graph_controls_select:focus-visible {
+  outline: 2px solid var(--bp-color-accent, #0f766e);
+  outline-offset: 2px;
 }
 
 .bp_graph_legend_group {
