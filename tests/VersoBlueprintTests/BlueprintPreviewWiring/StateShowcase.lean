@@ -120,8 +120,8 @@ Statement depending on {uses "def:showcase.ghost"}[].
       hasSubstr out "Lean code, informal statement missing" &&
       hasSubstr out "def:showcase.ghost" &&
       hasSubstr out "def:showcase.lean_only" &&
-      hasSubstr out "Missing external Lean declarations (1)" &&
-      hasSubstr out "Incomplete Lean declarations (1)"
+      hasSubstr out "Current blockers (2)" &&
+      hasSubstr out "Declaration with sorry:"
     )
 
 end Verso.VersoBlueprintTests.BlueprintPreviewWiring.StateShowcase

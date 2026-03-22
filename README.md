@@ -103,7 +103,7 @@ Blueprint can render:
 
 - chapter pages
 - a dependency graph with `blueprint_graph`
-- a progress summary view with `blueprint_summary`
+- an overview and progress summary page with `blueprint_summary`
 - a bibliography page with `blueprint_bibliography`
 - math-enabled previews and cross-links
 

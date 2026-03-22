@@ -17,9 +17,9 @@ open Verso.VersoBlueprintTests.BlueprintSummaryLinks.Shared
   show IO Bool from do
     let out ← renderManualDocHtmlString manualImpls summaryBlockersDoc
     pure (
-      hasSubstr out "Blockers (2)" &&
-      hasSubstr out "Missing external Lean declarations (1)" &&
-      hasSubstr out "Incomplete Lean declarations (1)" &&
+      hasSubstr out "Current blockers (2)" &&
+      hasSubstr out "Missing external Lean declaration:" &&
+      hasSubstr out "Declaration with sorry:" &&
       !hasSubstr out "Incomplete details ("
     )
 

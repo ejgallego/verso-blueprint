@@ -17,10 +17,12 @@ open Verso.VersoBlueprintTests.BlueprintSummaryLinks.Shared
   show IO Bool from do
     let out ← renderManualDocHtmlString manualImpls summaryTriageDoc
     pure (
+      hasSubstr out ">Overview</summary>" &&
+      hasSubstr out "Dependency insights" &&
       hasSubstr out "Actionable priorities</span><span class=\"bp_summary_value\">12</span>" &&
       hasSubstr out "Statement-used entries</span><span class=\"bp_summary_value\">12</span>" &&
       hasSubstr out "Proof-used entries</span><span class=\"bp_summary_value\">2</span>" &&
-      hasSubstr out "Top priorities (12)" &&
+      hasSubstr out "Ready next (12)" &&
       hasSubstr out "Show all 2 more priorities" &&
       hasSubstr out "Most used in statements (12)" &&
       hasSubstr out "Show all 2 more statement-used entries" &&

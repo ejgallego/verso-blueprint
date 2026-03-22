@@ -370,11 +370,15 @@ Warning markers are reserved for structural or resolution issues such as:
 
 `blueprint_summary` renders a summary page for the current Blueprint document.
 
+The default view is an overview: it highlights overall progress, current
+blockers, and the next ready work items first, while keeping deeper audit and
+structural sections collapsed until needed.
+
 That page uses dependency data, metadata, and Lean status to present:
 
 - automatic progress counts
 - blockers and incomplete declarations
-- project triage information
+- next ready work and project triage information
 - grouped rollups by parent, owner, and tags
 
 ### Bibliography page

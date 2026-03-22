@@ -1585,148 +1585,207 @@ block_extension Block.summary (summary : Summary) where
             </details>
           }}
       let blockerCount := data.missingLeanDecls.length + data.sorryDetails.length
+      let blockerRows := missingRows ++ sorryRows
+      let showDefinitionCard := data.definitions > 0
+      let showLemmaCard := data.lemmas > 0
+      let showTheoremCard := data.theorems > 0
+      let showCorollaryCard := data.corollaries > 0
       let showAxiomCard := data.axioms > 0
       let showLeanOnlyCard := data.leanOnlyEntries > 0
       let showInformalOnlyCard := data.informalOnlyEntries > 0
+      let showDefinitionIndex := !definitionRows.isEmpty
+      let showTheoremLikeIndex := !theoremLikeRows.isEmpty
       let showAxiomIndex := !axiomRows.isEmpty
       let showTheoremLikeByParent := !theoremLikeByParentRows.isEmpty
       let showPendingInformal := !pendingInformalRows.isEmpty
       let showBlockers := blockerCount > 0
       let showQuickWins := !quickWinRows.isEmpty
+      let showOwnerRollups := !ownerRollupRows.isEmpty
+      let showTagRollups := !tagRollupRows.isEmpty
       let showLinkedPrs := !linkedPrRows.isEmpty
       let showMetadataAudit :=
         !missingOwnerRows.isEmpty || !missingEffortRows.isEmpty || !untaggedRows.isEmpty
+      let showMetadataCards := showQuickWins || showOwnerRollups || showTagRollups || showLinkedPrs
+      let showMetadataSection := showMetadataCards || showMetadataAudit
+      let showEntryIndexSection := showDefinitionIndex || showTheoremLikeIndex || showAxiomIndex
+      let showDependencyInsightsSection :=
+        !statementUsedRows.isEmpty || !proofUsedRows.isEmpty || !groupHealthRows.isEmpty
+      let showHeaviestPrerequisites := !heaviestPrerequisiteRows.isEmpty
+      let showNoPrerequisites := !noPrerequisiteRows.isEmpty
+      let showNoDependents := !noDependentRows.isEmpty
       let showProofDebtHotspots := !proofDebtHotspotRows.isEmpty
+      let showStructureCards :=
+        data.coverageSplit.informalOnly > 0 ||
+        data.coverageSplit.readyToFormalize > 0 ||
+        data.coverageSplit.formalizedWithoutAncestors > 0 ||
+        data.coverageSplit.fullyClosed > 0 ||
+        data.coverageSplit.blockedOrIncomplete > 0
+      let showStructureSection :=
+        showStructureCards || showHeaviestPrerequisites || showNoPrerequisites ||
+        showNoDependents || showProofDebtHotspots
       return {{
         <div class="bp_summary">
           {{previewUi.store}}
           {{previewUi.panel}}
           <details class="bp_summary_section" open>
-            <summary>s!"Blueprint DB entries ({data.totalEntries})"</summary>
+            <summary>"Overview"</summary>
             <div class="bp_summary_grid">
               <div class="bp_summary_card"><span class="bp_summary_label">"Total entries"</span><span class="bp_summary_value">s!"{data.totalEntries}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.totalStatus)}}</span></div>
-              <div class="bp_summary_card"><span class="bp_summary_label">"Definitions"</span><span class="bp_summary_value">s!"{data.definitions}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.definitionStatus)}}</span></div>
-              <div class="bp_summary_card"><span class="bp_summary_label">"Lemmas"</span><span class="bp_summary_value">s!"{data.lemmas}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.lemmaStatus)}}</span></div>
-              <div class="bp_summary_card"><span class="bp_summary_label">"Theorems"</span><span class="bp_summary_value">s!"{data.theorems}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.theoremStatus)}}</span></div>
-              <div class="bp_summary_card"><span class="bp_summary_label">"Corollaries"</span><span class="bp_summary_value">s!"{data.corollaries}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.corollaryStatus)}}</span></div>
-              {{if showAxiomCard then
-                  {{<div class="bp_summary_card bp_summary_card_warn"><span class="bp_summary_label">"Axiom-like entries"</span><span class="bp_summary_value">s!"{data.axioms}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.axiomStatus)}}</span></div>}}
+              <div class="bp_summary_card"><span class="bp_summary_label">"Ready now"</span><span class="bp_summary_value">s!"{data.coverageSplit.readyToFormalize}"</span><span class="bp_summary_status">"Entries whose next formalization step is currently unblocked."</span></div>
+              <div class="bp_summary_card"><span class="bp_summary_label">"Fully closed"</span><span class="bp_summary_value">s!"{data.coverageSplit.fullyClosed}"</span><span class="bp_summary_status">"Local code and prerequisite closure are both complete."</span></div>
+              <div class="bp_summary_card"><span class="bp_summary_label">"Actionable priorities"</span><span class="bp_summary_value">s!"{data.topPriorities.length}"</span><span class="bp_summary_status">"Entries ready now and already unlocking downstream work."</span></div>
+              {{if showBlockers then
+                  {{<div class="bp_summary_card bp_summary_card_warn"><span class="bp_summary_label">"Current blockers"</span><span class="bp_summary_value">s!"{blockerCount}"</span><span class="bp_summary_status">"Missing external or incomplete Lean declarations."</span></div>}}
                 else .empty}}
-              {{if showLeanOnlyCard then
-                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Lean-only entries"</span><span class="bp_summary_value">s!"{data.leanOnlyEntries}"</span></div>}}
+              {{if showPendingInformal then
+                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Missing informal coverage"</span><span class="bp_summary_value">s!"{data.pendingInformalEntries.length}"</span><span class="bp_summary_status">"Entries with Lean code but missing an informal statement or proof block."</span></div>}}
                 else .empty}}
-              {{if showInformalOnlyCard then
-                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Informal-only entries"</span><span class="bp_summary_value">s!"{data.informalOnlyEntries}"</span></div>}}
+              {{if showQuickWins then
+                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Quick wins"</span><span class="bp_summary_value">s!"{data.quickWins.length}"</span><span class="bp_summary_status">"Actionable entries with `high` priority and `small` effort."</span></div>}}
                 else .empty}}
             </div>
-            <details class="bp_summary_subsection">
-              <summary>s!"Definition Index ({data.definitionIndex.length})"</summary>
-              <ul class="bp_summary_list">
-                {{if definitionRows.isEmpty then {{<li class="bp_summary_empty">"No definitions registered."</li>}} else definitionRows}}
-              </ul>
-            </details>
-            <details class="bp_summary_subsection">
-              <summary>s!"Theorem / Lemma / Corollary Index ({data.theoremLikeIndex.length})"</summary>
-              <ul class="bp_summary_list">
-                {{if theoremLikeRows.isEmpty then {{<li class="bp_summary_empty">"No theorem/lemma/corollary entries registered."</li>}} else theoremLikeRows}}
-              </ul>
-              {{if showTheoremLikeByParent then
-                  {{<details class="bp_summary_nested"><summary>s!"By parent groups ({data.theoremLikeByParent.length})"</summary>{{theoremLikeByParentRows}}</details>}}
-                else .empty}}
-            </details>
-            {{if showAxiomIndex then
-                {{<details class="bp_summary_subsection bp_summary_subsection_warn">
-                  <summary>s!"Axiom-like Index ({data.axiomIndex.length})"</summary>
+            {{if data.totalEntries == 0 then
+                {{<p class="bp_summary_empty">"No blueprint entries were registered in the current document."</p>}}
+              else .empty}}
+            {{if !topPriorityRows.isEmpty then
+                {{<details class="bp_summary_subsection" open>
+                  <summary>s!"Ready next ({data.topPriorities.length})"</summary>
                   <ul class="bp_summary_list">
-                    {{axiomRows}}
+                    {{capRows topPriorityRows "priorities"}}
                   </ul>
                 </details>}}
               else .empty}}
-          </details>
-          <details class="bp_summary_section" open>
-            <summary>"Lean progress"</summary>
-            <div class="bp_summary_grid">
-              <div class="bp_summary_card"><span class="bp_summary_label">"Lean definitions/theorems"</span><span class="bp_summary_value">s!"{data.leanDecls}"</span></div>
-              {{if showPendingInformal then
-                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Entries with missing informal statement/proof"</span><span class="bp_summary_value">s!"{data.pendingInformalEntries.length}"</span></div>}}
-                else .empty}}
-              {{if showBlockers then
-                  {{<div class="bp_summary_card bp_summary_card_warn"><span class="bp_summary_label">"Blockers"</span><span class="bp_summary_value">s!"{blockerCount}"</span><span class="bp_summary_status">"Missing external or incomplete Lean declarations."</span></div>}}
-                else .empty}}
-            </div>
+            {{if showBlockers then
+                {{<details class="bp_summary_subsection bp_summary_subsection_warn" open>
+                  <summary>s!"Current blockers ({blockerCount})"</summary>
+                  <ul class="bp_summary_list">
+                    {{blockerRows}}
+                  </ul>
+                </details>}}
+              else .empty}}
             {{if showPendingInformal then
                 {{<details class="bp_summary_subsection">
-                  <summary>s!"Lean code with missing informal statement/proof ({data.pendingInformalEntries.length})"</summary>
+                  <summary>s!"Missing informal coverage ({data.pendingInformalEntries.length})"</summary>
                   <ul class="bp_summary_list">
                     {{pendingInformalRows}}
                   </ul>
                 </details>}}
               else .empty}}
-            {{if showBlockers then
-                {{<details class="bp_summary_subsection bp_summary_subsection_warn">
-                  <summary>s!"Blockers ({blockerCount})"</summary>
-                  <div class="bp_summary_grid">
-                    {{if !missingRows.isEmpty then
-                        {{<div class="bp_summary_card bp_summary_card_warn"><span class="bp_summary_label">"Missing external Lean declarations"</span><span class="bp_summary_value">s!"{data.missingLeanDecls.length}"</span></div>}}
-                      else .empty}}
-                    {{if !sorryRows.isEmpty then
-                        {{<div class="bp_summary_card bp_summary_card_warn"><span class="bp_summary_label">"Incomplete Lean declarations"</span><span class="bp_summary_value">s!"{data.sorryDetails.length}"</span></div>}}
-                      else .empty}}
-                  </div>
-                  {{if !missingRows.isEmpty then
-                      {{<details class="bp_summary_nested"><summary>s!"Missing external Lean declarations ({data.missingLeanDecls.length})"</summary><ul class="bp_summary_list">{{missingRows}}</ul></details>}}
+          </details>
+          {{if showEntryIndexSection then
+              {{<details class="bp_summary_section">
+                <summary>s!"Entry index ({data.totalEntries})"</summary>
+                <div class="bp_summary_grid">
+                  {{if showDefinitionCard then
+                      {{<div class="bp_summary_card"><span class="bp_summary_label">"Definitions"</span><span class="bp_summary_value">s!"{data.definitions}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.definitionStatus)}}</span></div>}}
                     else .empty}}
-                  {{if !sorryRows.isEmpty then
-                      {{<details class="bp_summary_nested"><summary>s!"Incomplete Lean declarations ({data.sorryDetails.length})"</summary><ul class="bp_summary_list">{{sorryRows}}</ul></details>}}
+                  {{if showLemmaCard then
+                      {{<div class="bp_summary_card"><span class="bp_summary_label">"Lemmas"</span><span class="bp_summary_value">s!"{data.lemmas}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.lemmaStatus)}}</span></div>}}
                     else .empty}}
+                  {{if showTheoremCard then
+                      {{<div class="bp_summary_card"><span class="bp_summary_label">"Theorems"</span><span class="bp_summary_value">s!"{data.theorems}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.theoremStatus)}}</span></div>}}
+                    else .empty}}
+                  {{if showCorollaryCard then
+                      {{<div class="bp_summary_card"><span class="bp_summary_label">"Corollaries"</span><span class="bp_summary_value">s!"{data.corollaries}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.corollaryStatus)}}</span></div>}}
+                    else .empty}}
+                  {{if showAxiomCard then
+                      {{<div class="bp_summary_card bp_summary_card_warn"><span class="bp_summary_label">"Axiom-like entries"</span><span class="bp_summary_value">s!"{data.axioms}"</span><span class="bp_summary_status">{{.text true (statusCountsText data.axiomStatus)}}</span></div>}}
+                    else .empty}}
+                  {{if showLeanOnlyCard then
+                      {{<div class="bp_summary_card"><span class="bp_summary_label">"Lean-only entries"</span><span class="bp_summary_value">s!"{data.leanOnlyEntries}"</span></div>}}
+                    else .empty}}
+                  {{if showInformalOnlyCard then
+                      {{<div class="bp_summary_card"><span class="bp_summary_label">"Informal-only entries"</span><span class="bp_summary_value">s!"{data.informalOnlyEntries}"</span></div>}}
+                    else .empty}}
+                </div>
+                {{if showDefinitionIndex then
+                    {{<details class="bp_summary_subsection">
+                      <summary>s!"Definition Index ({data.definitionIndex.length})"</summary>
+                      <ul class="bp_summary_list">
+                        {{definitionRows}}
+                      </ul>
+                    </details>}}
+                  else .empty}}
+                {{if showTheoremLikeIndex then
+                    {{<details class="bp_summary_subsection">
+                      <summary>s!"Theorem / Lemma / Corollary Index ({data.theoremLikeIndex.length})"</summary>
+                      <ul class="bp_summary_list">
+                        {{theoremLikeRows}}
+                      </ul>
+                      {{if showTheoremLikeByParent then
+                          {{<details class="bp_summary_nested"><summary>s!"By parent groups ({data.theoremLikeByParent.length})"</summary>{{theoremLikeByParentRows}}</details>}}
+                        else .empty}}
+                    </details>}}
+                else .empty}}
+                {{if showAxiomIndex then
+                    {{<details class="bp_summary_subsection bp_summary_subsection_warn">
+                      <summary>s!"Axiom-like Index ({data.axiomIndex.length})"</summary>
+                      <ul class="bp_summary_list">
+                        {{axiomRows}}
+                      </ul>
+                    </details>}}
+                  else .empty}}
+              </details>}}
+            else .empty}}
+          {{if showDependencyInsightsSection then
+              {{<details class="bp_summary_section">
+            <summary>"Dependency insights"</summary>
+            <div class="bp_summary_grid">
+              {{if !statementUsedRows.isEmpty then
+                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Statement-used entries"</span><span class="bp_summary_value">s!"{statementUsedItems.size}"</span><span class="bp_summary_status">"Entries reused in statement dependencies."</span></div>}}
+                else .empty}}
+              {{if !proofUsedRows.isEmpty then
+                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Proof-used entries"</span><span class="bp_summary_value">s!"{proofUsedItems.size}"</span><span class="bp_summary_status">"Entries reused in proof-only dependencies."</span></div>}}
+                else .empty}}
+              {{if !groupHealthRows.isEmpty then
+                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Tracked parent groups"</span><span class="bp_summary_value">s!"{data.groupHealth.length}"</span><span class="bp_summary_status">"Grouped health rollups for parents with more than one child entry."</span></div>}}
+                else .empty}}
+            </div>
+            {{if !statementUsedRows.isEmpty then
+                {{<details class="bp_summary_subsection">
+                  <summary>s!"Most used in statements ({statementUsedItems.size})"</summary>
+                  <ul class="bp_summary_list">
+                    {{capRows statementUsedRows "statement-used entries"}}
+                  </ul>
                 </details>}}
               else .empty}}
-          </details>
-          <details class="bp_summary_section" open>
-            <summary>"Triage"</summary>
-            <div class="bp_summary_grid">
-              <div class="bp_summary_card"><span class="bp_summary_label">"Actionable priorities"</span><span class="bp_summary_value">s!"{data.topPriorities.length}"</span><span class="bp_summary_status">"Entries ready now and already unlocking downstream work."</span></div>
-              <div class="bp_summary_card"><span class="bp_summary_label">"Statement-used entries"</span><span class="bp_summary_value">s!"{statementUsedItems.size}"</span><span class="bp_summary_status">"Entries reused in statement dependencies."</span></div>
-              <div class="bp_summary_card"><span class="bp_summary_label">"Proof-used entries"</span><span class="bp_summary_value">s!"{proofUsedItems.size}"</span><span class="bp_summary_status">"Entries reused in proof-only dependencies."</span></div>
-              <div class="bp_summary_card"><span class="bp_summary_label">"Tracked parent groups"</span><span class="bp_summary_value">s!"{data.groupHealth.length}"</span><span class="bp_summary_status">"Grouped health rollups for parents with more than one child entry."</span></div>
-            </div>
-            <details class="bp_summary_subsection">
-              <summary>s!"Top priorities ({data.topPriorities.length})"</summary>
-              <ul class="bp_summary_list">
-                {{if topPriorityRows.isEmpty then {{<li class="bp_summary_empty">"No entries are currently ready for a new statement/proof step."</li>}} else capRows topPriorityRows "priorities"}}
-              </ul>
-            </details>
-            <details class="bp_summary_subsection">
-              <summary>s!"Most used in statements ({statementUsedItems.size})"</summary>
-              <ul class="bp_summary_list">
-                {{if statementUsedRows.isEmpty then {{<li class="bp_summary_empty">"No statement dependencies recorded yet."</li>}} else capRows statementUsedRows "statement-used entries"}}
-              </ul>
-            </details>
-            <details class="bp_summary_subsection">
-              <summary>s!"Most used in proofs ({proofUsedItems.size})"</summary>
-              <ul class="bp_summary_list">
-                {{if proofUsedRows.isEmpty then {{<li class="bp_summary_empty">"No proof dependencies recorded yet."</li>}} else capRows proofUsedRows "proof-used entries"}}
-              </ul>
-            </details>
-            <details class="bp_summary_subsection">
-              <summary>s!"Group health ({data.groupHealth.length})"</summary>
-              <ul class="bp_summary_list">
-                {{if groupHealthRows.isEmpty then {{<li class="bp_summary_empty">"No parent groups with multiple child entries were found."</li>}} else capRows groupHealthRows "groups"}}
-              </ul>
-            </details>
-          </details>
-          <details class="bp_summary_section" open>
+            {{if !proofUsedRows.isEmpty then
+                {{<details class="bp_summary_subsection">
+                  <summary>s!"Most used in proofs ({proofUsedItems.size})"</summary>
+                  <ul class="bp_summary_list">
+                    {{capRows proofUsedRows "proof-used entries"}}
+                  </ul>
+                </details>}}
+              else .empty}}
+            {{if !groupHealthRows.isEmpty then
+                {{<details class="bp_summary_subsection">
+                  <summary>s!"Group health ({data.groupHealth.length})"</summary>
+                  <ul class="bp_summary_list">
+                    {{capRows groupHealthRows "groups"}}
+                  </ul>
+                </details>}}
+              else .empty}}
+          </details>}}
+            else .empty}}
+          {{if showMetadataSection then
+              {{<details class="bp_summary_section">
             <summary>"Metadata"</summary>
-            <div class="bp_summary_grid">
-              {{if showQuickWins then
-                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Quick wins"</span><span class="bp_summary_value">s!"{data.quickWins.length}"</span><span class="bp_summary_status">"Actionable entries with `high` priority and `small` effort."</span></div>}}
-                else .empty}}
-              <div class="bp_summary_card"><span class="bp_summary_label">"Owners in use"</span><span class="bp_summary_value">s!"{data.ownerRollups.length}"</span><span class="bp_summary_status">"Distinct owners referenced by the current blueprint entries."</span></div>
-              <div class="bp_summary_card"><span class="bp_summary_label">"Tags in use"</span><span class="bp_summary_value">s!"{data.tagRollups.length}"</span><span class="bp_summary_status">"Distinct tags currently attached to blueprint entries."</span></div>
-              {{if showLinkedPrs then
-                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Linked PRs"</span><span class="bp_summary_value">s!"{data.linkedPrs.length}"</span><span class="bp_summary_status">"Entries already linked to a review URL."</span></div>}}
-                else .empty}}
-            </div>
+            {{if showMetadataCards then
+                {{<div class="bp_summary_grid">
+                  {{if showQuickWins then
+                      {{<div class="bp_summary_card"><span class="bp_summary_label">"Quick wins"</span><span class="bp_summary_value">s!"{data.quickWins.length}"</span><span class="bp_summary_status">"Actionable entries with `high` priority and `small` effort."</span></div>}}
+                    else .empty}}
+                  {{if showOwnerRollups then
+                      {{<div class="bp_summary_card"><span class="bp_summary_label">"Owners in use"</span><span class="bp_summary_value">s!"{data.ownerRollups.length}"</span><span class="bp_summary_status">"Distinct owners referenced by the current blueprint entries."</span></div>}}
+                    else .empty}}
+                  {{if showTagRollups then
+                      {{<div class="bp_summary_card"><span class="bp_summary_label">"Tags in use"</span><span class="bp_summary_value">s!"{data.tagRollups.length}"</span><span class="bp_summary_status">"Distinct tags currently attached to blueprint entries."</span></div>}}
+                    else .empty}}
+                  {{if showLinkedPrs then
+                      {{<div class="bp_summary_card"><span class="bp_summary_label">"Linked PRs"</span><span class="bp_summary_value">s!"{data.linkedPrs.length}"</span><span class="bp_summary_status">"Entries already linked to a review URL."</span></div>}}
+                    else .empty}}
+                </div>}}
+              else .empty}}
             {{if showQuickWins then
                 {{<details class="bp_summary_subsection">
                   <summary>s!"Quick wins ({data.quickWins.length})"</summary>
@@ -1735,18 +1794,22 @@ block_extension Block.summary (summary : Summary) where
                   </ul>
                 </details>}}
               else .empty}}
-            <details class="bp_summary_subsection">
-              <summary>s!"Owner rollups ({data.ownerRollups.length})"</summary>
-              <ul class="bp_summary_list">
-                {{if ownerRollupRows.isEmpty then {{<li class="bp_summary_empty">"No owned entries recorded yet."</li>}} else capRows ownerRollupRows "owners"}}
-              </ul>
-            </details>
-            <details class="bp_summary_subsection">
-              <summary>s!"Tag rollups ({data.tagRollups.length})"</summary>
-              <ul class="bp_summary_list">
-                {{if tagRollupRows.isEmpty then {{<li class="bp_summary_empty">"No tag metadata recorded yet."</li>}} else capRows tagRollupRows "tags"}}
-              </ul>
-            </details>
+            {{if showOwnerRollups then
+                {{<details class="bp_summary_subsection">
+                  <summary>s!"Owner rollups ({data.ownerRollups.length})"</summary>
+                  <ul class="bp_summary_list">
+                    {{capRows ownerRollupRows "owners"}}
+                  </ul>
+                </details>}}
+              else .empty}}
+            {{if showTagRollups then
+                {{<details class="bp_summary_subsection">
+                  <summary>s!"Tag rollups ({data.tagRollups.length})"</summary>
+                  <ul class="bp_summary_list">
+                    {{capRows tagRollupRows "tags"}}
+                  </ul>
+                </details>}}
+              else .empty}}
             {{if showLinkedPrs then
                 {{<details class="bp_summary_subsection">
                   <summary>s!"Linked PRs ({data.linkedPrs.length})"</summary>
@@ -1768,40 +1831,52 @@ block_extension Block.summary (summary : Summary) where
                   {{if !untaggedRows.isEmpty then {{<details class="bp_summary_nested"><summary>s!"Untagged ({data.untaggedEntries.length})"</summary><ul class="bp_summary_list">{{capRows untaggedRows "untagged entries"}}</ul></details>}} else .empty}}
                 </details>}}
               else .empty}}
-          </details>
-          <details class="bp_summary_section" open>
+          </details>}}
+            else .empty}}
+          {{if showStructureSection then
+              {{<details class="bp_summary_section">
             <summary>"Structure and coverage"</summary>
             <div class="bp_summary_grid">
               {{if data.coverageSplit.informalOnly > 0 then
                   {{<div class="bp_summary_card"><span class="bp_summary_label">"Informal-only"</span><span class="bp_summary_value">s!"{data.coverageSplit.informalOnly}"</span><span class="bp_summary_status">"Statements with no associated Lean code yet."</span></div>}}
                 else .empty}}
-              <div class="bp_summary_card"><span class="bp_summary_label">"Ready to formalize"</span><span class="bp_summary_value">s!"{data.coverageSplit.readyToFormalize}"</span><span class="bp_summary_status">"Entries whose next step is currently unblocked."</span></div>
+              {{if data.coverageSplit.readyToFormalize > 0 then
+                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Ready to formalize"</span><span class="bp_summary_value">s!"{data.coverageSplit.readyToFormalize}"</span><span class="bp_summary_status">"Entries whose next step is currently unblocked."</span></div>}}
+                else .empty}}
               {{if data.coverageSplit.formalizedWithoutAncestors > 0 then
                   {{<div class="bp_summary_card"><span class="bp_summary_label">"Formalized, ancestors open"</span><span class="bp_summary_value">s!"{data.coverageSplit.formalizedWithoutAncestors}"</span><span class="bp_summary_status">"Local Lean work is done, but prerequisite closure is still open."</span></div>}}
                 else .empty}}
-              <div class="bp_summary_card"><span class="bp_summary_label">"Fully closed"</span><span class="bp_summary_value">s!"{data.coverageSplit.fullyClosed}"</span><span class="bp_summary_status">"Local code and ancestor closure are both complete."</span></div>
+              {{if data.coverageSplit.fullyClosed > 0 then
+                  {{<div class="bp_summary_card"><span class="bp_summary_label">"Fully closed"</span><span class="bp_summary_value">s!"{data.coverageSplit.fullyClosed}"</span><span class="bp_summary_status">"Local code and ancestor closure are both complete."</span></div>}}
+                else .empty}}
               {{if data.coverageSplit.blockedOrIncomplete > 0 then
                   {{<div class="bp_summary_card bp_summary_card_warn"><span class="bp_summary_label">"Blocked or incomplete"</span><span class="bp_summary_value">s!"{data.coverageSplit.blockedOrIncomplete}"</span><span class="bp_summary_status">"Entries not covered by the highlighted readiness buckets above."</span></div>}}
                 else .empty}}
             </div>
-            <details class="bp_summary_subsection">
-              <summary>s!"Heaviest prerequisites ({data.heaviestPrerequisites.length})"</summary>
-              <ul class="bp_summary_list">
-                {{if heaviestPrerequisiteRows.isEmpty then {{<li class="bp_summary_empty">"No dependency edges recorded yet."</li>}} else capRows heaviestPrerequisiteRows "heaviest-prerequisite entries"}}
-              </ul>
-            </details>
-            <details class="bp_summary_subsection">
-              <summary>s!"No prerequisites ({data.noPrerequisites.length})"</summary>
-              <ul class="bp_summary_list">
-                {{if noPrerequisiteRows.isEmpty then {{<li class="bp_summary_empty">"Every entry depends on at least one other entry."</li>}} else capRows noPrerequisiteRows "entries without prerequisites"}}
-              </ul>
-            </details>
-            <details class="bp_summary_subsection">
-              <summary>s!"No dependents ({data.noDependents.length})"</summary>
-              <ul class="bp_summary_list">
-                {{if noDependentRows.isEmpty then {{<li class="bp_summary_empty">"Every entry is used somewhere else in the current dependency graph."</li>}} else capRows noDependentRows "entries without dependents"}}
-              </ul>
-            </details>
+            {{if showHeaviestPrerequisites then
+                {{<details class="bp_summary_subsection">
+                  <summary>s!"Heaviest prerequisites ({data.heaviestPrerequisites.length})"</summary>
+                  <ul class="bp_summary_list">
+                    {{capRows heaviestPrerequisiteRows "heaviest-prerequisite entries"}}
+                  </ul>
+                </details>}}
+              else .empty}}
+            {{if showNoPrerequisites then
+                {{<details class="bp_summary_subsection">
+                  <summary>s!"No prerequisites ({data.noPrerequisites.length})"</summary>
+                  <ul class="bp_summary_list">
+                    {{capRows noPrerequisiteRows "entries without prerequisites"}}
+                  </ul>
+                </details>}}
+              else .empty}}
+            {{if showNoDependents then
+                {{<details class="bp_summary_subsection">
+                  <summary>s!"No dependents ({data.noDependents.length})"</summary>
+                  <ul class="bp_summary_list">
+                    {{capRows noDependentRows "entries without dependents"}}
+                  </ul>
+                </details>}}
+              else .empty}}
             {{if showProofDebtHotspots then
                 {{<details class="bp_summary_subsection bp_summary_subsection_warn">
                   <summary>s!"Proof debt hotspots ({data.proofDebtHotspots.length})"</summary>
@@ -1810,7 +1885,8 @@ block_extension Block.summary (summary : Summary) where
                   </ul>
                 </details>}}
               else .empty}}
-          </details>
+          </details>}}
+            else .empty}}
         </div>
       }}
   extraCss := withPreviewPanelInlinePreviewCssAssets [summaryCss]
