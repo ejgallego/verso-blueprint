@@ -1,11 +1,21 @@
 {
   "version": 1,
+  "categories": [
+    "Preview",
+    "Relationships",
+    "Summary",
+    "Metadata",
+    "Imports",
+    "Graph",
+    "Runtime"
+  ],
   "fixtures": [
     {
       "slug": "preview_runtime_showcase",
       "title": "Preview Runtime Showcase",
-      "category": "Preview Runtime",
+      "category": "Runtime",
       "summary": "Standalone browser-regression showcase with summary, graph, panel, and inline preview pages.",
+      "tags": ["preview", "runtime", "browser", "graph", "summary", "relationships"],
       "project_root": "tests/test_blueprints/preview_runtime_showcase",
       "build_command": ["lake", "build"],
       "generate_command": ["lake", "exe", "blueprint-gen", "--output", "{output_dir}"],

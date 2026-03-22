@@ -37,17 +37,19 @@ if root.exists():
             shutil.rmtree(child)
 PY
 else
+  mapfile -t standalone_known < <(python3 -m scripts.blueprint_test_blueprints list)
+  declare -A standalone_lookup=()
+  for fixture in "${standalone_known[@]}"; do
+    standalone_lookup["$fixture"]=1
+  done
   docs=()
   standalone=()
   for target in "$@"; do
-    case "$target" in
-      preview_runtime_showcase)
-        standalone+=("$target")
-        ;;
-      *)
-        docs+=("$target")
-        ;;
-    esac
+    if [[ -n "${standalone_lookup[$target]+x}" ]]; then
+      standalone+=("$target")
+    else
+      docs+=("$target")
+    fi
   done
 fi
 
@@ -60,11 +62,14 @@ for fixture in "${standalone[@]}"; do
 done
 
 output_root="$output_root" selected_docs="$(printf '%s\n' "${docs[@]}")" selected_standalone="$(printf '%s\n' "${standalone[@]}")" python3 - <<'PY'
-from collections import OrderedDict
 import json
 import os
 from pathlib import Path
-from scripts.blueprint_test_blueprints import default_test_blueprint_manifest, load_test_blueprints_manifest
+from scripts.blueprint_test_blueprints import (
+    default_test_blueprint_manifest,
+    load_test_blueprint_categories,
+    load_test_blueprints_manifest,
+)
 
 root = Path(os.environ["output_root"])
 root.mkdir(parents=True, exist_ok=True)
@@ -72,17 +77,24 @@ selected = [line.strip() for line in os.environ["selected_docs"].splitlines() if
 selected += [line.strip() for line in os.environ["selected_standalone"].splitlines() if line.strip()]
 meta = json.loads(os.popen("./scripts/lean-low-priority lake exe blueprint-test-docs --list-json").read())
 meta_by_slug = {entry["slug"]: entry for entry in meta}
-for fixture in load_test_blueprints_manifest(default_test_blueprint_manifest(Path.cwd())):
+manifest_path = default_test_blueprint_manifest(Path.cwd())
+category_order = load_test_blueprint_categories(manifest_path)
+for fixture in load_test_blueprints_manifest(manifest_path):
     meta_by_slug[fixture.slug] = fixture.meta
 entries = [meta_by_slug[slug] for slug in selected if slug in meta_by_slug]
 
-cards_by_category = OrderedDict()
+cards_by_category = {category: [] for category in category_order}
 for entry in entries:
     category = entry.get("category", "Uncategorized")
     slug = entry["slug"]
     title = entry["title"]
     summary = entry["summary"]
+    tags = entry.get("tags", [])
     kind = entry.get("kind", "curated_doc").replace("_", " ")
+    tags_html = ""
+    if tags:
+        tag_chips = "".join(f'<li>{tag}</li>' for tag in tags)
+        tags_html = f'<ul class="tag_list">{tag_chips}</ul>'
     cards_by_category.setdefault(category, []).append(
         f"""
         <article class="card">
@@ -91,6 +103,7 @@ for entry in entries:
           <p class="kind">{kind}</p>
           <p class="slug"><code>{slug}</code></p>
           <p>{summary}</p>
+          {tags_html}
           <p><a href="./{slug}/html-multi/">Open site</a></p>
         </article>
         """
@@ -98,7 +111,10 @@ for entry in entries:
 
 nav_links = []
 sections = []
-for category, cards in cards_by_category.items():
+for category in category_order:
+    cards = cards_by_category.get(category, [])
+    if not cards:
+        continue
     anchor = category.lower().replace(" ", "-")
     nav_links.append(f'<a class="chip" href="#{anchor}">{category}</a>')
     sections.append(
@@ -231,6 +247,22 @@ html = f"""<!doctype html>
         color: var(--muted);
         font-size: 0.9rem;
       }}
+      .tag_list {{
+        list-style: none;
+        padding: 0;
+        margin: 0.65rem 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }}
+      .tag_list li {{
+        border: 1px solid #d8dee9;
+        border-radius: 999px;
+        background: #f8fafc;
+        color: var(--muted);
+        padding: 0.2rem 0.55rem;
+        font-size: 0.78rem;
+      }}
       a {{
         color: var(--accent);
         text-decoration: none;
@@ -245,6 +277,7 @@ html = f"""<!doctype html>
       <header>
         <h1>Test Blueprint Artifacts</h1>
         <p class="lede">Generated inspection sites for local HTML-producing test fixtures. The catalog mixes curated doc-backed fixtures with standalone test packages such as <code>preview_runtime_showcase</code>, grouped here so browser, graph, summary, and metadata cases are easier to browse together.</p>
+        <p class="lede">Each site declares one primary category plus optional tags for cross-cutting coverage.</p>
       </header>
       <nav class="chip_row">
         {''.join(nav_links)}

@@ -15,7 +15,7 @@ Run the full branch-validation workflow:
 - Python harness/unit tests
 - reference blueprint generation under `_out/reference-blueprints/`
 - test blueprint generation under `_out/test-blueprints/`
-- local code-panel regression and browser suite against `preview_runtime_showcase`
+- configured standalone test-blueprint regressions
 
 Any extra arguments are forwarded to the final pytest invocation.
 EOF

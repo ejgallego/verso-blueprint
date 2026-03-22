@@ -90,6 +90,11 @@ the generator:
   `tests/VersoBlueprintTests/TestBlueprintRegistry.lean`
 - standalone test package fixtures in `tests/harness/test_blueprints.json`
 
+The shared primary-category vocabulary also lives in
+`tests/harness/test_blueprints.json`. Individual fixtures add optional tags for
+cross-cutting topics that should show up in the generated test index without
+forcing more category sprawl.
+
 Use `./scripts/validate-branch.sh` as the canonical pre-merge check when you
 want all tests plus both artifact families rebuilt:
 

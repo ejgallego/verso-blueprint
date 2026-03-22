@@ -16,13 +16,17 @@ open Verso.VersoBlueprintTests.TestBlueprintRegistry
   let metas := curatedTestBlueprints.map (·.meta)
   let categories := metas.map (·.category)
   let kinds := metas.map (·.kind)
+  let tags := metas.foldl (fun acc => fun docMeta => acc ++ docMeta.tags) #[]
   !metas.isEmpty &&
     categories.all (fun c => c.trimAscii.toString.length > 0) &&
+    tags.all (fun t => t.trimAscii.toString.length > 0) &&
     kinds.all (· == "curated_doc") &&
-    categories.contains "Inline Hovers" &&
-    categories.contains "Preview Runtime" &&
-    categories.contains "Relationship Panels" &&
-    categories.contains "Summary And Metadata" &&
-    categories.contains "Imports And Providers"
+    categories.contains "Preview" &&
+    categories.contains "Relationships" &&
+    categories.contains "Summary" &&
+    categories.contains "Metadata" &&
+    categories.contains "Imports" &&
+    categories.contains "Graph" &&
+    categories.contains "Runtime"
 
 end Verso.VersoBlueprintTests.TestBlueprintRegistryChecks

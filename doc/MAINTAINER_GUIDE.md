@@ -79,6 +79,10 @@ The local test blueprint metadata is intentionally separate:
 - standalone test package fixtures live in
   `tests/harness/test_blueprints.json`
 
+The shared primary-category vocabulary for all local HTML test fixtures also
+lives in `tests/harness/test_blueprints.json`. Curated docs and standalone
+fixtures both attach optional tags for cross-cutting coverage.
+
 ## Everyday Workflows
 
 ### Generate the Reference Blueprints
@@ -110,6 +114,10 @@ Metadata now comes from two sources that are unified at generation time:
 - curated doc-backed fixtures declared in
   `tests/VersoBlueprintTests/TestBlueprintRegistry.lean`
 - standalone test package fixtures declared in `tests/harness/test_blueprints.json`
+
+Each generated site carries one primary category from the shared vocabulary and
+optional tags for cross-cutting topics such as `preview`, `graph`, or
+`relationships`.
 
 ### Validate the Test Blueprints
 

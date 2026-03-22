@@ -4,6 +4,7 @@ import argparse
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import re
 
 from scripts.blueprint_harness_paths import detect_harness_layout
 from scripts.blueprint_harness_references import (
@@ -15,12 +16,16 @@ from scripts.blueprint_harness_references import (
 from scripts.blueprint_harness_utils import lean_low_priority_command, run
 
 
+TAG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
 @dataclass(frozen=True)
 class StandaloneTestBlueprint:
     slug: str
     title: str
     category: str
     summary: str
+    tags: tuple[str, ...]
     project_root: str
     build_command: tuple[str, ...] | None
     generate_command: tuple[str, ...]
@@ -38,6 +43,7 @@ class StandaloneTestBlueprint:
             "title": self.title,
             "category": self.category,
             "summary": self.summary,
+            "tags": list(self.tags),
             "kind": self.kind,
         }
 
@@ -80,10 +86,36 @@ def _optional_command(data: dict, key: str, *, context: str) -> tuple[str, ...] 
     return tuple(value)
 
 
-def load_test_blueprints_manifest(manifest_path: Path) -> list[StandaloneTestBlueprint]:
+def _required_string_list(data: dict, key: str, *, context: str) -> tuple[str, ...]:
+    value = data.get(key)
+    if not isinstance(value, list) or not value or not all(isinstance(item, str) and item for item in value):
+        raise ValueError(f"{context}: expected non-empty string list field `{key}`")
+    if len(set(value)) != len(value):
+        raise ValueError(f"{context}: duplicate values in `{key}`")
+    return tuple(value)
+
+
+def _optional_tags(data: dict, key: str, *, context: str) -> tuple[str, ...]:
+    value = data.get(key)
+    if value is None:
+        return ()
+    if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+        raise ValueError(f"{context}: expected string list field `{key}`")
+    tags = tuple(value)
+    if len(set(tags)) != len(tags):
+        raise ValueError(f"{context}: duplicate values in `{key}`")
+    invalid = [tag for tag in tags if not TAG_PATTERN.fullmatch(tag)]
+    if invalid:
+        raise ValueError(f"{context}: invalid tag values in `{key}`: {', '.join(invalid)}")
+    return tags
+
+
+def load_test_blueprint_catalog(manifest_path: Path) -> tuple[tuple[str, ...], list[StandaloneTestBlueprint]]:
     raw = json.loads(manifest_path.read_text(encoding="utf-8"))
     if raw.get("version") != 1:
         raise ValueError(f"{manifest_path}: unsupported manifest version {raw.get('version')!r}")
+
+    categories = _required_string_list(raw, "categories", context=str(manifest_path))
 
     entries = raw.get("fixtures")
     if not isinstance(entries, list):
@@ -101,7 +133,10 @@ def load_test_blueprints_manifest(manifest_path: Path) -> list[StandaloneTestBlu
         seen_slugs.add(slug)
         title = _require_string(entry, "title", context=context)
         category = _require_string(entry, "category", context=context)
+        if category not in categories:
+            raise ValueError(f"{context}: unknown category `{category}`")
         summary = _require_string(entry, "summary", context=context)
+        tags = _optional_tags(entry, "tags", context=context)
         project_root = _require_string(entry, "project_root", context=context)
         build_command = _optional_command(entry, "build_command", context=context)
         generate_command = _optional_command(entry, "generate_command", context=context)
@@ -118,6 +153,7 @@ def load_test_blueprints_manifest(manifest_path: Path) -> list[StandaloneTestBlu
                 title=title,
                 category=category,
                 summary=summary,
+                tags=tags,
                 project_root=project_root,
                 build_command=build_command,
                 generate_command=generate_command,
@@ -125,6 +161,16 @@ def load_test_blueprints_manifest(manifest_path: Path) -> list[StandaloneTestBlu
                 browser_tests_path=browser_tests_path,
             )
         )
+    return categories, fixtures
+
+
+def load_test_blueprint_categories(manifest_path: Path) -> tuple[str, ...]:
+    categories, _ = load_test_blueprint_catalog(manifest_path)
+    return categories
+
+
+def load_test_blueprints_manifest(manifest_path: Path) -> list[StandaloneTestBlueprint]:
+    _, fixtures = load_test_blueprint_catalog(manifest_path)
     return fixtures
 
 

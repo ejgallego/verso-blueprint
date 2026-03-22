@@ -43,12 +43,13 @@ class HarnessEntrypointSmokeTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         self.assertIn("preview_runtime_showcase", result.stdout)
         self.assertIn("standalone_project", result.stdout)
+        self.assertIn('"category":"Runtime"', result.stdout)
+        self.assertIn('"tags":["preview","runtime","browser"', result.stdout)
 
-    def test_blueprint_test_blueprints_list_json(self) -> None:
-        result = self.run_command([sys.executable, "-m", "scripts.blueprint_test_blueprints", "list-json"])
+    def test_blueprint_test_blueprints_list(self) -> None:
+        result = self.run_command([sys.executable, "-m", "scripts.blueprint_test_blueprints", "list"])
         self.assertEqual(result.returncode, 0, msg=result.stderr)
-        self.assertIn("preview_runtime_showcase", result.stdout)
-        self.assertIn("standalone_project", result.stdout)
+        self.assertEqual(result.stdout.strip(), "preview_runtime_showcase")
 
     def test_generate_reference_wrapper_help(self) -> None:
         result = self.run_command(["bash", "scripts/generate-reference-blueprints.sh", "--help"])
