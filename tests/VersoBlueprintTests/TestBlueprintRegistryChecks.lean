@@ -15,8 +15,10 @@ open Verso.VersoBlueprintTests.TestBlueprintRegistry
 #eval
   let metas := curatedTestBlueprints.map (·.meta)
   let categories := metas.map (·.category)
+  let kinds := metas.map (·.kind)
   !metas.isEmpty &&
     categories.all (fun c => c.trimAscii.toString.length > 0) &&
+    kinds.all (· == "curated_doc") &&
     categories.contains "Inline Hovers" &&
     categories.contains "Preview Runtime" &&
     categories.contains "Relationship Panels" &&

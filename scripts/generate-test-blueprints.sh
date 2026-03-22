@@ -14,38 +14,13 @@ print(layout.test_blueprint_output_root)
 PY
 )"
 
-standalone_slugs=("preview_runtime_showcase")
-
-generate_preview_runtime_showcase() {
-  local project_dir="$package_root/tests/test_blueprints/preview_runtime_showcase"
-  local output_dir="$output_root/preview_runtime_showcase"
-  local manifest="$project_dir/lake-manifest.json"
-
-  mkdir -p "$output_dir"
-
-  (
-    set -euo pipefail
-    backup="$(mktemp)"
-    cp "$manifest" "$backup"
-    restore() {
-      cp "$backup" "$manifest"
-      rm -f "$backup"
-    }
-    trap restore EXIT
-
-    cd "$project_dir"
-    "$package_root/scripts/lean-low-priority" lake update VersoBlueprint
-    "$package_root/scripts/lean-low-priority" lake build
-    "$package_root/scripts/lean-low-priority" lake exe blueprint-gen --output "$output_dir"
-  )
-}
-
 if [ "$#" -eq 0 ]; then
   mapfile -t docs < <(./scripts/lean-low-priority lake exe blueprint-test-docs --list)
-  standalone=("${standalone_slugs[@]}")
+  mapfile -t standalone < <(python3 -m scripts.blueprint_test_blueprints list)
   output_root="$output_root" python3 - <<'PY'
 import os
 from pathlib import Path
+from scripts.blueprint_test_blueprints import default_test_blueprint_manifest, load_test_blueprints_manifest
 
 root = Path(os.environ["output_root"])
 expected = set()
@@ -53,8 +28,8 @@ for line in os.popen("./scripts/lean-low-priority lake exe blueprint-test-docs -
     slug = line.strip()
     if slug:
         expected.add(slug)
-for slug in ("preview_runtime_showcase",):
-    expected.add(slug)
+for fixture in load_test_blueprints_manifest(default_test_blueprint_manifest(Path.cwd())):
+    expected.add(fixture.slug)
 if root.exists():
     for child in root.iterdir():
         if child.is_dir() and child.name not in expected:
@@ -80,12 +55,8 @@ for doc in "${docs[@]}"; do
   ./scripts/lean-low-priority lake exe blueprint-test-docs "$doc" --output "$output_root/$doc"
 done
 
-for project in "${standalone[@]}"; do
-  case "$project" in
-    preview_runtime_showcase)
-      generate_preview_runtime_showcase
-      ;;
-  esac
+for fixture in "${standalone[@]}"; do
+  python3 -m scripts.blueprint_test_blueprints generate "$fixture" "$output_root/$fixture"
 done
 
 output_root="$output_root" selected_docs="$(printf '%s\n' "${docs[@]}")" selected_standalone="$(printf '%s\n' "${standalone[@]}")" python3 - <<'PY'
@@ -93,6 +64,7 @@ from collections import OrderedDict
 import json
 import os
 from pathlib import Path
+from scripts.blueprint_test_blueprints import default_test_blueprint_manifest, load_test_blueprints_manifest
 
 root = Path(os.environ["output_root"])
 root.mkdir(parents=True, exist_ok=True)
@@ -100,12 +72,8 @@ selected = [line.strip() for line in os.environ["selected_docs"].splitlines() if
 selected += [line.strip() for line in os.environ["selected_standalone"].splitlines() if line.strip()]
 meta = json.loads(os.popen("./scripts/lean-low-priority lake exe blueprint-test-docs --list-json").read())
 meta_by_slug = {entry["slug"]: entry for entry in meta}
-meta_by_slug["preview_runtime_showcase"] = {
-    "slug": "preview_runtime_showcase",
-    "title": "Preview Runtime Showcase",
-    "category": "Preview Runtime",
-    "summary": "Standalone browser-regression showcase with summary, graph, panel, and inline preview pages.",
-}
+for fixture in load_test_blueprints_manifest(default_test_blueprint_manifest(Path.cwd())):
+    meta_by_slug[fixture.slug] = fixture.meta
 entries = [meta_by_slug[slug] for slug in selected if slug in meta_by_slug]
 
 cards_by_category = OrderedDict()
@@ -114,11 +82,13 @@ for entry in entries:
     slug = entry["slug"]
     title = entry["title"]
     summary = entry["summary"]
+    kind = entry.get("kind", "curated_doc").replace("_", " ")
     cards_by_category.setdefault(category, []).append(
         f"""
         <article class="card">
           <h2><a href="./{slug}/html-multi/">{title}</a></h2>
           <p class="category">{category}</p>
+          <p class="kind">{kind}</p>
           <p class="slug"><code>{slug}</code></p>
           <p>{summary}</p>
           <p><a href="./{slug}/html-multi/">Open site</a></p>
@@ -150,7 +120,7 @@ html = f"""<!doctype html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Curated Test Blueprints</title>
+    <title>Test Blueprint Artifacts</title>
     <style>
       :root {{
         color-scheme: light;
@@ -247,6 +217,12 @@ html = f"""<!doctype html>
         letter-spacing: 0.04em;
         text-transform: uppercase;
       }}
+      .kind {{
+        margin: 0.2rem 0 0;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-style: italic;
+      }}
       .card p {{
         margin: 0.45rem 0 0;
         line-height: 1.45;
@@ -267,8 +243,8 @@ html = f"""<!doctype html>
   <body>
     <main>
       <header>
-        <h1>Curated Test Blueprints</h1>
-        <p class="lede">Generated inspection sites for in-repo Blueprint test fixtures. Use these pages to review graph, summary, preview, hover, and metadata behavior in a real browser without reaching for external reference projects first.</p>
+        <h1>Test Blueprint Artifacts</h1>
+        <p class="lede">Generated inspection sites for local HTML-producing test fixtures. The catalog mixes curated doc-backed fixtures with standalone test packages such as <code>preview_runtime_showcase</code>, grouped here so browser, graph, summary, and metadata cases are easier to browse together.</p>
       </header>
       <nav class="chip_row">
         {''.join(nav_links)}

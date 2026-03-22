@@ -10,8 +10,7 @@ if [ "${1:-}" = "--help" ]; then
 usage: ./scripts/validate-test-blueprints.sh [pytest args...]
 
 Generate the in-repo test blueprint outputs under `_out/test-blueprints/`,
-run the local code-panel regression check, and run the browser regression suite
-against `preview_runtime_showcase`.
+then run any configured standalone panel and browser regression checks.
 
 Any extra arguments are forwarded to pytest.
 EOF
@@ -20,20 +19,58 @@ fi
 
 ./scripts/generate-test-blueprints.sh
 
-site_dir="$(python3 - <<'PY'
+pytest_args=("$@")
+
+python3 - <<'PY' "$package_root" "${pytest_args[@]}"
+import shutil
+import subprocess
+import sys
 from pathlib import Path
+
 from scripts.blueprint_harness_paths import default_test_blueprint_site_dir
+from scripts.blueprint_test_blueprints import default_test_blueprint_manifest, load_test_blueprints_manifest
 
-print(default_test_blueprint_site_dir("preview_runtime_showcase", Path.cwd()))
+package_root = Path(sys.argv[1])
+pytest_args = sys.argv[2:]
+fixtures = load_test_blueprints_manifest(default_test_blueprint_manifest(package_root))
+
+for fixture in fixtures:
+    site_dir = default_test_blueprint_site_dir(fixture.slug, package_root)
+    if fixture.panel_regression_script:
+        command = [
+            sys.executable,
+            str(package_root / fixture.panel_regression_script),
+            "--site-dir",
+            str(site_dir),
+        ]
+        subprocess.run(command, cwd=package_root, check=True)
+    if fixture.browser_tests_path:
+        tests_path = package_root / fixture.browser_tests_path
+        use_uv = shutil.which("uv") is not None
+        if use_uv:
+            command = [
+                "env",
+                "UV_CACHE_DIR=/tmp/verso-blueprint-uv-cache",
+                "uv",
+                "run",
+                "--project",
+                str(tests_path),
+                "--extra",
+                "test",
+                "python",
+                "-m",
+                "pytest",
+            ]
+        else:
+            command = [sys.executable, "-m", "pytest"]
+        command += [
+            str(tests_path),
+            "-q",
+            "--browser",
+            "chromium",
+            "--site-dir",
+            str(site_dir),
+            *pytest_args,
+        ]
+        subprocess.run(command, cwd=package_root, check=True)
 PY
-)"
-
-python3 tests/harness/preview_runtime_showcase/check_blueprint_code_panels.py --site-dir "$site_dir"
-
-if command -v uv >/dev/null 2>&1; then
-  env UV_CACHE_DIR=/tmp/verso-blueprint-uv-cache \
-    uv run --project tests/browser --extra test python -m pytest \
-      tests/browser -q --browser chromium --site-dir "$site_dir" "$@"
-else
-  python3 -m pytest tests/browser -q --browser chromium --site-dir "$site_dir" "$@"
-fi

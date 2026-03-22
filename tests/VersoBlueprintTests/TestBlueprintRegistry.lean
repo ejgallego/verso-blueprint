@@ -180,9 +180,10 @@ structure CuratedTestBlueprintMeta where
   title : String
   category : String
   summary : String
+  kind : String
 deriving ToJson
 
 def CuratedTestBlueprint.meta (doc : CuratedTestBlueprint) : CuratedTestBlueprintMeta :=
-  { slug := doc.slug, title := doc.title, category := doc.category, summary := doc.summary }
+  { slug := doc.slug, title := doc.title, category := doc.category, summary := doc.summary, kind := "curated_doc" }
 
 end Verso.VersoBlueprintTests.TestBlueprintRegistry

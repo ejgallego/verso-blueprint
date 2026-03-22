@@ -25,6 +25,7 @@ fi
 ./scripts/lean-low-priority lake test
 
 python3 -m unittest \
+  tests.harness.test_blueprint_test_blueprints \
   tests.harness.test_blueprint_harness_projects \
   tests.harness.test_blueprint_harness_cli \
   tests.harness.test_blueprint_harness_worktrees \

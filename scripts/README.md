@@ -83,6 +83,13 @@ uv run --project tests/browser --extra test python -m pytest tests/browser -q --
 Use `./scripts/validate-test-blueprints.sh` when you want the local panel and
 browser regressions against `_out/test-blueprints/preview_runtime_showcase/`.
 
+The local HTML fixture metadata now comes from two sources that are unified by
+the generator:
+
+- curated doc fixtures in
+  `tests/VersoBlueprintTests/TestBlueprintRegistry.lean`
+- standalone test package fixtures in `tests/harness/test_blueprints.json`
+
 Use `./scripts/validate-branch.sh` as the canonical pre-merge check when you
 want all tests plus both artifact families rebuilt:
 

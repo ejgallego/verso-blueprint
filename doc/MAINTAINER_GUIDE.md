@@ -98,6 +98,12 @@ including:
 - the curated test-doc sites emitted by `lake exe blueprint-test-docs`
 - the standalone `preview_runtime_showcase` browser-regression site
 
+Metadata now comes from two sources that are unified at generation time:
+
+- curated doc-backed fixtures declared in
+  `tests/VersoBlueprintTests/TestBlueprintRegistry.lean`
+- standalone test package fixtures declared in `tests/harness/test_blueprints.json`
+
 ### Validate the Test Blueprints
 
 ```bash
@@ -107,8 +113,8 @@ including:
 This path:
 
 - generates the local test blueprint fixtures
-- runs the static local code-panel regression check
-- runs the browser regression suite against `preview_runtime_showcase`
+- runs the configured standalone panel/browser regressions from
+  `tests/harness/test_blueprints.json`
 
 ### Branch Validation
 
@@ -122,7 +128,7 @@ This is the canonical pre-merge validation command for feature branches. It:
 - runs the Python harness/unit tests
 - builds the reference blueprints under `_out/reference-blueprints/`
 - builds the test blueprints under `_out/test-blueprints/`
-- runs the local panel/browser regressions against `preview_runtime_showcase`
+- runs the configured standalone panel/browser regressions
 
 Lean tests are intentionally opt-in:
 

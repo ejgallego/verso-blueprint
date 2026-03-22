@@ -32,6 +32,18 @@ class HarnessEntrypointSmokeTests(unittest.TestCase):
         self.assertIn("sync", result.stdout)
         self.assertIn("edit", result.stdout)
 
+    def test_blueprint_test_blueprints_list_json(self) -> None:
+        result = self.run_command([sys.executable, "-m", "scripts.blueprint_test_blueprints", "list-json"])
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("preview_runtime_showcase", result.stdout)
+        self.assertIn("standalone_project", result.stdout)
+
+    def test_blueprint_test_blueprints_list_json(self) -> None:
+        result = self.run_command([sys.executable, "-m", "scripts.blueprint_test_blueprints", "list-json"])
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("preview_runtime_showcase", result.stdout)
+        self.assertIn("standalone_project", result.stdout)
+
     def test_generate_reference_wrapper_help(self) -> None:
         result = self.run_command(["bash", "scripts/generate-reference-blueprints.sh", "--help"])
         self.assertEqual(result.returncode, 0, msg=result.stderr)
@@ -45,7 +57,7 @@ class HarnessEntrypointSmokeTests(unittest.TestCase):
     def test_validate_test_blueprints_wrapper_help(self) -> None:
         result = self.run_command(["bash", "scripts/validate-test-blueprints.sh", "--help"])
         self.assertEqual(result.returncode, 0, msg=result.stderr)
-        self.assertIn("preview_runtime_showcase", result.stdout)
+        self.assertIn("standalone", result.stdout)
 
     def test_validate_branch_wrapper_help(self) -> None:
         result = self.run_command(["bash", "scripts/validate-branch.sh", "--help"])
