@@ -110,6 +110,18 @@ Statement with an associated Lean declaration link in the summary.
 {blueprint_summary}
 :::::::
 
+#docs (Genre.Manual) proofFallbackSummaryDoc "Blueprint Proof Fallback Summary Wiring" :=
+:::::::
+:::theorem "thm:preview.proof_fallback"
+:::
+
+:::proof "thm:preview.proof_fallback"
+Proof fallback body for summary wiring.
+:::
+
+{blueprint_summary}
+:::::::
+
 #docs (Genre.Manual) groupPreviewDoc "Blueprint Group Preview Wiring" :=
 :::::::
 :::group "grp:preview"

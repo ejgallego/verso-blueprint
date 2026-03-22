@@ -22,4 +22,14 @@ Imported preview body.
 :::
 :::::::
 
+#docs (Genre.Manual) proofFallbackPreviewSourceDoc "Proof Fallback Preview Source" :=
+:::::::
+:::theorem "preview.proof_fallback"
+:::
+
+:::proof "preview.proof_fallback"
+Proof fallback body.
+:::
+:::::::
+
 end Verso.VersoBlueprintTests.BlueprintPreviewSource.Provider
