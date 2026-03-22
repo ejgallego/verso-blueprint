@@ -86,10 +86,8 @@ class TestGraphLayoutRuntime:
         page.set_viewport_size({"width": 1400, "height": 900})
         page.goto(f"{server}/Dependency-Graph/")
         wait_for_graph(page)
-        page.wait_for_function("() => !!document.getElementById('bp-toc-toggle')")
 
         graph = page.locator(".bp_graph_fullwidth").first
-        button = page.locator("#bp-toc-toggle")
 
         def style_snapshot():
             return graph.evaluate(
@@ -103,43 +101,46 @@ class TestGraphLayoutRuntime:
         initial_style = style_snapshot()
         assert initial_style == {"left": "", "width": "", "maxWidth": ""}
 
-        button.click()
-        page.wait_for_function("() => !document.documentElement.classList.contains('bp-graph-toc-hidden')")
-        toggled_style = style_snapshot()
-        assert toggled_style == {"left": "", "width": "", "maxWidth": ""}
-
-    def test_toc_toggle_reflows_graph_width(self, server: str, page: Page):
-        page.set_viewport_size({"width": 1400, "height": 900})
-        page.goto(f"{server}/Dependency-Graph/")
-        wait_for_graph(page)
-        page.wait_for_function("() => !!document.getElementById('bp-toc-toggle')")
-
-        graph = page.locator(".bp_graph_fullwidth").first
-        button = page.locator("#bp-toc-toggle")
-
-        width_without_toc = graph.evaluate("el => el.getBoundingClientRect().width")
-        button.click()
-        page.wait_for_function("() => !document.documentElement.classList.contains('bp-graph-toc-hidden')")
+        initial_width = graph.evaluate("el => el.getBoundingClientRect().width")
+        page.set_viewport_size({"width": 1180, "height": 900})
         page.wait_for_function(
             """(previousWidth) => {
                 const graph = document.querySelector(".bp_graph_fullwidth");
                 return !!graph && graph.getBoundingClientRect().width < previousWidth - 100;
             }""",
-            arg=width_without_toc,
+            arg=initial_width,
         )
-        width_with_toc = graph.evaluate("el => el.getBoundingClientRect().width")
+        resized_style = style_snapshot()
+        assert resized_style == {"left": "", "width": "", "maxWidth": ""}
 
-        assert width_with_toc < width_without_toc - 100
+    def test_graph_reflows_with_viewport_width_change(self, server: str, page: Page):
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.goto(f"{server}/Dependency-Graph/")
+        wait_for_graph(page)
 
-        button.click()
-        page.wait_for_function("() => document.documentElement.classList.contains('bp-graph-toc-hidden')")
+        graph = page.locator(".bp_graph_fullwidth").first
+
+        width_wide = graph.evaluate("el => el.getBoundingClientRect().width")
+        page.set_viewport_size({"width": 1180, "height": 900})
+        page.wait_for_function(
+            """(previousWidth) => {
+                const graph = document.querySelector(".bp_graph_fullwidth");
+                return !!graph && graph.getBoundingClientRect().width < previousWidth - 100;
+            }""",
+            arg=width_wide,
+        )
+        width_narrow = graph.evaluate("el => el.getBoundingClientRect().width")
+
+        assert width_narrow < width_wide - 100
+
+        page.set_viewport_size({"width": 1400, "height": 900})
         page.wait_for_function(
             """(expectedWidth) => {
                 const graph = document.querySelector(".bp_graph_fullwidth");
                 if (!graph) return false;
                 return Math.abs(graph.getBoundingClientRect().width - expectedWidth) < 8;
             }""",
-            arg=width_without_toc,
+            arg=width_wide,
         )
 
     def test_manual_canvas_height_survives_variant_switch(self, server: str, page: Page):

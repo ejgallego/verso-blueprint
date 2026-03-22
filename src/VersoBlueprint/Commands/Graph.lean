@@ -85,9 +85,16 @@ structure GraphRenderVariant where
   previewKeyByNodeId : Array (String × String) := #[]
 deriving Inhabited, ToJson
 
--- Graph CSS uses the local content wrapper content box as the sizing container for full-width graphs.
 -- Keep this module rebuilt when the embedded graph assets change.
+-- This module owns the embedded graph CSS/JS boundary, so adjacent edits here
+-- should land whenever graph runtime assets are intentionally refreshed.
 def graphCss := include_str "graph.css"
+
+def fallbackGraphControlId (id : Verso.Multi.InternalId) (suffix : String) : String :=
+  let raw := toString id
+  let sanitized := raw.foldl (init := "") fun acc c =>
+    acc.push <| if c.isAlphanum then c else '-'
+  s!"bp-graph-{sanitized}{suffix}"
 
 def groupVariantKey : String := "group"
 def parentVariantKey (parent : Name) : String := s!"parent:{parent}"
@@ -367,10 +374,6 @@ def mkGraphVariants (graphData : GraphBlockData) (resolveHref : Name → Option 
 -- plus user-controlled resize persistence.
 def loadD3Dot := include_str "graph.js"
 
--- Keep this binding adjacent to `loadD3Dot` so runtime graph asset updates
--- rebuild into generated pages together.
-def graphTocToggleJs : String := include_str "graph-toc-toggle.js"
-
 -- block_extension Block.dependency_graph (label : String) where
 open Verso Doc Elab Genre Manual in
 block_extension Block.graph (graphData : GraphBlockData) where
@@ -483,7 +486,7 @@ block_extension Block.graph (graphData : GraphBlockData) where
             | ("id", value) => some s!"{value}--view"
             | _ => Option.none with
         | some value => value
-        | Option.none => "bp-graph-view-select"
+        | Option.none => fallbackGraphControlId id "--view"
       let fallbackDot : String :=
         match graphVariants[0]? with
         | some variant => variant.dot
@@ -515,7 +518,7 @@ block_extension Block.graph (graphData : GraphBlockData) where
         </div>
       }}
   extraCss := withPreviewPanelCssAssets [graphCss]
-  extraJs := withPreviewRuntimeJsAssets [] [loadD3Dot, graphTocToggleJs]
+  extraJs := withPreviewRuntimeJsAssets [] [loadD3Dot]
 
 def buildAll : CoreM (Graph × Array (Name × String)) := do
   reportImportedConflicts
