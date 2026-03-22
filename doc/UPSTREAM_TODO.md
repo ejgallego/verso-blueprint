@@ -38,6 +38,16 @@ Items to upstream to `verso` once the blueprint split is stabilized.
   `Verso.Code.Highlighted`, since those look like general hardening rather than
   Blueprint-specific behavior.
 
+- [ ] Add a generic wide-content page mode to `verso`, so pages such as the
+  Blueprint dependency graph can opt into a wider content frame without
+  carrying Blueprint-local page-shell CSS overrides.
+  - current pressure points are the normal `.content-wrapper`/`main section`
+    max-width rules and the ToC-aware shell layout
+  - desired behavior is a page-level or section-level opt-in that widens the
+    content frame while preserving the shared shell semantics
+  - once this exists upstream, Blueprint should keep only graph-local layout
+    CSS and a local wide-viewport regression for the graph page
+
 ## Repository Split Follow-Ups
 
 - [ ] Move Blueprint-owned CI, release, and deploy infrastructure into the
