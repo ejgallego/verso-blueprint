@@ -10,12 +10,23 @@ from scripts.blueprint_harness_projects import HarnessProject
 from scripts.blueprint_harness_utils import lean_low_priority_command, run
 
 
-OFFICIAL_BLUEPRINT_REQUIRE = 'require VersoBlueprint from git "https://github.com/leanprover/verso-blueprint"@"main"'
-OFFICIAL_BLUEPRINT_URL_PATTERNS = (
-    r"https://github\.com/leanprover/verso-blueprint(?:\.git)?",
-    r"git@github\.com:leanprover/verso-blueprint\.git",
-    r"ssh://git@github\.com/leanprover/verso-blueprint\.git",
+OFFICIAL_BLUEPRINT_REPOSITORIES = (
+    "leanprover/verso-blueprint",
+    "ejgallego/verso-blueprint",
 )
+OFFICIAL_BLUEPRINT_REQUIRE = (
+    f'require VersoBlueprint from git "https://github.com/{OFFICIAL_BLUEPRINT_REPOSITORIES[0]}"@"main"'
+)
+OFFICIAL_BLUEPRINT_URL_PATTERNS = tuple(
+    pattern
+    for repository in OFFICIAL_BLUEPRINT_REPOSITORIES
+    for pattern in (
+        rf"https://github\.com/{repository}(?:\.git)?",
+        rf"git@github\.com:{repository}\.git",
+        rf"ssh://git@github\.com/{repository}\.git",
+    )
+)
+OFFICIAL_BLUEPRINT_SOURCE_DESCRIPTION = " or ".join(f"`{repository}`" for repository in OFFICIAL_BLUEPRINT_REPOSITORIES)
 COMMIT_HASH_PATTERN = re.compile(r"^[0-9a-f]{40}$", re.IGNORECASE)
 
 def output_dir_for(project: HarnessProject, output_root: Path) -> Path:
@@ -221,7 +232,8 @@ def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) ->
     if match is None:
         raise SystemExit(
             "[blueprint-harness] expected the cloned project to declare `VersoBlueprint` in "
-            "`lakefile.lean` from an official `leanprover/verso-blueprint` Git source; "
+            "`lakefile.lean` from an approved `VersoBlueprint` Git source "
+            f"({OFFICIAL_BLUEPRINT_SOURCE_DESCRIPTION}); "
             "cannot inject the local path override automatically."
         )
     rewritten = text[: match.start()] + replacement + text[match.end() :]

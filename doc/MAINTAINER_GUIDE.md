@@ -457,8 +457,10 @@ The harness is now project-driven rather than example-hardcoded.
   external test projects exercise the local `VersoBlueprint` checkout instead
   of the committed upstream dependency
 - the current local override injection expects a `lakefile.lean` project that
-  declares `VersoBlueprint` from the official `leanprover/verso-blueprint` Git
-  repository, but it tolerates different official Git refs and URL spellings
+  declares `VersoBlueprint` from either the official
+  `leanprover/verso-blueprint` Git repository or the temporary
+  `ejgallego/verso-blueprint` mirror, and it tolerates different Git refs and
+  URL spellings for either source
 - local worktree bookkeeping is intentionally not tracked in the repository
 
 Minimal external catalog entry shape:
@@ -479,7 +481,7 @@ Minimal external catalog entry shape:
 ```
 
 That override policy is now the default maintainer behavior: the external
-projects keep their committed dependency pointed at the official upstream repo,
+projects keep their committed dependency pointed at an approved upstream repo,
 while the harness swaps in a local path dependency ephemerally during
 validation.
 

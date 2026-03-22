@@ -176,7 +176,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
             project_dir = Path(tmp)
             lakefile = project_dir / "lakefile.lean"
             lakefile.write_text(
-                'require VersoBlueprint from git "https://github.com/leanprover/verso-blueprint.git"@"v1.2.3"\n',
+                'require VersoBlueprint from git "https://github.com/ejgallego/verso-blueprint.git"@"v1.2.3"\n',
                 encoding="utf-8",
             )
 
@@ -184,7 +184,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
             text = lakefile.read_text(encoding="utf-8")
             self.assertIn('require VersoBlueprint from "', text)
-            self.assertNotIn('from git "https://github.com/leanprover/verso-blueprint.git"', text)
+            self.assertNotIn('from git "https://github.com/ejgallego/verso-blueprint.git"', text)
 
     def test_rewrite_local_blueprint_dependency_rejects_unexpected_require_shape(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -195,7 +195,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with self.assertRaisesRegex(SystemExit, "official `leanprover/verso-blueprint` Git source"):
+            with self.assertRaisesRegex(SystemExit, "approved `VersoBlueprint` Git source"):
                 rewrite_local_blueprint_dependency(project_dir, PACKAGE_ROOT)
 
     def test_tracked_project_manifest_path_accepts_git_tracked_manifest(self) -> None:
