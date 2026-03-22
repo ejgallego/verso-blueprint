@@ -1180,22 +1180,18 @@ block_extension Block.summary (summary : Summary) where
             target node "" (some href) linkTitle?
             (previewTitle := Informal.LeanCodePreview.title target)
         | Option.none => node
-      let previewLabels := (data.previewLabels).foldl (init := ({} : NameSet)) fun labels label =>
-        if (Informal.PreviewSource.traversalPreview? s label).isSome then
-          labels.insert label
-        else
-          labels
+      let previewLookupKeys := (data.previewLabels).foldl (init := ({} : Lean.NameMap String)) fun keys label =>
+        match Informal.PreviewSource.traversalLookupKey? s label with
+        | some key => keys.insert label key
+        | Option.none => keys
       let previewUi := Informal.HoverRender.summaryPreviewUi
       let mkEntryRef (label : Name) := do
-        let previewLabel? : Option Name :=
-          if previewLabels.contains label then some label else none
+        let previewLookupKey? := previewLookupKeys.get? label
+        let previewLabel? : Option Name := previewLookupKey?.map (fun _ => label)
         let labelNode : Output.Html :=
           match getEntryHref label with
           | Option.some href => {{ <a href={{href}}> <code>s!"{label}"</code> </a> }}
           | Option.none => {{ <code>s!"{label}"</code> }}
-        let previewLookupKey? :=
-          previewLabel?.map fun previewLabel =>
-            PreviewCache.key previewLabel .statement
         pure (Informal.HoverRender.summaryPreviewWrap labelNode previewLabel? previewLookupKey?)
       let mkDeclItems (label : Name) (decls : List Name) :=
         decls.toArray.map fun decl =>

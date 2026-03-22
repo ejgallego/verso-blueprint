@@ -73,13 +73,22 @@ private def firstNonEmptyEntry?
       if entry.blocks.isEmpty then none else some entry
     | none => none
 
-def traversalPreview?
-    (s : Verso.Genre.Manual.TraverseState) (label : Name) : Option Preview := do
+def traversalEntry?
+    (s : Verso.Genre.Manual.TraverseState) (label : Name) : Option PreviewCache.Entry := do
   let traversalFacetEntry? (facet : PreviewCache.Facet) : Option PreviewCache.Entry := do
     let key := PreviewCache.key label facet
     let obj ← s.getDomainObject? Resolve.informalPreviewDomainName key
     (fromJson? (α := PreviewCache.Entry) obj.data).toOption
-  let entry ← firstNonEmptyEntry? traversalFacetEntry?
+  firstNonEmptyEntry? traversalFacetEntry?
+
+def traversalLookupKey?
+    (s : Verso.Genre.Manual.TraverseState) (label : Name) : Option String := do
+  let entry ← traversalEntry? s label
+  pure <| PreviewCache.key entry.label entry.facet
+
+def traversalPreview?
+    (s : Verso.Genre.Manual.TraverseState) (label : Name) : Option Preview := do
+  let entry ← traversalEntry? s label
   return { blocks := entry.blocks }
 
 def traversalBlocks?
