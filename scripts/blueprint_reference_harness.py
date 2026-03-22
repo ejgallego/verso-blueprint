@@ -132,11 +132,10 @@ def ensure_prebuilt_executable(package_root: Path, exe_name: str) -> Path:
     return path
 
 
-def find_test_driver_binary(package_root: Path) -> Path | None:
-    for candidate in ("verso-tests", "verso-blueprint-tests"):
-        path = executable_path(package_root, candidate)
-        if path.exists():
-            return path
+def find_prebuilt_lean_test_artifact(package_root: Path) -> Path | None:
+    path = package_root / ".lake" / "build" / "lib" / "lean" / "VersoBlueprintTests.olean"
+    if path.exists():
+        return path
     return None
 
 
@@ -334,12 +333,12 @@ def command_validate(args: argparse.Namespace) -> int:
                 if args.stop_on_first_failure:
                     return print_failure_summary(failures)
         else:
-            test_driver = find_test_driver_binary(layout.package_root)
-            if test_driver is None:
+            test_artifact = find_prebuilt_lean_test_artifact(layout.package_root)
+            if test_artifact is None:
                 failures.append(
                     StepFailure(
                         "lean tests",
-                        "no prebuilt test driver found in the current worktree `.lake/`; "
+                        "no prebuilt Lean test library found in the current worktree `.lake/`; "
                         "run `python3 -m scripts.blueprint_harness sync-root-lake` after "
                         "building from the root checkout, or use `--allow-local-build`",
                     )
@@ -347,15 +346,7 @@ def command_validate(args: argparse.Namespace) -> int:
                 if args.stop_on_first_failure:
                     return print_failure_summary(failures)
             else:
-                failure = run_capturing_failure(
-                    "lean tests",
-                    lean_low_priority_command(layout.package_root, str(test_driver)),
-                    cwd=layout.package_root,
-                )
-                if failure is not None:
-                    failures.append(failure)
-                    if args.stop_on_first_failure:
-                        return print_failure_summary(failures)
+                print(f"[blueprint-reference-harness] using prebuilt Lean test library: {test_artifact}")
 
     try:
         generate_projects(

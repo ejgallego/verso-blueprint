@@ -495,7 +495,7 @@ class BlueprintHarnessCliTests(unittest.TestCase):
             "load_project_catalog": reference_harness_mod.load_project_catalog,
             "selected_projects": reference_harness_mod.selected_projects,
             "should_use_local_build": reference_harness_mod.should_use_local_build,
-            "find_test_driver_binary": reference_harness_mod.find_test_driver_binary,
+            "find_prebuilt_lean_test_artifact": reference_harness_mod.find_prebuilt_lean_test_artifact,
             "run_capturing_failure": reference_harness_mod.run_capturing_failure,
             "generate_projects": reference_harness_mod.generate_projects,
         }
@@ -506,7 +506,7 @@ class BlueprintHarnessCliTests(unittest.TestCase):
             reference_harness_mod.load_project_catalog = lambda _manifest_path: []
             reference_harness_mod.selected_projects = lambda _catalog, _values: []
             reference_harness_mod.should_use_local_build = lambda _layout, _allow_local_build: False
-            reference_harness_mod.find_test_driver_binary = lambda _package_root: Path("/tmp/verso-blueprint-tests")
+            reference_harness_mod.find_prebuilt_lean_test_artifact = lambda _package_root: Path("/tmp/VersoBlueprintTests.olean")
             reference_harness_mod.run_capturing_failure = lambda _step, _command, cwd: None
             reference_harness_mod.generate_projects = lambda *_args, **_kwargs: None
 

@@ -17,16 +17,10 @@ lean_lib VersoBlueprint where
   srcDir := "src"
   roots := #[`VersoBlueprint]
 
-@[default_target]
+@[default_target, test_driver]
 lean_lib VersoBlueprintTests where
   srcDir := "tests"
   roots := #[`VersoBlueprintTests]
-
-@[test_driver]
-lean_exe «verso-blueprint-tests» where
-  root := `BlueprintTestMain
-  srcDir := "tests"
-  supportInterpreter := true
 
 lean_exe «blueprint-test-docs» where
   root := `BlueprintTestDocsMain
