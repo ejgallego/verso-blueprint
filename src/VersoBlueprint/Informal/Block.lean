@@ -16,10 +16,10 @@ import VersoManual
 import VersoBlueprint.Commands.Common
 import VersoBlueprint.Data
 import VersoBlueprint.Environment
-import VersoBlueprint.Informal.BlockAssets
-import VersoBlueprint.Informal.BlockCommon
-import VersoBlueprint.Informal.BlockStore
-import VersoBlueprint.Informal.MetadataCommon
+import VersoBlueprint.Informal.Block.Assets
+import VersoBlueprint.Informal.Block.Common
+import VersoBlueprint.Informal.Block.Store
+import VersoBlueprint.Informal.MetadataView
 import VersoBlueprint.Informal.LeanCodePreview
 import VersoBlueprint.Informal.CodeSummary
 import VersoBlueprint.Informal.ExternalCode
@@ -825,8 +825,8 @@ block_extension Block.informal (data : BlockData) where
       storeTraversedBlockData id blockData
       return none
   toTeX := none
-  extraCss := Informal.BlockAssets.blockCssAssets
-  extraJs := Informal.BlockAssets.blockJsAssets
+  extraCss := Informal.Block.Assets.blockCssAssets
+  extraJs := Informal.Block.Assets.blockJsAssets
   toHtml :=
     open Verso.Doc.Html in
     open Verso.Output.Html in

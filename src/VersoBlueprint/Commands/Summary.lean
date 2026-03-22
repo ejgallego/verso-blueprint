@@ -13,8 +13,8 @@ import VersoBlueprint.Data
 import VersoBlueprint.ProvedStatus
 import VersoBlueprint.Environment
 import VersoBlueprint.Graph
-import VersoBlueprint.Informal.BlockCommon
-import VersoBlueprint.Informal.MetadataCommon
+import VersoBlueprint.Informal.Block.Common
+import VersoBlueprint.Informal.MetadataView
 import VersoBlueprint.Informal.LeanCodeLink
 import VersoBlueprint.Informal.LeanCodePreview
 import VersoBlueprint.Lib.HoverRender

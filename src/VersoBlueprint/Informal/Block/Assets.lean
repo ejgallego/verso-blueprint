@@ -8,7 +8,7 @@ import VersoManual
 import VersoBlueprint.Commands.Common
 import VersoBlueprint.StyleSwitcher
 
-namespace Informal.BlockAssets
+namespace Informal.Block.Assets
 
 def css : String := r##"
 .bp_wrapper {
@@ -1422,4 +1422,4 @@ def blockJsAssets : List String :=
     []
     [codeSummaryPreviewJs, usedByPanelJs, Informal.StyleSwitcher.jsInteractive]
 
-end Informal.BlockAssets
+end Informal.Block.Assets

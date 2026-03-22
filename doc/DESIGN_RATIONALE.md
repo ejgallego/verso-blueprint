@@ -60,16 +60,16 @@ Informal-block support is now split across smaller modules instead of one large
 
 - `Informal/Block.lean`:
   statement/proof block elaboration plus the top-level HTML block renderer
-- `Informal/BlockAssets.lean`:
+- `Informal/Block/Assets.lean`:
   block-specific CSS and browser JS bundles, including the block-owned preview
   handlers (`used by` and code-summary preview wiring)
-- `Informal/BlockStore.lean`:
+- `Informal/Block/Store.lean`:
   stored-block lookup, merge, and numbering-resolution helpers used during
   traversal/rendering
-- `Informal/MetadataCommon.lean`:
+- `Informal/MetadataView.lean`:
   shared metadata presentation policy used by block rendering and summary
   badges
-- `Informal/BlockCommon.lean`:
+- `Informal/Block/Common.lean`:
   shared block/code data structures and lightweight code-hover/panel markup
   helpers
 
@@ -154,7 +154,7 @@ That runtime boundary is now explicit:
   primitives
 - feature-specific browser behavior stays with the owning feature when the code
   is not meaningfully shared; for example, informal-block preview handlers now
-  live in `Informal/BlockAssets.lean`
+  live in `Informal/Block/Assets.lean`
 
 ### Separate Informal and Lean-Code Preview Identities
 

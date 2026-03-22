@@ -24,11 +24,11 @@ import VersoBlueprint.Cite
 import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
 import VersoBlueprint.Commands.Bibliography
-import VersoBlueprint.Informal.BlockAssets
+import VersoBlueprint.Informal.Block.Assets
 import VersoBlueprint.Informal.Code
 import VersoBlueprint.Informal.Block
-import VersoBlueprint.Informal.BlockStore
-import VersoBlueprint.Informal.MetadataCommon
+import VersoBlueprint.Informal.Block.Store
+import VersoBlueprint.Informal.MetadataView
 import VersoBlueprint.Informal.LeanDeclPreviewKey
 import VersoBlueprint.Informal.LeanCodePreview
 import VersoBlueprint.Informal.Group

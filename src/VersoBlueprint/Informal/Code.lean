@@ -6,10 +6,10 @@ Author: Emilio J. Gallego Arias
 
 import VersoManual
 import VersoBlueprint.Environment
-import VersoBlueprint.Informal.BlockAssets
+import VersoBlueprint.Informal.Block.Assets
 import VersoBlueprint.Informal.Block
-import VersoBlueprint.Informal.BlockCommon
-import VersoBlueprint.Informal.BlockStore
+import VersoBlueprint.Informal.Block.Common
+import VersoBlueprint.Informal.Block.Store
 import VersoBlueprint.Informal.LeanCodePreview
 import VersoBlueprint.Informal.CodeSummary
 import VersoBlueprint.LabelNameParsing
@@ -69,7 +69,7 @@ block_extension Block.informalCode (data : InlineCodeData) where
       modify λ s => s.saveDomainObjectData informalCodeDomain label.toString (toJson cdata)
       pure none
   toTeX := none
-  extraCss := Informal.BlockAssets.codeCssAssets
+  extraCss := Informal.Block.Assets.codeCssAssets
   extraJs := ([] : List String)
   toHtml :=
     open Verso.Doc.Html in
