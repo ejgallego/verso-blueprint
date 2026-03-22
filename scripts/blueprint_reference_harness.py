@@ -140,6 +140,10 @@ def find_test_driver_binary(package_root: Path) -> Path | None:
     return None
 
 
+def lean_test_runner(package_root: Path) -> list[str]:
+    return [str(package_root / "scripts" / "run-lean-tests.sh")]
+
+
 def resolve_repo_relative_path(package_root: Path, path_text: str) -> Path:
     path = Path(path_text)
     if path.is_absolute():
@@ -321,8 +325,8 @@ def command_validate(args: argparse.Namespace) -> int:
     if args.run_lean_tests:
         if use_local_build:
             failure = run_capturing_failure(
-                "lake --no-ansi test",
-                lean_low_priority_command(layout.package_root, "lake", "--no-ansi", "test"),
+                "lean tests",
+                lean_test_runner(layout.package_root),
                 cwd=layout.package_root,
             )
             if failure is not None:

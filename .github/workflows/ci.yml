@@ -55,7 +55,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-lake-packages-v2-
       - name: Run Lean tests
-        run: ./scripts/lean-low-priority lake --no-ansi test
+        run: ./scripts/run-lean-tests.sh
 
   harness-tests:
     name: Harness Tests
