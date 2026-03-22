@@ -18,6 +18,28 @@ namespace Informal.PreviewSource
 open Lean
 open Informal Data Environment
 
+/-!
+`PreviewSource` is the read-side API for preview consumers.
+
+Its job is to answer "what preview should this caller use for this label?" while
+hiding whether the answer came from traversal-cached HTML blocks or
+environment-side elaboration syntax.
+
+The intended split is:
+
+- callers that need a preview for one label should come here first
+- traversal storage details (`PreviewCache.Entry`, preview domains, facet
+  fallback) stay behind this module
+- widget and traversal renderers may stay separate internally, but are exposed
+  through one retrieval surface
+
+Known exception:
+
+- manifest construction still enumerates stored preview domains directly because
+  it emits the shared browser manifest from all stored preview entries rather
+  than asking for one label at a time
+-/
+
 abbrev ManualBlock := Verso.Doc.Block Verso.Genre.Manual
 
 structure Preview where

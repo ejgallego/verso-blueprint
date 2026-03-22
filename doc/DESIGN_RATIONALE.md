@@ -174,6 +174,18 @@ Call sites that only need "give me the preview for this label" behavior should
 prefer one shared retrieval surface (`PreviewSource`) rather than decode
 multiple storage formats directly.
 
+That contract is intentionally narrow:
+
+- `PreviewSource` is the read-side API for preview consumers
+- it hides traversal-domain lookup, facet fallback, and environment-side
+  preview selection behind one entry point
+- renderers that only need one label at a time should prefer it over direct
+  `PreviewCache.Entry` decoding
+
+The remaining direct `PreviewCache` decoding is in manifest construction, where
+the code is intentionally enumerating all stored preview entries to emit the
+shared browser manifest rather than retrieving previews one label at a time.
+
 That convergence is not complete yet. Manifest construction still decodes
 `PreviewCache` and `Informal.LeanCodePreview` entries directly because it
 enumerates stored preview domains to emit the shared browser manifest.
