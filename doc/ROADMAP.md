@@ -1,6 +1,6 @@
 # Blueprint Roadmap
 
-Last updated: 2026-03-22
+Last updated: 2026-03-23
 
 This document tracks active cleanup and follow-up work for Blueprint support in
 this repository.
@@ -27,6 +27,27 @@ The current cleanup work should preserve these constraints:
 4. keep the public maintainer harness small, explicit, and repository-local
 
 ## Active Workstreams
+
+### Embedded Asset Dependency Hygiene
+
+Goal: make JS/CSS asset edits rebuild predictably instead of depending on
+adjacent Lean source edits to refresh embedded `include_str` payloads.
+
+Work:
+
+1. replace the current fragile direct `include_str` embedding path for browser
+   assets with an explicit generated-or-staged Lean dependency edge
+2. apply the same fix across graph, summary, bibliography, and shared static
+   web assets instead of solving it one module at a time
+3. add one regression or build-level check that fails if emitted browser assets
+   drift from the source files they are supposed to embed
+
+Priority:
+
+1. treat this as high priority, because stale embedded assets make simple UI
+   fixes look much more complex than they really are
+2. prefer landing this cleanup before deeper browser-runtime refactors
+   accumulate on top of the current embedding model
 
 ### Duplicate Identity Hardening
 
@@ -85,6 +106,9 @@ Work:
    can be done without overcoupling the renderers
 8. remove temporary runtime workarounds such as the graph preview handler
    `setTimeout` fallback once the underlying lifecycle is verified stable
+9. evaluate a lighter browser preview-delivery path so clients do not always
+   fetch and decode the full shared preview manifest when they only need a
+   small number of entries
 
 ### Validation Hardening
 
