@@ -592,6 +592,62 @@
     if (groupLegend) groupLegend.hidden = !showGroupLegend;
   }
 
+  function bindLegendPopover(graphBlock) {
+    const legendButton = graphBlock.querySelector(".bp_graph_legend_button");
+    const legendPanel = graphBlock.querySelector(".bp_graph_legend_popover");
+    const legendClose = legendPanel
+      ? legendPanel.querySelector(".bp_graph_legend_popover_close")
+      : null;
+    if (!legendButton || !legendPanel) return null;
+
+    const position = function () {
+      const blockRect = graphBlock.getBoundingClientRect();
+      const buttonRect = legendButton.getBoundingClientRect();
+      const top = Math.max(0, Math.round(buttonRect.bottom - blockRect.top + 8));
+      const right = Math.max(0, Math.round(blockRect.right - buttonRect.right));
+      legendPanel.style.top = top + "px";
+      legendPanel.style.right = right + "px";
+    };
+
+    const setOpen = function (isOpen) {
+      if (isOpen) position();
+      legendPanel.hidden = !isOpen;
+      legendButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    };
+
+    setOpen(false);
+    if (legendButton.getAttribute("data-bp-legend-bound") === "1") {
+      return {
+        open: function () { setOpen(true); },
+        close: function () { setOpen(false); },
+        position: position
+      };
+    }
+    legendButton.setAttribute("data-bp-legend-bound", "1");
+
+    legendButton.addEventListener("click", function () {
+      setOpen(legendPanel.hidden);
+    });
+    if (legendClose) {
+      legendClose.addEventListener("click", function () {
+        setOpen(false);
+      });
+    }
+    document.addEventListener("pointerdown", function (ev) {
+      if (legendPanel.hidden) return;
+      const target = ev.target;
+      if (!(target instanceof Node)) return;
+      if (graphBlock.contains(target)) return;
+      setOpen(false);
+    });
+
+    return {
+      open: function () { setOpen(true); },
+      close: function () { setOpen(false); },
+      position: position
+    };
+  }
+
   Promise.resolve()
     .then(function () { return load("https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"); })
     .then(function () { return load("https://cdn.jsdelivr.net/npm/d3-graphviz@5.6.0/build/d3-graphviz.min.js"); })
@@ -684,6 +740,7 @@
         }
         if (selector) selector.value = activeKey;
         syncLegend(graphBlock, activeKey);
+        const legendPopover = bindLegendPopover(graphBlock);
 
         const getActiveVariant = function () {
           const fallback = variantsByKey.get("full") || variants[0];
@@ -740,6 +797,9 @@
         if (!graphState.windowHandlersBound) {
           graphState.windowHandlersBound = true;
           const repositionPanels = function () {
+            if (legendPopover && !graphBlock.querySelector(".bp_graph_legend_popover").hidden) {
+              legendPopover.position();
+            }
             if (
               graphState.previewController &&
               graphState.previewController.behavior &&
@@ -761,6 +821,7 @@
           };
           window.addEventListener("keydown", function (ev) {
             if (ev.key !== "Escape") return;
+            if (legendPopover) legendPopover.close();
             if (graphState.groupHoverController) graphState.groupHoverController.hide();
             if (graphState.previewController) graphState.previewController.hide();
           });

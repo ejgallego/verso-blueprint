@@ -12,6 +12,52 @@ def wait_for_graph(page: Page):
 
 
 class TestGraphLayoutRuntime:
+    def test_graph_legend_is_collapsed_by_default_and_tracks_variant_switch(self, server: str, page: Page):
+        page.set_viewport_size({"width": 1400, "height": 900})
+        page.goto(f"{server}/Dependency-Graph/")
+        wait_for_graph(page)
+
+        button = page.locator(".bp_graph_legend_button").first
+        panel = page.locator(".bp_graph_legend_popover").first
+        selector = page.locator(".bp_graph_view_select").first
+
+        assert button.get_attribute("aria-expanded") == "false"
+        assert panel.evaluate("el => el.hidden") is True
+
+        button.click()
+        page.wait_for_function(
+            """() => {
+                const button = document.querySelector(".bp_graph_legend_button");
+                const panel = document.querySelector(".bp_graph_legend_popover");
+                const fullLegend = document.querySelector('.bp_graph_legend[data-bp-legend-kind="full"]');
+                return (
+                    !!button &&
+                    !!panel &&
+                    button.getAttribute("aria-expanded") === "true" &&
+                    !panel.hidden &&
+                    !!fullLegend &&
+                    !fullLegend.hidden
+                );
+            }"""
+        )
+
+        selector.select_option("group")
+        page.wait_for_function(
+            """() => {
+                const select = document.querySelector(".bp_graph_view_select");
+                const fullLegend = document.querySelector('.bp_graph_legend[data-bp-legend-kind="full"]');
+                const groupLegend = document.querySelector('.bp_graph_legend[data-bp-legend-kind="group"]');
+                return (
+                    !!select &&
+                    !!fullLegend &&
+                    !!groupLegend &&
+                    select.value === "group" &&
+                    fullLegend.hidden &&
+                    !groupLegend.hidden
+                );
+            }"""
+        )
+
     def test_graph_page_does_not_force_extra_vertical_scroll(self, server: str, page: Page):
         page.set_viewport_size({"width": 1400, "height": 900})
         page.goto(f"{server}/Dependency-Graph/")

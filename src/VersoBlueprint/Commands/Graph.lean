@@ -487,6 +487,13 @@ block_extension Block.graph (graphData : GraphBlockData) where
             | _ => Option.none with
         | some value => value
         | Option.none => fallbackGraphControlId id "--view"
+      let graphLegendPanelId : String :=
+        let attrs := s.htmlId id
+        match attrs.findSome? fun
+            | ("id", value) => some s!"{value}--legend"
+            | _ => Option.none with
+        | some value => value
+        | Option.none => fallbackGraphControlId id "--legend"
       let fallbackDot : String :=
         match graphVariants[0]? with
         | some variant => variant.dot
@@ -497,14 +504,31 @@ block_extension Block.graph (graphData : GraphBlockData) where
         <div class="bp_graph_fullwidth">
           <div class="bp_graph_controls">
             <div class="bp_graph_controls_primary">
+              <button
+                type="button"
+                class="bp_graph_controls_button bp_graph_legend_button"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls={{graphLegendPanelId}}
+              >
+                "Legend"
+              </button>
               <label class="bp_graph_controls_label" for={{graphViewSelectId}}>"View"</label>
               <select id={{graphViewSelectId}} class="bp_graph_controls_select bp_graph_view_select">
                 {{graphVariantOptions}}
               </select>
             </div>
           </div>
-          {{fullLegendHtml}}
-          {{groupLegendHtml}}
+          <div id={{graphLegendPanelId}} class="bp_graph_legend_popover" hidden>
+            <div class="bp_graph_legend_popover_header">
+              <span class="bp_graph_legend_popover_title">"Legend"</span>
+              <button type="button" class="bp_graph_legend_popover_close" aria-label="Close legend">"Close"</button>
+            </div>
+            <div class="bp_graph_legend_popover_body">
+              {{fullLegendHtml}}
+              {{groupLegendHtml}}
+            </div>
+          </div>
           <div class="bp_graph_canvas" "data-bp-graph-direction"={{graphData.direction.rankdir}}>
             <script type="application/json" class="bp-graph-variants">
               {{.text false s!"{graphVariantJson}"}}
