@@ -37,6 +37,32 @@
       "build_command": ["lake", "build"],
       "generate_command": ["lake", "exe", "blueprint-gen", "--output", "{output_dir}"],
       "site_subdir": "html-multi"
+    },
+    {
+      "id": "verso-flt",
+      "description": "External FLT blueprint integration layer with an FLT submodule checkout.",
+      "source": {
+        "kind": "git_checkout",
+        "repository": "https://github.com/ejgallego/verso-flt.git",
+        "ref": "e92dcaa0a7e692815f5d9e2ab2b5b89a07553dbf",
+        "project_root": "."
+      },
+      "prepare_command": [
+        "git",
+        "-c",
+        "url.https://github.com/.insteadOf=git@github.com:",
+        "-c",
+        "url.https://github.com/.insteadOf=ssh://git@github.com/",
+        "submodule",
+        "update",
+        "--init",
+        "--depth",
+        "1",
+        "FLT"
+      ],
+      "build_command": ["lake", "build", "blueprint-gen"],
+      "generate_command": ["lake", "exe", "blueprint-gen", "--output", "{output_dir}"],
+      "site_subdir": "html-multi"
     }
   ]
 }

@@ -55,7 +55,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
         self.assertEqual(
             [project.project_id for project in projects],
-            ["project-template", "noperthedron", "spherepackingblueprint"],
+            ["project-template", "noperthedron", "spherepackingblueprint", "verso-flt"],
         )
         self.assertTrue(projects[0].in_repo_example)
         self.assertTrue(projects[0].in_repo_command_project)
@@ -65,6 +65,23 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
         self.assertEqual(projects[1].repository, "https://github.com/ejgallego/verso-noperthedron.git")
         self.assertEqual(projects[1].browser_tests_path, None)
         self.assertEqual(projects[1].panel_regression_script, None)
+        self.assertEqual(projects[3].repository, "https://github.com/ejgallego/verso-flt.git")
+        self.assertEqual(
+            projects[3].prepare_command,
+            (
+                "git",
+                "-c",
+                "url.https://github.com/.insteadOf=git@github.com:",
+                "-c",
+                "url.https://github.com/.insteadOf=ssh://git@github.com/",
+                "submodule",
+                "update",
+                "--init",
+                "--depth",
+                "1",
+                "FLT",
+            ),
+        )
 
     def test_git_checkout_project_is_supported(self) -> None:
         manifest_data = {
@@ -321,6 +338,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
                 generator=None,
                 repository=str(remote),
                 ref=first,
+                prepare_command=None,
                 build_command=None,
                 generate_command=("lake", "exe", "blueprint-gen"),
                 site_subdir="html-multi",
@@ -349,6 +367,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
             generator=None,
             repository="https://github.com/example/external-blueprint.git",
             ref="9b50e39c17434ee1a574fd27ed97006adfdc5dc1",
+            prepare_command=None,
             build_command=None,
             generate_command=("lake", "exe", "blueprint-gen"),
             site_subdir="html-multi",
@@ -392,6 +411,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
                 generator=None,
                 repository=str(remote),
                 ref=target,
+                prepare_command=None,
                 build_command=None,
                 generate_command=("lake", "exe", "blueprint-gen"),
                 site_subdir="html-multi",
@@ -436,6 +456,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
                 generator=None,
                 repository=str(remote),
                 ref=target,
+                prepare_command=None,
                 build_command=None,
                 generate_command=("lake", "exe", "blueprint-gen"),
                 site_subdir="html-multi",
@@ -481,6 +502,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
             generator=None,
             repository="https://github.com/example/external-blueprint.git",
             ref="main",
+            prepare_command=("git", "submodule", "update", "--init", "FLT"),
             build_command=("lake", "build"),
             generate_command=("lake", "exe", "blueprint-gen", "--output", "{output_dir}"),
             site_subdir="html-multi",
@@ -529,6 +551,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
                     setattr(refs_mod, name, value)
 
         self.assertEqual(warm_build_values, [False])
+        self.assertEqual(commands[0], ["git", "submodule", "update", "--init", "FLT"])
         self.assertIn(["lake", "update", "VersoBlueprint"], commands)
         self.assertTrue(any(command[1:] == ["lake", "build"] for command in commands))
 
@@ -543,6 +566,7 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
             generator=None,
             repository="https://github.com/example/external-blueprint.git",
             ref="main",
+            prepare_command=None,
             build_command=("lake", "build"),
             generate_command=("lake", "exe", "blueprint-gen"),
             site_subdir="html-multi",

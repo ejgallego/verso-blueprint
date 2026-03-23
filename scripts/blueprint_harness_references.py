@@ -74,6 +74,12 @@ def format_external_command(
     return [part.format(**placeholders) for part in command]
 
 
+def run_prepare_command(project: HarnessProject, *, project_dir: Path) -> None:
+    if project.prepare_command is None:
+        return
+    run(list(project.prepare_command), cwd=project_dir)
+
+
 def ref_is_commit_hash(ref: str | None) -> bool:
     return ref is not None and COMMIT_HASH_PATTERN.fullmatch(ref) is not None
 
@@ -203,6 +209,7 @@ def prepare_reference_edit_checkout(
             )
         run(["git", "checkout", "-b", target_branch, target_base_ref], cwd=edit_dir)
 
+    run_prepare_command(project, project_dir=edit_dir / project.project_root)
     return edit_dir, target_branch, target_base_ref
 
 
@@ -323,6 +330,7 @@ def sync_reference_cache_checkout(layout, project: HarnessProject, *, warm_build
         update_git_checkout(project, cache_dir)
     project_dir = cache_dir / project.project_root
     discard_untracked_project_manifest(project_dir)
+    run_prepare_command(project, project_dir=project_dir)
     cache_lakefile = project_dir / "lakefile.lean"
     original_text = cache_lakefile.read_text(encoding="utf-8")
     rewrite_local_blueprint_dependency(project_dir, layout.repo_root)
@@ -361,6 +369,7 @@ def generate_in_repo_command_project(layout, output_root: Path, project: Harness
     output_dir.mkdir(parents=True, exist_ok=True)
     discard_untracked_project_manifest(project_dir)
     original_manifest = snapshot_tracked_project_manifest(project_dir)
+    run_prepare_command(project, project_dir=project_dir)
     rewritten_lakefile, original_lakefile_text = maybe_rewrite_in_repo_blueprint_dependency(project_dir, layout.package_root)
     if rewritten_lakefile is not None:
         print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
@@ -414,6 +423,7 @@ def generate_git_project(layout, output_root: Path, project: HarnessProject, *, 
     output_dir.mkdir(parents=True, exist_ok=True)
     original_text = (project_dir / "lakefile.lean").read_text(encoding="utf-8") if use_shared_reference_checkout() else None
     try:
+        run_prepare_command(project, project_dir=project_dir)
         rewritten_lakefile = rewrite_local_blueprint_dependency(project_dir, layout.package_root)
         print(f"[blueprint-harness] local package override: rewrote {rewritten_lakefile}")
         run(reference_update_command(layout.package_root, project_dir), cwd=project_dir)

@@ -133,6 +133,8 @@ The repository also tracks larger reference blueprints.
   [rendered site](https://leanprover.github.io/verso-blueprint/reference-blueprints/noperthedron/)
 - [`ejgallego/verso-sphere-packing`](https://github.com/ejgallego/verso-sphere-packing),
   [rendered site](https://leanprover.github.io/verso-blueprint/reference-blueprints/spherepackingblueprint/)
+- [`ejgallego/verso-flt`](https://github.com/ejgallego/verso-flt),
+  [rendered site](https://leanprover.github.io/verso-blueprint/reference-blueprints/verso-flt/)
 
 ## Rendered Test Blueprints
 

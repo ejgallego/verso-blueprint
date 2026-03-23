@@ -14,6 +14,7 @@ class HarnessProject:
     generator: str | None
     repository: str | None
     ref: str | None
+    prepare_command: tuple[str, ...] | None
     build_command: tuple[str, ...] | None
     generate_command: tuple[str, ...] | None
     site_subdir: str
@@ -108,6 +109,7 @@ def load_projects_manifest(manifest_path: Path) -> list[HarnessProject]:
         generator = _optional_string(entry, "generator")
         repository = _optional_string(source, "repository")
         ref = _optional_string(source, "ref") or "main"
+        prepare_command = _optional_command(entry, "prepare_command", context=context)
         build_command = _optional_command(entry, "build_command", context=context)
         generate_command = _optional_command(entry, "generate_command", context=context)
 
@@ -137,6 +139,11 @@ def load_projects_manifest(manifest_path: Path) -> list[HarnessProject]:
                     raise ValueError(
                         f"{context}: in-repo examples using root-package targets must not declare "
                         "`repository`, `build_command`, or `generate_command`"
+                    )
+                if prepare_command is not None:
+                    raise ValueError(
+                        f"{context}: in-repo examples using root-package targets must not declare "
+                        "`prepare_command`"
                     )
             elif command_mode:
                 if generate_command is None:
@@ -175,6 +182,7 @@ def load_projects_manifest(manifest_path: Path) -> list[HarnessProject]:
                 generator=generator,
                 repository=repository,
                 ref=ref,
+                prepare_command=prepare_command,
                 build_command=build_command,
                 generate_command=generate_command,
                 site_subdir=site_subdir,

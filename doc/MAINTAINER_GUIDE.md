@@ -69,7 +69,7 @@ Rule of thumb:
   reference projects, use `blueprint_reference_harness`
 
 The default reference project catalog lives at `tests/harness/projects.json`.
-It currently includes the in-repo `project-template` plus the two external
+It currently includes the in-repo `project-template` plus three external
 reference blueprint repositories, and it is the extension point for future
 ephemeral GitHub checkout validations.
 
@@ -97,6 +97,7 @@ This builds and renders the current generation catalog:
 - `project-template`
 - `noperthedron`
 - `spherepackingblueprint`
+- `verso-flt`
 
 ### Generate the Test Blueprints
 
@@ -234,6 +235,7 @@ In the root checkout, generated artifacts go under:
 - `_out/reference-blueprints/project-template/`
 - `_out/reference-blueprints/noperthedron/`
 - `_out/reference-blueprints/spherepackingblueprint/`
+- `_out/reference-blueprints/verso-flt/`
 - `_out/test-blueprints/<slug>/`
 - `_out/test-blueprints/preview_runtime_showcase/`
 - `_out/test-blueprints/state-showcase/`
@@ -244,6 +246,7 @@ area:
 - `_out/<worktree>/reference-blueprints/project-template/`
 - `_out/<worktree>/reference-blueprints/noperthedron/`
 - `_out/<worktree>/reference-blueprints/spherepackingblueprint/`
+- `_out/<worktree>/reference-blueprints/verso-flt/`
 - `_out/<worktree>/test-blueprints/<slug>/`
 - `_out/<worktree>/test-blueprints/preview_runtime_showcase/`
 - `_out/<worktree>/test-blueprints/state-showcase/`
@@ -454,8 +457,8 @@ template-owned CI path.
 `reference-blueprints.yml` is the shared build workflow. On pull requests,
 pushes to `main`, and manual dispatch, it:
 
-- builds the three projects currently published to Pages:
-  `project-template`, `noperthedron`, and `spherepackingblueprint`
+- builds the four projects currently published to Pages:
+  `project-template`, `noperthedron`, `spherepackingblueprint`, and `verso-flt`
 - builds the local `test-blueprints/` artifact set, including
   `preview_runtime_showcase`
 - stages a site artifact under `_site/`
@@ -474,6 +477,7 @@ The staged Pages artifact layout is:
 - `_site/reference-blueprints/project-template/`
 - `_site/reference-blueprints/noperthedron/`
 - `_site/reference-blueprints/spherepackingblueprint/`
+- `_site/reference-blueprints/verso-flt/`
 - `_site/test-blueprints/index.html`
 - `_site/test-blueprints/preview_runtime_showcase/`
 - `_site/test-blueprints/<slug>/`
@@ -486,8 +490,8 @@ The staging helper is:
 
 The harness is now project-driven rather than example-hardcoded.
 
-- the default catalog points at `ejgallego/verso-noperthedron` and
-  `ejgallego/verso-sphere-packing`
+- the default catalog points at `ejgallego/verso-noperthedron`,
+  `ejgallego/verso-sphere-packing`, and `ejgallego/verso-flt`
 - catalog entries can also describe ephemeral `git_checkout` projects hosted
   outside this repository
 - external entries should declare the repository ref plus the build and
