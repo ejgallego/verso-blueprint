@@ -83,6 +83,21 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
             ),
         )
 
+    def test_reference_pages_workflow_stages_every_manifest_project(self) -> None:
+        projects = load_projects_manifest(default_project_manifest(PACKAGE_ROOT))
+        workflow_text = (PACKAGE_ROOT / ".github" / "workflows" / "reference-blueprints.yml").read_text(
+            encoding="utf-8"
+        )
+
+        for project in projects:
+            expected_path = f"_out/reference-blueprints/{project.project_id}"
+            self.assertIn(f"project_id: {project.project_id}", workflow_text)
+            self.assertGreaterEqual(
+                workflow_text.count(expected_path),
+                2,
+                msg=f"expected workflow to both build and stage `{project.project_id}`",
+            )
+
     def test_git_checkout_project_is_supported(self) -> None:
         manifest_data = {
             "version": 1,

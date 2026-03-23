@@ -30,6 +30,10 @@ jobs:
             project_id: noperthedron
             artifact_name: reference-blueprints-noperthedron
             artifact_path: _out/reference-blueprints/noperthedron
+          - job_name: Build Verso FLT
+            project_id: verso-flt
+            artifact_name: reference-blueprints-verso-flt
+            artifact_path: _out/reference-blueprints/verso-flt
     env:
       BP_REFERENCE_CHECKOUT_MODE: shared
     steps:
@@ -114,6 +118,11 @@ jobs:
         with:
           name: reference-blueprints-noperthedron
           path: _out/reference-blueprints/noperthedron
+      - name: Download verso-flt artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-blueprints-verso-flt
+          path: _out/reference-blueprints/verso-flt
       - name: Download test blueprints artifact
         uses: actions/download-artifact@v4
         with:
