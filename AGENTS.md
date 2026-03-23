@@ -88,10 +88,36 @@
 - The Python harness is maintainer tooling for this repository's in-repo
   own tests plus ephemeral checkout validations, not the preferred end-user
   interface.
+- Keep the two generated artifact families distinct:
+  - Reference blueprints are the release-facing validation catalog built by
+    `./scripts/generate-reference-blueprints.sh`,
+    `./scripts/validate-reference-blueprints.sh`, or
+    `python3 -m scripts.blueprint_reference_harness {generate,validate}`.
+  - Test blueprints are the in-repo rendering and browser-regression fixtures
+    built by `./scripts/generate-test-blueprints.sh`,
+    `./scripts/validate-test-blueprints.sh`, or the browser pytest flow under
+    `tests/browser`.
+- `preview_runtime_showcase` is a test blueprint, not a reference blueprint.
+- When the user asks for `_out` artifacts, do not guess blindly:
+  - requests such as "build `_out`", "let me inspect it", "show me the
+    output", or "I want to have a look" default to the reference-blueprint
+    catalog under `_out/.../reference-blueprints/...`
+  - requests about "reference blueprints", "validation catalog", or
+    "validation output" mean `_out/.../reference-blueprints/...`
+  - requests about browser regressions, fixture iteration, or a named test
+    blueprint such as `preview_runtime_showcase` mean
+    `_out/.../test-blueprints/...` unless the user explicitly asks for the
+    reference-blueprint catalog instead
+  - for UI review on a real deliverable, prefer reference blueprints even if a
+    smaller test-blueprint fixture also exists
 - Default validation-catalog output in the root checkout:
-  - `_out/reference-blueprints/{project-template,preview_runtime_showcase,noperthedron,spherepackingblueprint}/`
+  - `_out/reference-blueprints/{project-template,noperthedron,spherepackingblueprint}/`
 - Default validation-catalog output in a linked worktree:
-  - `_out/<worktree>/reference-blueprints/{project-template,preview_runtime_showcase,noperthedron,spherepackingblueprint}/`
+  - `_out/<worktree>/reference-blueprints/{project-template,noperthedron,spherepackingblueprint}/`
+- Default test-blueprint output in the root checkout:
+  - `_out/test-blueprints/{<slug>,preview_runtime_showcase,state-showcase}/`
+- Default test-blueprint output in a linked worktree:
+  - `_out/<worktree>/test-blueprints/{<slug>,preview_runtime_showcase,state-showcase}/`
 - Shared warmed reference blueprint cache for external git-checkout projects:
   - `.worktrees/_reference-blueprints/cache/{noperthedron,spherepackingblueprint}/`
 - Current-checkout local reference blueprint clones for external git-checkout projects:
