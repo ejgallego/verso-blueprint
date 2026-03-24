@@ -19,6 +19,7 @@ from scripts.blueprint_harness_cli import (
 from scripts.blueprint_harness_paths import detect_harness_layout, resolve_output_root
 from scripts.blueprint_harness_projects import HarnessProject, load_projects_manifest, resolve_manifest_path
 from scripts.blueprint_harness_references import (
+    bump_reference_project,
     generate_in_repo_command_project,
     generate_git_project,
     output_dir_for,
@@ -444,6 +445,64 @@ def command_reference_edit(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_reference_bump_blueprint(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
+    catalog = [project for project in load_project_catalog(manifest_path) if project.git_checkout]
+    projects = selected_projects(catalog, args.project)
+    failures: list[StepFailure] = []
+    output_root = layout.artifact_root / "reference-blueprints-edit"
+
+    for project in projects:
+        print(f"[blueprint-reference-harness] bumping {project.project_id} to {args.ref}")
+        try:
+            result = bump_reference_project(
+                layout,
+                project,
+                ref=args.ref,
+                branch=args.branch,
+                base_ref=args.base,
+                build_project=not args.skip_build,
+                generate_site=args.generate,
+                output_root=output_root,
+                commit=args.commit or args.push,
+                push=args.push,
+                commit_message=args.commit_message,
+            )
+        except subprocess.CalledProcessError as err:
+            command = [str(part) for part in (err.cmd if isinstance(err.cmd, list) else [err.cmd])]
+            failures.append(
+                StepFailure(
+                    step=f"{project.project_id} bump",
+                    detail=f"exit code {err.returncode}: {format_command(command)}",
+                )
+            )
+            continue
+        except SystemExit as err:
+            failures.append(StepFailure(step=f"{project.project_id} bump", detail=str(err)))
+            continue
+
+        previous_ref = result.previous_ref or "<none>"
+        print(f"[blueprint-reference-harness] editable reference checkout: {result.edit_dir}")
+        print(f"[blueprint-reference-harness] branch: {result.branch}")
+        print(f"[blueprint-reference-harness] base ref: {result.base_ref}")
+        print(f"[blueprint-reference-harness] pinned ref: {previous_ref} -> {args.ref}")
+        if result.output_dir is not None:
+            print(f"[blueprint-reference-harness] generated output: {result.output_dir}")
+        if not result.changed:
+            print(
+                "[blueprint-reference-harness] note: no tracked downstream changes remain after the pin rewrite/update"
+            )
+        elif args.commit and not result.committed and not args.push:
+            print("[blueprint-reference-harness] note: tracked changes were left uncommitted")
+        if result.committed:
+            print("[blueprint-reference-harness] committed tracked downstream changes")
+        if result.pushed:
+            print("[blueprint-reference-harness] pushed editable branch to origin")
+
+    return print_failure_summary(failures)
+
+
 def command_reference_prune(args: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
     manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
@@ -583,6 +642,58 @@ def build_parser() -> argparse.ArgumentParser:
         help="Base ref used when creating the editable branch. Defaults to `origin/<project-ref>`.",
     )
     edit.set_defaults(func=command_reference_edit)
+
+    bump = subparsers.add_parser(
+        "bump-verso-blueprint",
+        help="Rewrite the pinned `VersoBlueprint` ref in editable external reference checkouts.",
+    )
+    add_manifest_argument(bump)
+    add_project_selection_argument(
+        bump,
+        help_text="Restrict the bump to the selected external project. Repeat to select more.",
+        include_example_alias=False,
+    )
+    bump.add_argument(
+        "--ref",
+        required=True,
+        help="New `VersoBlueprint` git ref, tag, or commit to pin in the downstream project.",
+    )
+    bump.add_argument(
+        "--branch",
+        default=None,
+        help="Editable branch name. Defaults to `chore/bump-verso-blueprint-<ref>`.",
+    )
+    bump.add_argument(
+        "--base",
+        default=None,
+        help="Base ref used when creating the editable branch. Defaults to `origin/<project-ref>`.",
+    )
+    bump.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="Skip downstream project builds after rewriting the dependency pin.",
+    )
+    bump.add_argument(
+        "--generate",
+        action="store_true",
+        help="Also render the downstream site under `_out/.../reference-blueprints-edit/<project>/` after bumping.",
+    )
+    bump.add_argument(
+        "--commit",
+        action="store_true",
+        help="Create one commit with the rewritten pin and tracked manifest updates when there are tracked changes.",
+    )
+    bump.add_argument(
+        "--push",
+        action="store_true",
+        help="Push the editable branch to `origin` after committing. Implies `--commit`.",
+    )
+    bump.add_argument(
+        "--commit-message",
+        default=None,
+        help="Commit message to use with `--commit`. Defaults to `chore(deps): bump VersoBlueprint to <ref>`.",
+    )
+    bump.set_defaults(func=command_reference_bump_blueprint)
 
     prune = subparsers.add_parser(
         "prune",

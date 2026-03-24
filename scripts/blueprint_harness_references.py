@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import os
 import re
 import shutil
@@ -28,6 +29,22 @@ OFFICIAL_BLUEPRINT_URL_PATTERNS = tuple(
 )
 OFFICIAL_BLUEPRINT_SOURCE_DESCRIPTION = " or ".join(f"`{repository}`" for repository in OFFICIAL_BLUEPRINT_REPOSITORIES)
 COMMIT_HASH_PATTERN = re.compile(r"^[0-9a-f]{40}$", re.IGNORECASE)
+OFFICIAL_BLUEPRINT_REQUIRE_PATTERN = re.compile(
+    r'^(?P<indent>\s*)require\s+VersoBlueprint\s+from\s+git\s+"(?P<url>[^"]+)"(?:\s*@\s*"(?P<ref>[^"]+)")?\s*$',
+    re.MULTILINE,
+)
+
+
+@dataclass(frozen=True)
+class ReferenceProjectBumpResult:
+    edit_dir: Path
+    branch: str
+    base_ref: str
+    previous_ref: str | None
+    changed: bool
+    committed: bool
+    pushed: bool
+    output_dir: Path | None
 
 def output_dir_for(project: HarnessProject, output_root: Path) -> Path:
     return output_root / project.project_id
@@ -51,6 +68,17 @@ def reference_edit_checkout_dir(layout, project: HarnessProject) -> Path:
 
 def use_shared_reference_checkout() -> bool:
     return os.getenv("BP_REFERENCE_CHECKOUT_MODE") == "shared"
+
+
+def short_git_ref(ref: str) -> str:
+    return ref[:12] if COMMIT_HASH_PATTERN.fullmatch(ref) is not None else ref
+
+
+def default_reference_bump_branch(ref: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", short_git_ref(ref)).strip("-").lower()
+    if not slug:
+        slug = "pin"
+    return f"chore/bump-verso-blueprint-{slug}"
 
 
 def format_external_command(
@@ -213,25 +241,16 @@ def prepare_reference_edit_checkout(
     return edit_dir, target_branch, target_base_ref
 
 
-def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) -> Path:
+def _require_official_blueprint_git_dependency(project_dir: Path, *, action: str) -> tuple[Path, str, re.Match[str]]:
     lakefile = project_dir / "lakefile.lean"
     if not lakefile.exists():
         raise SystemExit(f"[blueprint-harness] missing lakefile for cloned project: {lakefile}")
 
-    relative_path = os.path.relpath(package_root, start=project_dir)
-    replacement = f'require VersoBlueprint from "{relative_path}"'
     text = lakefile.read_text(encoding="utf-8")
-    # Lake package overrides are not applied during the initial `lake update`
-    # manifest bootstrap path on a fresh clone, so the harness patches the
-    # cloned dependency declaration before the first update.
-    require_pattern = re.compile(
-        r'^\s*require\s+VersoBlueprint\s+from\s+git\s+"(?P<url>[^"]+)"(?:\s*@\s*"[^"]+")?\s*$',
-        re.MULTILINE,
-    )
     match = next(
         (
             candidate
-            for candidate in require_pattern.finditer(text)
+            for candidate in OFFICIAL_BLUEPRINT_REQUIRE_PATTERN.finditer(text)
             if any(re.fullmatch(pattern, candidate.group("url")) for pattern in OFFICIAL_BLUEPRINT_URL_PATTERNS)
         ),
         None,
@@ -240,12 +259,37 @@ def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) ->
         raise SystemExit(
             "[blueprint-harness] expected the cloned project to declare `VersoBlueprint` in "
             "`lakefile.lean` from an approved `VersoBlueprint` Git source "
-            f"({OFFICIAL_BLUEPRINT_SOURCE_DESCRIPTION}); "
-            "cannot inject the local path override automatically."
+            f"({OFFICIAL_BLUEPRINT_SOURCE_DESCRIPTION}); cannot {action}."
         )
+    return lakefile, text, match
+
+
+def rewrite_local_blueprint_dependency(project_dir: Path, package_root: Path) -> Path:
+    lakefile, text, match = _require_official_blueprint_git_dependency(
+        project_dir,
+        action="inject the local path override automatically",
+    )
+    relative_path = os.path.relpath(package_root, start=project_dir)
+    replacement = f'{match.group("indent")}require VersoBlueprint from "{relative_path}"'
     rewritten = text[: match.start()] + replacement + text[match.end() :]
     lakefile.write_text(rewritten, encoding="utf-8")
     return lakefile
+
+
+def rewrite_pinned_blueprint_dependency(project_dir: Path, ref: str) -> tuple[Path, str | None]:
+    if not ref or any(char in ref for char in ('"', "\n", "\r")):
+        raise SystemExit("[blueprint-harness] expected a non-empty `VersoBlueprint` ref without quotes or newlines")
+
+    lakefile, text, match = _require_official_blueprint_git_dependency(
+        project_dir,
+        action="rewrite the pinned `VersoBlueprint` ref automatically",
+    )
+    replacement = (
+        f'{match.group("indent")}require VersoBlueprint from git "{match.group("url")}"@"{ref}"'
+    )
+    rewritten = text[: match.start()] + replacement + text[match.end() :]
+    lakefile.write_text(rewritten, encoding="utf-8")
+    return lakefile, match.group("ref")
 
 
 def git_tracks_file(project_dir: Path, relative_path: str) -> bool:
@@ -319,6 +363,156 @@ def maybe_rewrite_in_repo_blueprint_dependency(project_dir: Path, package_root: 
 
     rewrite_local_blueprint_dependency(project_dir, package_root)
     return lakefile, text
+
+
+def project_checkout_pathspec(checkout_root: Path, project_dir: Path) -> str:
+    relative = project_dir.relative_to(checkout_root)
+    return "." if str(relative) == "." else relative.as_posix()
+
+
+def git_has_tracked_changes(checkout_root: Path, pathspec: str) -> bool:
+    status = subprocess.run(
+        ["git", "status", "--short", "--untracked-files=no", "--", pathspec],
+        cwd=checkout_root,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+    return bool(status)
+
+
+def git_has_staged_changes(checkout_root: Path) -> bool:
+    return (
+        subprocess.run(
+            ["git", "diff", "--cached", "--quiet"],
+            cwd=checkout_root,
+            check=False,
+        ).returncode
+        == 1
+    )
+
+
+def commit_project_tracked_changes(checkout_root: Path, pathspec: str, message: str) -> bool:
+    run(["git", "add", "-u", "--", pathspec], cwd=checkout_root)
+    if not git_has_staged_changes(checkout_root):
+        return False
+    run(["git", "commit", "-m", message], cwd=checkout_root)
+    return True
+
+
+def push_reference_edit_branch(checkout_root: Path, branch: str) -> None:
+    run(["git", "push", "--set-upstream", "origin", branch], cwd=checkout_root)
+
+
+def seed_reference_edit_checkout_lake(layout, project: HarnessProject, edit_dir: Path) -> Path | None:
+    if shutil.which("rsync") is None:
+        return None
+
+    for source_dir in (
+        reference_local_checkout_dir(layout, project),
+        reference_cache_checkout_dir(layout, project),
+    ):
+        source_lake = source_dir / ".lake"
+        if source_lake.exists():
+            run(["rsync", "-a", "--delete", f"{source_lake}/", f"{edit_dir / '.lake'}/"], cwd=layout.package_root)
+            return source_dir
+    return None
+
+
+def bump_reference_project(
+    layout,
+    project: HarnessProject,
+    *,
+    ref: str,
+    branch: str | None,
+    base_ref: str | None,
+    build_project: bool,
+    generate_site: bool,
+    output_root: Path | None,
+    commit: bool,
+    push: bool,
+    commit_message: str | None,
+) -> ReferenceProjectBumpResult:
+    target_branch = branch or default_reference_bump_branch(ref)
+    edit_dir, target_branch, target_base_ref = prepare_reference_edit_checkout(
+        layout,
+        project,
+        branch=target_branch,
+        base_ref=base_ref,
+    )
+    if not git_checkout_is_clean(edit_dir):
+        raise SystemExit(
+            f"[blueprint-harness] editable checkout `{edit_dir}` has local modifications; "
+            "commit or discard them before bumping `VersoBlueprint`."
+        )
+
+    seeded_from = seed_reference_edit_checkout_lake(layout, project, edit_dir)
+    if seeded_from is not None:
+        print(f"[blueprint-harness] seeded editable checkout `.lake/` from {seeded_from}")
+
+    project_dir = edit_dir / project.project_root
+    _lakefile, previous_ref = rewrite_pinned_blueprint_dependency(project_dir, ref)
+    run(reference_update_command(layout.package_root, project_dir), cwd=project_dir)
+
+    generated_output: Path | None = None
+    command_output_root = output_root or (layout.artifact_root / "reference-blueprints-edit")
+
+    if build_project and project.build_command is not None:
+        run(
+            lean_low_priority_command(
+                layout.package_root,
+                *format_external_command(
+                    project.build_command,
+                    project=project,
+                    package_root=layout.package_root,
+                    checkout_root=edit_dir,
+                    project_dir=project_dir,
+                    output_dir=output_dir_for(project, command_output_root),
+                ),
+            ),
+            cwd=project_dir,
+        )
+
+    if generate_site:
+        generated_output = output_dir_for(project, command_output_root)
+        generated_output.mkdir(parents=True, exist_ok=True)
+        run(
+            lean_low_priority_command(
+                layout.package_root,
+                *format_external_command(
+                    project.generate_command or (),
+                    project=project,
+                    package_root=layout.package_root,
+                    checkout_root=edit_dir,
+                    project_dir=project_dir,
+                    output_dir=generated_output,
+                ),
+            ),
+            cwd=project_dir,
+        )
+
+    pathspec = project_checkout_pathspec(edit_dir, project_dir)
+    changed = git_has_tracked_changes(edit_dir, pathspec)
+    committed = False
+    pushed = False
+
+    if commit or push:
+        message = commit_message or f"chore(deps): bump VersoBlueprint to {short_git_ref(ref)}"
+        committed = commit_project_tracked_changes(edit_dir, pathspec, message)
+        if push and committed:
+            push_reference_edit_branch(edit_dir, target_branch)
+            pushed = True
+
+    return ReferenceProjectBumpResult(
+        edit_dir=edit_dir,
+        branch=target_branch,
+        base_ref=target_base_ref,
+        previous_ref=previous_ref,
+        changed=changed,
+        committed=committed,
+        pushed=pushed,
+        output_dir=generated_output,
+    )
 
 
 def sync_reference_cache_checkout(layout, project: HarnessProject, *, warm_build: bool) -> Path:

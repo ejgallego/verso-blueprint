@@ -15,12 +15,16 @@ from scripts.blueprint_harness_projects import (
 )
 from scripts.blueprint_harness_references import (
     OFFICIAL_BLUEPRINT_REQUIRE,
+    bump_reference_project,
     clone_git_project,
+    default_reference_bump_branch,
     discard_untracked_project_manifest,
     default_reference_edit_base,
     generate_git_project,
     reference_update_command,
     rewrite_local_blueprint_dependency,
+    rewrite_pinned_blueprint_dependency,
+    seed_reference_edit_checkout_lake,
     tracked_project_manifest_path,
     update_git_checkout,
     use_shared_reference_checkout,
@@ -229,6 +233,30 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
 
             with self.assertRaisesRegex(SystemExit, "approved `VersoBlueprint` Git source"):
                 rewrite_local_blueprint_dependency(project_dir, PACKAGE_ROOT)
+
+    def test_rewrite_pinned_blueprint_dependency_updates_ref_and_preserves_repo_url(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_dir = Path(tmp)
+            lakefile = project_dir / "lakefile.lean"
+            lakefile.write_text(
+                'require VersoBlueprint from git "https://github.com/ejgallego/verso-blueprint.git"@"old-ref"\n',
+                encoding="utf-8",
+            )
+
+            result_path, previous_ref = rewrite_pinned_blueprint_dependency(project_dir, "v1.2.3")
+
+            self.assertEqual(result_path, lakefile)
+            self.assertEqual(previous_ref, "old-ref")
+            self.assertEqual(
+                lakefile.read_text(encoding="utf-8").strip(),
+                'require VersoBlueprint from git "https://github.com/ejgallego/verso-blueprint.git"@"v1.2.3"',
+            )
+
+    def test_default_reference_bump_branch_shortens_commit_hash(self) -> None:
+        self.assertEqual(
+            default_reference_bump_branch("9b50e39c17434ee1a574fd27ed97006adfdc5dc1"),
+            "chore/bump-verso-blueprint-9b50e39c1743",
+        )
 
     def test_tracked_project_manifest_path_accepts_git_tracked_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -569,6 +597,220 @@ class BlueprintHarnessProjectsTests(unittest.TestCase):
         self.assertEqual(commands[0], ["git", "submodule", "update", "--init", "FLT"])
         self.assertIn(["lake", "update", "VersoBlueprint"], commands)
         self.assertTrue(any(command[1:] == ["lake", "build"] for command in commands))
+
+    def test_bump_reference_project_commits_and_pushes_when_requested(self) -> None:
+        import scripts.blueprint_harness_references as refs_mod
+
+        project = HarnessProject(
+            project_id="external-blueprint",
+            source_kind="git_checkout",
+            project_root=".",
+            build_target=None,
+            generator=None,
+            repository="https://github.com/example/external-blueprint.git",
+            ref="main",
+            prepare_command=None,
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen", "--output", "{output_dir}"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+        layout = SimpleNamespace(
+            package_root=Path("/tmp/package"),
+            artifact_root=Path("/tmp/out"),
+            reference_project_checkout_root=Path("/tmp/checkouts"),
+            reference_project_cache_root=Path("/tmp/cache"),
+        )
+        edit_dir = Path("/tmp/edit/external-blueprint")
+        originals = {
+            "prepare_reference_edit_checkout": refs_mod.prepare_reference_edit_checkout,
+            "git_checkout_is_clean": refs_mod.git_checkout_is_clean,
+            "rewrite_pinned_blueprint_dependency": refs_mod.rewrite_pinned_blueprint_dependency,
+            "reference_update_command": refs_mod.reference_update_command,
+            "run": refs_mod.run,
+            "git_has_tracked_changes": refs_mod.git_has_tracked_changes,
+            "commit_project_tracked_changes": refs_mod.commit_project_tracked_changes,
+            "push_reference_edit_branch": refs_mod.push_reference_edit_branch,
+        }
+        commands: list[list[str]] = []
+        seen: dict[str, object] = {}
+        try:
+            refs_mod.prepare_reference_edit_checkout = lambda _layout, _project, *, branch, base_ref: (
+                edit_dir,
+                branch or "chore/bump-verso-blueprint-v1-2-3",
+                base_ref or "origin/main",
+            )
+            refs_mod.git_checkout_is_clean = lambda _checkout_root: True
+            refs_mod.rewrite_pinned_blueprint_dependency = lambda _project_dir, _ref: (
+                edit_dir / "lakefile.lean",
+                "old-ref",
+            )
+            refs_mod.reference_update_command = lambda _package_root, _project_dir: ["lake", "update", "VersoBlueprint"]
+            refs_mod.run = lambda command, *, cwd: commands.append(command)
+            refs_mod.git_has_tracked_changes = lambda _checkout_root, _pathspec: True
+
+            def fake_commit(_checkout_root, pathspec, message):
+                seen["pathspec"] = pathspec
+                seen["message"] = message
+                return True
+
+            refs_mod.commit_project_tracked_changes = fake_commit
+            refs_mod.push_reference_edit_branch = lambda _checkout_root, branch: seen.setdefault("branch", branch)
+
+            result = bump_reference_project(
+                layout,
+                project,
+                ref="v1.2.3",
+                branch=None,
+                base_ref=None,
+                build_project=False,
+                generate_site=False,
+                output_root=None,
+                commit=True,
+                push=True,
+                commit_message=None,
+            )
+        finally:
+            for name, value in originals.items():
+                setattr(refs_mod, name, value)
+
+        self.assertEqual(commands, [["lake", "update", "VersoBlueprint"]])
+        self.assertTrue(result.changed)
+        self.assertTrue(result.committed)
+        self.assertTrue(result.pushed)
+        self.assertEqual(seen["pathspec"], ".")
+        self.assertEqual(seen["message"], "chore(deps): bump VersoBlueprint to v1.2.3")
+        self.assertEqual(seen["branch"], "chore/bump-verso-blueprint-v1-2-3")
+
+    def test_bump_reference_project_can_generate_review_output(self) -> None:
+        import scripts.blueprint_harness_references as refs_mod
+
+        project = HarnessProject(
+            project_id="external-blueprint",
+            source_kind="git_checkout",
+            project_root=".",
+            build_target=None,
+            generator=None,
+            repository="https://github.com/example/external-blueprint.git",
+            ref="main",
+            prepare_command=None,
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen", "--output", "{output_dir}"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            layout = SimpleNamespace(
+                package_root=root / "pkg",
+                artifact_root=root / "out",
+                reference_project_checkout_root=root / "checkouts",
+                reference_project_cache_root=root / "cache",
+            )
+            edit_dir = root / "edit" / "external-blueprint"
+            output_root = root / "review"
+            originals = {
+                "prepare_reference_edit_checkout": refs_mod.prepare_reference_edit_checkout,
+                "git_checkout_is_clean": refs_mod.git_checkout_is_clean,
+                "rewrite_pinned_blueprint_dependency": refs_mod.rewrite_pinned_blueprint_dependency,
+                "reference_update_command": refs_mod.reference_update_command,
+                "run": refs_mod.run,
+                "git_has_tracked_changes": refs_mod.git_has_tracked_changes,
+            }
+            commands: list[list[str]] = []
+            try:
+                refs_mod.prepare_reference_edit_checkout = lambda _layout, _project, *, branch, base_ref: (
+                    edit_dir,
+                    branch or "demo",
+                    base_ref or "origin/main",
+                )
+                refs_mod.git_checkout_is_clean = lambda _checkout_root: True
+                refs_mod.rewrite_pinned_blueprint_dependency = lambda _project_dir, _ref: (
+                    edit_dir / "lakefile.lean",
+                    "old-ref",
+                )
+                refs_mod.reference_update_command = lambda _package_root, _project_dir: ["lake", "update", "VersoBlueprint"]
+                refs_mod.run = lambda command, *, cwd: commands.append(command)
+                refs_mod.git_has_tracked_changes = lambda _checkout_root, _pathspec: False
+
+                result = bump_reference_project(
+                    layout,
+                    project,
+                    ref="v1.2.3",
+                    branch="demo",
+                    base_ref="origin/main",
+                    build_project=True,
+                    generate_site=True,
+                    output_root=output_root,
+                    commit=False,
+                    push=False,
+                    commit_message=None,
+                )
+            finally:
+                for name, value in originals.items():
+                    setattr(refs_mod, name, value)
+
+        self.assertEqual(result.output_dir, output_root / "external-blueprint")
+        self.assertTrue(any(command[-2:] == ["lake", "build"] for command in commands))
+        self.assertTrue(any(str(output_root / "external-blueprint") in part for command in commands for part in command))
+
+    def test_seed_reference_edit_checkout_lake_prefers_local_checkout(self) -> None:
+        import scripts.blueprint_harness_references as refs_mod
+
+        project = HarnessProject(
+            project_id="external-blueprint",
+            source_kind="git_checkout",
+            project_root=".",
+            build_target=None,
+            generator=None,
+            repository="https://github.com/example/external-blueprint.git",
+            ref="main",
+            prepare_command=None,
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            local_dir = root / "local" / project.project_id
+            cache_dir = root / "cache" / project.project_id
+            edit_dir = root / "edit" / project.project_id
+            (local_dir / ".lake" / "packages").mkdir(parents=True)
+            (cache_dir / ".lake" / "packages").mkdir(parents=True)
+            edit_dir.mkdir(parents=True)
+            layout = SimpleNamespace(
+                package_root=root / "pkg",
+                reference_project_checkout_root=root / "local",
+                reference_project_cache_root=root / "cache",
+            )
+            layout.package_root.mkdir()
+
+            originals = {
+                "run": refs_mod.run,
+            }
+            commands: list[list[str]] = []
+            try:
+                refs_mod.run = lambda command, *, cwd: commands.append(command)
+
+                source = seed_reference_edit_checkout_lake(layout, project, edit_dir)
+            finally:
+                for name, value in originals.items():
+                    setattr(refs_mod, name, value)
+
+        self.assertEqual(source, local_dir)
+        self.assertEqual(
+            commands,
+            [["rsync", "-a", "--delete", f"{local_dir / '.lake'}/", f"{edit_dir / '.lake'}/"]],
+        )
 
     def test_sync_reference_local_checkout_rsyncs_warmed_cache_lake(self) -> None:
         import scripts.blueprint_harness_references as refs_mod

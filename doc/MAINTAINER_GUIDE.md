@@ -1,6 +1,6 @@
 # Blueprint Maintainer Guide
 
-Last updated: 2026-03-20
+Last updated: 2026-03-24
 
 This document is the repository-level workflow guide for maintaining Blueprint
 support in `verso-blueprint`, its in-repo validation projects, and its
@@ -43,6 +43,7 @@ python3 -m scripts.blueprint_reference_harness generate
 python3 -m scripts.blueprint_reference_harness validate
 python3 -m scripts.blueprint_reference_harness projects
 python3 -m scripts.blueprint_reference_harness edit <project>
+python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --ref <ref>
 python3 -m scripts.blueprint_reference_harness sync
 python3 -m scripts.blueprint_reference_harness prune
 python3 -m scripts.blueprint_reference_harness --help
@@ -227,6 +228,22 @@ To remove stale harness-managed reference caches and orphaned local clones:
 python3 -m scripts.blueprint_reference_harness prune --dry-run
 python3 -m scripts.blueprint_reference_harness prune
 ```
+
+To rewrite the pinned `VersoBlueprint` ref in one or more editable downstream
+reference clones from this checkout:
+
+```bash
+python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --ref v1.2.3
+python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --project noperthedron --ref v1.2.3 --generate --commit
+python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --project spherepackingblueprint --ref v1.2.3 --commit --push
+```
+
+That command uses the editable-clone path rather than the disposable
+validation clones. It rewrites the downstream `VersoBlueprint` git pin in
+`lakefile.lean`, runs the same manifest-aware `lake update VersoBlueprint`
+policy the harness already uses elsewhere, builds the downstream project by
+default, optionally renders review output under
+`_out/.../reference-blueprints-edit/`, and keeps commit/push steps explicit.
 
 ## Output Layout
 
@@ -434,6 +451,14 @@ python3 -m scripts.blueprint_reference_harness edit spherepackingblueprint --bra
 Those editable clones are ordinary developer checkouts intended for local
 edits and future PRs; they intentionally do not reuse the disposable cache
 reset flow that the validation harness uses.
+
+For repeated downstream dependency rollouts, prefer the dedicated bump command
+instead of editing `lakefile.lean` by hand:
+
+```bash
+python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --ref v1.2.3
+python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --project verso-flt --ref v1.2.3 --commit --push
+```
 
 ## CI and Pages
 

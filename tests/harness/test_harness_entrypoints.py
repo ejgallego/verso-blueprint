@@ -31,6 +31,7 @@ class HarnessEntrypointSmokeTests(unittest.TestCase):
         self.assertIn("generate", result.stdout)
         self.assertIn("sync", result.stdout)
         self.assertIn("edit", result.stdout)
+        self.assertIn("bump-verso-blueprint", result.stdout)
 
     def test_blueprint_test_blueprints_help(self) -> None:
         result = self.run_command([sys.executable, "-m", "scripts.blueprint_test_blueprints", "--help"])

@@ -142,6 +142,25 @@ python3 -m scripts.blueprint_reference_harness edit noperthedron
 python3 -m scripts.blueprint_reference_harness edit spherepackingblueprint --branch feat/update-figures
 ```
 
+If you want to bump the pinned `VersoBlueprint` ref in those downstream repos
+from this checkout, use the dedicated editable-clone workflow:
+
+```bash
+python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --ref v1.2.3
+python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --project noperthedron --ref v1.2.3 --generate --commit
+python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --project spherepackingblueprint --ref v1.2.3 --commit --push
+```
+
+That command:
+
+- reuses or creates the editable checkout under `.worktrees/_reference-blueprints/edit/...`
+- rewrites the downstream `VersoBlueprint` git pin in `lakefile.lean`
+- runs the same manifest-aware `lake update VersoBlueprint` policy the harness
+  already uses for validation checkouts
+- builds the downstream project by default unless you pass `--skip-build`
+- optionally renders review output under `_out/.../reference-blueprints-edit/`
+- keeps commit and push as explicit opt-ins
+
 Use `./scripts/lean-low-priority ...` for long `lake`, `lean`, and
 `.lake/build/bin/*` commands when you intentionally run them.
 

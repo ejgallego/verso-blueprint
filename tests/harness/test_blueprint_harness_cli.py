@@ -76,6 +76,17 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         self.assertEqual(args.branch, "wip/noperthedron")
         self.assertEqual(args.base, "origin/main")
 
+    def test_reference_bump_blueprint_parses_ref_and_push(self) -> None:
+        parser = reference_harness_mod.build_parser()
+        args = parser.parse_args(
+            ["bump-verso-blueprint", "--project", "noperthedron", "--ref", "v1.2.3", "--push"]
+        )
+        self.assertEqual(args.project, ["noperthedron"])
+        self.assertEqual(args.ref, "v1.2.3")
+        self.assertTrue(args.push)
+        self.assertFalse(args.skip_build)
+        self.assertFalse(args.generate)
+
     def test_create_worktree_uses_preferred_main_ref_by_default(self) -> None:
         layout = SimpleNamespace(repo_root=Path("/tmp/repo"))
         original = harness_mod.preferred_main_ref
@@ -342,6 +353,110 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         self.assertEqual(seen["project"], project)
         self.assertEqual(seen["branch"], "wip/noperthedron")
         self.assertEqual(seen["base_ref"], "origin/main")
+
+    def test_reference_bump_blueprint_uses_bump_helper(self) -> None:
+        project = HarnessProject(
+            project_id="noperthedron",
+            source_kind="git_checkout",
+            project_root=".",
+            build_target=None,
+            generator=None,
+            repository="https://github.com/example/noperthedron.git",
+            ref="main",
+            prepare_command=None,
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+        args = argparse.Namespace(
+            manifest=None,
+            project=["noperthedron"],
+            ref="v1.2.3",
+            branch="chore/bump-verso-blueprint-v1-2-3",
+            base="origin/main",
+            skip_build=False,
+            generate=True,
+            commit=False,
+            push=False,
+            commit_message=None,
+        )
+        layout = SimpleNamespace(package_root=Path("/tmp/package"), artifact_root=Path("/tmp/out"))
+        originals = {
+            "detect_harness_layout": reference_harness_mod.detect_harness_layout,
+            "resolve_manifest_path": reference_harness_mod.resolve_manifest_path,
+            "load_project_catalog": reference_harness_mod.load_project_catalog,
+            "selected_projects": reference_harness_mod.selected_projects,
+            "bump_reference_project": reference_harness_mod.bump_reference_project,
+        }
+        seen: dict[str, object] = {}
+        try:
+            reference_harness_mod.detect_harness_layout = lambda _start=None: layout
+            reference_harness_mod.resolve_manifest_path = lambda _path_text, _package_root: Path("/tmp/projects.json")
+            reference_harness_mod.load_project_catalog = lambda _manifest_path: [project]
+
+            def fake_selected(catalog, values):
+                seen["selected_values"] = values
+                return catalog
+
+            reference_harness_mod.selected_projects = fake_selected
+
+            def fake_bump(
+                _layout,
+                _project,
+                *,
+                ref,
+                branch,
+                base_ref,
+                build_project,
+                generate_site,
+                output_root,
+                commit,
+                push,
+                commit_message,
+            ):
+                seen["layout"] = _layout
+                seen["project"] = _project
+                seen["ref"] = ref
+                seen["branch"] = branch
+                seen["base_ref"] = base_ref
+                seen["build_project"] = build_project
+                seen["generate_site"] = generate_site
+                seen["output_root"] = output_root
+                seen["commit"] = commit
+                seen["push"] = push
+                seen["commit_message"] = commit_message
+                return SimpleNamespace(
+                    edit_dir=Path("/tmp/edit/noperthedron"),
+                    branch=branch,
+                    base_ref=base_ref,
+                    previous_ref="old-ref",
+                    changed=True,
+                    committed=False,
+                    pushed=False,
+                    output_dir=output_root / "noperthedron",
+                )
+
+            reference_harness_mod.bump_reference_project = fake_bump
+
+            self.assertEqual(reference_harness_mod.command_reference_bump_blueprint(args), 0)
+        finally:
+            for name, value in originals.items():
+                setattr(reference_harness_mod, name, value)
+
+        self.assertEqual(seen["layout"], layout)
+        self.assertEqual(seen["project"], project)
+        self.assertEqual(seen["selected_values"], ["noperthedron"])
+        self.assertEqual(seen["ref"], "v1.2.3")
+        self.assertEqual(seen["branch"], "chore/bump-verso-blueprint-v1-2-3")
+        self.assertEqual(seen["base_ref"], "origin/main")
+        self.assertTrue(seen["build_project"])
+        self.assertTrue(seen["generate_site"])
+        self.assertEqual(seen["output_root"], Path("/tmp/out/reference-blueprints-edit"))
+        self.assertFalse(seen["commit"])
+        self.assertFalse(seen["push"])
 
     def test_worktree_retire_supports_detached_merged_worktree(self) -> None:
         args = argparse.Namespace(name="reference-edit", dry_run=False)
