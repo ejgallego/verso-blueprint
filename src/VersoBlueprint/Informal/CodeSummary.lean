@@ -307,13 +307,12 @@ private def externalRenderHealth (decls : Array Data.ExternalRef) : ExternalRend
 private def appendRenderHealthSummary (title : String) (health : ExternalRenderHealth) : String :=
   appendExternalRenderFailureSummary title health.failureCount
 
-private def renderRenderHealthBadge (health : ExternalRenderHealth)
-    (className : String := "bp_render_warning_badge") : Output.Html :=
+private def renderCodeHeadingRenderHealthBadge (health : ExternalRenderHealth) : Output.Html :=
   open Verso.Output.Html in
   if !health.hasFailures then
     .empty
   else
-    {{<span class={{className}} title={{health.summaryText}}>"!"</span>}}
+    {{<span class="bp_render_warning_badge bp_code_render_warning_badge" title={{health.summaryText}}>"!"</span>}}
 
 private def renderCodeEntryNode (href : Option String) (title : String) (visual : CodeEntryVisual)
     (renderHealth : ExternalRenderHealth := {}) : Output.Html :=
@@ -321,9 +320,9 @@ private def renderCodeEntryNode (href : Option String) (title : String) (visual 
   let linkClass := s!"bp_code_link bp_code_link_status bp_code_link_status_{visual.classSuffix}" ++
     (if visual == .absent then " bp_code_link_empty" else "")
   let body : Output.Html := {{
+    {{renderCodeHeadingRenderHealthBadge renderHealth}}
     <span class="bp_code_status_symbol">{{.text true visual.symbol}}</span>
     <span class="bp_code_link_label">"L∃∀N"</span>
-    {{renderRenderHealthBadge renderHealth "bp_render_warning_badge bp_code_render_warning_badge"}}
   }}
   match href with
   | some href =>
@@ -607,7 +606,6 @@ private def renderExternalPanelIndicator (decls : Array Data.ExternalRef)
     <span class={{s!"bp_external_status_badge bp_external_status_badge_summary {iconClass}"}} title={{badgeTitle}}>
       <span class={{s!"bp_external_status_icon {iconClass}"}}>{{.text true iconText}}</span>
       <span class="bp_external_status_badge_text">{{.text true badgeText}}</span>
-      {{renderRenderHealthBadge renderHealth "bp_render_warning_badge bp_external_render_warning_badge"}}
     </span>
   }}
   {
