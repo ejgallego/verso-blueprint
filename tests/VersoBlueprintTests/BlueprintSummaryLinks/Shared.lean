@@ -16,6 +16,30 @@ set_option doc.verso true
 
 def manualImpls : ExtensionImpls := extension_impls%
 
+private def syntheticSummaryDoc (summary : Informal.Commands.Summary) : Doc.VersoDoc Genre.Manual :=
+  .mk
+    (fun _ =>
+      Doc.Part.mk
+        #[]
+        "Synthetic Summary"
+        none
+        #[Doc.Block.other (Informal.Commands.Block.summary summary) #[]]
+        #[])
+    "{}"
+
+def summaryDiagnosticsSyntheticDoc (showDebugDiagnostics : Bool) : Doc.VersoDoc Genre.Manual :=
+  syntheticSummaryDoc {
+    showDebugDiagnostics
+    totalEntries := 1
+    renderFailures := [{
+      label := `diag.render
+      kind := "definition"
+      written := `Diag.renderFail
+      canonical := `Diag.renderFail
+      message := "synthetic render failure"
+    }]
+  }
+
 #docs (Genre.Manual) externalSummaryLinksDoc "External Summary Links" :=
 :::::::
 :::definition "def:external.summary" (lean := "Nat.add")

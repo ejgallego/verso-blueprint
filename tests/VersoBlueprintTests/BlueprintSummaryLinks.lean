@@ -5,5 +5,6 @@ Author: Emilio J. Gallego Arias
 -/
 
 import VersoBlueprintTests.BlueprintSummaryLinks.Blockers
+import VersoBlueprintTests.BlueprintSummaryLinks.Diagnostics
 import VersoBlueprintTests.BlueprintSummaryLinks.External
 import VersoBlueprintTests.BlueprintSummaryLinks.Triage

@@ -27,6 +27,11 @@ namespace Informal.Commands
 open Lean Elab Command
 open Informal Data Environment
 
+register_option verso.blueprint.summary.debugDiagnostics : Bool := {
+  defValue := false
+  descr := "Show maintainer diagnostics such as external declaration render failures in blueprint summaries"
+}
+
 structure SorryItem where
   label : Name
   kind : String
@@ -49,6 +54,18 @@ deriving Inhabited, FromJson, ToJson
 open Syntax in
 instance : Quote MissingLeanDeclItem where
   quote s := mkCApp ``MissingLeanDeclItem.mk #[quote s.label, quote s.kind, quote s.written, quote s.canonical]
+
+structure RenderFailureItem where
+  label : Name
+  kind : String
+  written : Name
+  canonical : Name
+  message : String
+deriving Inhabited, FromJson, ToJson
+
+open Syntax in
+instance : Quote RenderFailureItem where
+  quote s := mkCApp ``RenderFailureItem.mk #[quote s.label, quote s.kind, quote s.written, quote s.canonical, quote s.message]
 
 structure IndexItem where
   label : Name
@@ -307,6 +324,7 @@ instance : Quote MetadataEntryItem where
     ]
 
 structure Summary where
+  showDebugDiagnostics : Bool := false
   totalEntries : Nat := 0
   definitions : Nat := 0
   lemmas : Nat := 0
@@ -326,6 +344,7 @@ structure Summary where
   sorries : Nat := 0
   sorryDetails : List SorryItem := []
   missingLeanDecls : List MissingLeanDeclItem := []
+  renderFailures : List RenderFailureItem := []
   definitionIndex : List IndexItem := []
   theoremLikeIndex : List IndexItem := []
   axiomIndex : List IndexItem := []
@@ -351,6 +370,7 @@ open Syntax in
 instance : Quote Summary where
   quote s := mkCApp ``Summary.mk
     #[
+      quote s.showDebugDiagnostics,
       quote s.totalEntries,
       quote s.definitions,
       quote s.lemmas,
@@ -370,6 +390,7 @@ instance : Quote Summary where
       quote s.sorries,
       quote s.sorryDetails,
       quote s.missingLeanDecls,
+      quote s.renderFailures,
       quote s.definitionIndex,
       quote s.theoremLikeIndex,
       quote s.axiomIndex,
@@ -699,6 +720,10 @@ private def addParentTheoremLikeItem (groups : NameMap (List IndexItem)) (parent
 
 def buildSummary : CoreM Summary := do
   reportImportedConflicts
+  let showDebugDiagnostics :=
+    (← getOptions).get
+      verso.blueprint.summary.debugDiagnostics.name
+      verso.blueprint.summary.debugDiagnostics.defValue
   let env ← getEnv
   let state := informalExt.getState env
   let entries := state.data.toArray
@@ -711,9 +736,9 @@ def buildSummary : CoreM Summary := do
       let hasProof := node.proof.isSome
       let hasCode := node.code.isSome
       let statusFlags := entryStatusFlags state external node
-      let (leanDecls, sorries, leanObjects, sorryDetails, missingLeanDecls) :=
+      let (leanDecls, sorries, leanObjects, sorryDetails, missingLeanDecls, renderFailures) :=
         match node.code with
-        | none => (0, 0, ([] : List Name), ([] : List SorryItem), ([] : List MissingLeanDeclItem))
+        | none => (0, 0, ([] : List Name), ([] : List SorryItem), ([] : List MissingLeanDeclItem), ([] : List RenderFailureItem))
         | some (.external decls) =>
           let leanObjects := nodeLeanObjects node
           let missingDecls :=
@@ -747,7 +772,16 @@ def buildSummary : CoreM Summary := do
                   (decls.find? (fun d => d.canonical == decl)).map (·.kind.isTheoremLike) |>.getD false
                 status
               }
-          (decls.size, incompleteDecls.size, leanObjects, sorryDetails, missingDecls)
+          let renderFailures :=
+            (externalRenderFailures decls).toList.map fun failure =>
+              {
+                label
+                kind := toString node.kind
+                written := failure.decl.written
+                canonical := failure.decl.canonical
+                message := failure.message
+              }
+          (decls.size, incompleteDecls.size, leanObjects, sorryDetails, missingDecls, renderFailures)
         | some (.literate code) =>
           let kind := toString node.kind
           let leanObjects := nodeLeanObjects node
@@ -764,7 +798,7 @@ def buildSummary : CoreM Summary := do
               (fun (d : Data.LiterateThm) => d.name)
               (fun (d : Data.LiterateThm) => d.provedStatus)
               (fun _ => true)
-          (leanDecls, sorries, leanObjects, sorryDetails, ([] : List MissingLeanDeclItem))
+          (leanDecls, sorries, leanObjects, sorryDetails, ([] : List MissingLeanDeclItem), ([] : List RenderFailureItem))
       let pendingInformalEntries : List PendingInformalItem :=
         if hasCode && ((node.kind.isTheoremLike && !hasProof) || !hasStatement) then
           mkIndexItem label node.kind leanObjects :: acc.pendingInformalEntries
@@ -795,6 +829,7 @@ def buildSummary : CoreM Summary := do
         sorries := acc.sorries + sorries
         sorryDetails := sorryDetails ++ acc.sorryDetails
         missingLeanDecls := missingLeanDecls ++ acc.missingLeanDecls
+        renderFailures := renderFailures ++ acc.renderFailures
         definitionIndex
         theoremLikeIndex
         axiomIndex
@@ -1069,6 +1104,7 @@ def buildSummary : CoreM Summary := do
     (sortMetadataEntryItems items).toList
   return {
     summary with
+      showDebugDiagnostics,
       theoremLikeByParent,
       topPriorities,
       mostUsed,
@@ -1092,6 +1128,7 @@ private def Summary.previewLabels (data : Summary) : Array Name :=
     data.pendingInformalEntries.map (·.label) ++
     data.sorryDetails.map (·.label) ++
     data.missingLeanDecls.map (·.label) ++
+    data.renderFailures.map (·.label) ++
     data.definitionIndex.map (·.label) ++
     data.theoremLikeIndex.map (·.label) ++
     data.topPriorities.map (·.label) ++
@@ -1303,6 +1340,30 @@ block_extension Block.summary (summary : Summary) where
                       "Missing external Lean declaration: " {{declNode}} " "
                       <span class="bp_summary_badge bp_summary_badge_error">"[missing declaration]"</span>
                     </div>
+                  </li> }}
+      let renderFailureRows ←
+        data.renderFailures.toArray.mapM fun item => do
+          let entryRef ← mkEntryRef item.label
+          let canonicalNode : Output.Html :=
+            renderLeanDeclLink
+              item.canonical
+              {{<code>s!"{item.canonical}"</code>}}
+              (getDeclHref item.label item.canonical)
+          let declNode : Output.Html :=
+            if item.written == item.canonical then
+              canonicalNode
+            else
+              {{ <span> <code>s!"{item.written}"</code> " (resolved as " {{canonicalNode}} ")" </span> }}
+          pure {{ <li class="bp_summary_item">
+                    <div class="bp_summary_item_top">
+                      <span class="bp_summary_item_head">{{entryRef}}</span>
+                      <span class="bp_summary_item_meta">s!"({item.kind})"</span>
+                    </div>
+                    <div class="bp_summary_item_body">
+                      "External render failed for " {{declNode}} " "
+                      <span class="bp_summary_badge bp_summary_badge_warn">"[render failure]"</span>
+                    </div>
+                    <div class="bp_summary_item_actions"><code>{{.text true item.message}}</code></div>
                   </li> }}
       let mkPriorityRow (item : PriorityItem) := do
         let entryRef ← mkEntryRef item.label
@@ -1607,6 +1668,7 @@ block_extension Block.summary (summary : Summary) where
         !missingOwnerRows.isEmpty || !missingEffortRows.isEmpty || !untaggedRows.isEmpty
       let showMetadataCards := showQuickWins || showOwnerRollups || showTagRollups || showLinkedPrs
       let showMetadataSection := showMetadataCards || showMetadataAudit
+      let showDiagnosticsSection := data.showDebugDiagnostics && !renderFailureRows.isEmpty
       let showEntryIndexSection := showDefinitionIndex || showTheoremLikeIndex || showAxiomIndex
       let showDependencyInsightsSection :=
         !statementUsedRows.isEmpty || !proofUsedRows.isEmpty || !groupHealthRows.isEmpty
@@ -1831,6 +1893,20 @@ block_extension Block.summary (summary : Summary) where
                   {{if !untaggedRows.isEmpty then {{<details class="bp_summary_nested"><summary>s!"Untagged ({data.untaggedEntries.length})"</summary><ul class="bp_summary_list">{{capRows untaggedRows "untagged entries"}}</ul></details>}} else .empty}}
                 </details>}}
               else .empty}}
+          </details>}}
+            else .empty}}
+          {{if showDiagnosticsSection then
+              {{<details class="bp_summary_section">
+            <summary>"Maintainer diagnostics"</summary>
+            <div class="bp_summary_grid">
+              <div class="bp_summary_card bp_summary_card_warn"><span class="bp_summary_label">"Render failures"</span><span class="bp_summary_value">s!"{data.renderFailures.length}"</span><span class="bp_summary_status">"External declarations that checked in Lean but failed HTML rendering."</span></div>
+            </div>
+            <details class="bp_summary_subsection bp_summary_subsection_warn">
+              <summary>s!"Render failures ({data.renderFailures.length})"</summary>
+              <ul class="bp_summary_list">
+                {{capRows renderFailureRows "render-failure entries"}}
+              </ul>
+            </details>
           </details>}}
             else .empty}}
           {{if showStructureSection then
