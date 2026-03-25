@@ -4,8 +4,8 @@ open Lake DSL
 -- While the split is in progress, the extracted blueprint package depends on
 -- the parent repo root, which remains a checkout of Verso.
 -- require verso from "../verso"
-require verso from git "https://github.com/leanprover/verso"@"main"
-require proofwidgets from git "https://github.com/leanprover-community/ProofWidgets4"@"v0.0.92"
+require verso from git "https://github.com/leanprover/verso"@"v4.28.0"
+require proofwidgets from git "https://github.com/leanprover-community/ProofWidgets4"@"v0.0.87"
 
 package VersoBlueprint where
   precompileModules := false
