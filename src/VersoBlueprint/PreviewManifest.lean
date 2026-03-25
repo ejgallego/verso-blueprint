@@ -8,6 +8,7 @@ import Lean
 import Lean.Elab.Command
 import Std.Data.HashSet
 import VersoManual
+import VersoManual.HighlightedCode
 import VersoBlueprint.Informal.Block
 import VersoBlueprint.Informal.Block.Store
 import VersoBlueprint.Informal.Group
@@ -21,6 +22,16 @@ namespace Informal.PreviewManifest
 open Lean Elab Command Term Meta
 open Verso Doc
 open Verso.Genre Manual
+
+def blueprintHtmlAssets : HtmlAssets :=
+  Verso.Genre.Manual.highlightAssets
+
+def withBlueprintAssets (config : RenderConfig := {}) : RenderConfig :=
+  let htmlConfig := config.toHtmlConfig
+  let htmlAssets := htmlConfig.toHtmlAssets.combine blueprintHtmlAssets
+  { config with
+    toHtmlConfig := { htmlConfig with toHtmlAssets := htmlAssets }
+  }
 
 def manifestFilename : String := "blueprint-preview-manifest.json"
 
@@ -434,16 +445,25 @@ def handleCliFlags
   else
     handleDumpSchemaFlag options
 
-def manualMainWithSharedPreviewManifest
+def blueprintMainWithSharedPreviewManifest
     (text : Part Manual)
     (options : List String)
     (extensionImpls : ExtensionImpls)
     (config : RenderConfig := {})
     (extraSteps : List ExtraStep := []) : IO UInt32 := do
+  let config := withBlueprintAssets config
   let (dumped?, options) ← handleCliFlags text options extensionImpls config
   if let some code := dumped? then
     return code
   manualMain text (extensionImpls := extensionImpls) (options := options) (config := config)
     (extraSteps := emitSharedPreviewManifest extensionImpls :: extraSteps)
+
+def manualMainWithSharedPreviewManifest
+    (text : Part Manual)
+    (options : List String)
+    (extensionImpls : ExtensionImpls)
+    (config : RenderConfig := {})
+    (extraSteps : List ExtraStep := []) : IO UInt32 :=
+  blueprintMainWithSharedPreviewManifest text options extensionImpls config extraSteps
 
 end Informal.PreviewManifest
