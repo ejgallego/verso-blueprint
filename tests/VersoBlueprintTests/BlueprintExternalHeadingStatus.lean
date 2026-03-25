@@ -172,11 +172,11 @@ private def renderFailedExternalRef (name : Lean.Name) : Data.ExternalRef :=
     mark.status == ProvedStatus.proved &&
     hasSubstr rendered.codeEntry.asString "bp_code_link_status_proved" &&
     hasSubstr rendered.codeEntry.asString "bp_code_render_warning_badge" &&
+    appearsBefore rendered.codeEntry.asString "bp_code_render_warning_badge" "bp_code_status_symbol" &&
     hasSubstr rendered.codeEntry.asString "render failed for 1 declaration" &&
     hasSubstr rendered.codeEntry.asString "Render diagnostics" &&
     hasSubstr rendered.codeEntry.asString "synthetic render failure" &&
-    hasSubstr panelParts.indicator.asString "bp_external_render_warning_badge" &&
-    hasSubstr panelParts.indicator.asString "synthetic render failure" &&
+    !hasSubstr panelParts.indicator.asString "bp_code_render_warning_badge" &&
     hasSubstr panelParts.summaryTitle "render failed for 1 declaration"
   | none => false
 

@@ -78,18 +78,32 @@ private def panelIndicatorHtml (label : Name) (source : BlockCodeData) : String 
   let inlineProvedHtml := codeEntryHtml `inline.proved .definition (some (.inline (inlineCode .proved)))
   let inlineSorryHtml := codeEntryHtml `inline.sorry .definition (some (.inline (inlineCode (.containsSorry #[{ location := .proof, refs? := some 1 }]))))
   let inlineAxiomHtml := codeEntryHtml `inline.axiom .definition (some (.inline (inlineCode .axiomLike)))
-  let absentHtml := codeEntryHtml `inline.absent .definition none
-  let externalMissingHtml := codeEntryHtml `external.missing .definition (some (.external #[missingExternalRef `Ext.missing]))
-  let externalAxiomHtml := codeEntryHtml `external.axiom .theorem (some (.external #[axiomExternalRef `Ext.axiom]))
-  let externalRenderFailHtml := codeEntryHtml `external.render_fail .theorem (some (.external #[renderFailedExternalRef `Ext.renderFail]))
   hasSubstr inlineProvedHtml "bp_code_link_status_proved" &&
     hasSubstr inlineSorryHtml "bp_code_link_status_warning" &&
     hasSubstr inlineAxiomHtml "bp_code_link_status_axiom" &&
-    hasSubstr absentHtml "bp_code_link_status_absent" &&
-    hasSubstr externalMissingHtml "bp_code_link_status_missing" &&
-    hasSubstr externalAxiomHtml "bp_code_link_status_axiom" &&
-    hasSubstr externalRenderFailHtml "bp_code_link_status_proved" &&
-    hasSubstr externalRenderFailHtml "bp_code_render_warning_badge"
+    hasSubstr (codeEntryHtml `inline.absent .definition none) "bp_code_link_status_absent"
+
+/-- info: true -/
+#guard_msgs in
+#eval!
+  hasSubstr
+      (codeEntryHtml `external.missing .definition (some (.external #[missingExternalRef `Ext.missing])))
+      "bp_code_link_status_missing"
+
+/-- info: true -/
+#guard_msgs in
+#eval!
+  hasSubstr
+      (codeEntryHtml `external.axiom .theorem (some (.external #[axiomExternalRef `Ext.axiom])))
+      "bp_code_link_status_axiom"
+
+/-- info: true -/
+#guard_msgs in
+#eval!
+  let externalRenderFailHtml := codeEntryHtml `external.render_fail .theorem (some (.external #[renderFailedExternalRef `Ext.renderFail]))
+  hasSubstr externalRenderFailHtml "bp_code_link_status_proved" &&
+    hasSubstr externalRenderFailHtml "bp_code_render_warning_badge" &&
+    appearsBefore externalRenderFailHtml "bp_code_render_warning_badge" "bp_code_status_symbol"
 
 /-- info: true -/
 #guard_msgs in
@@ -103,7 +117,8 @@ private def panelIndicatorHtml (label : Name) (source : BlockCodeData) : String 
     hasSubstr externalSorryHtml "bp_external_status_badge_summary bp_external_status_sorry" &&
     hasSubstr externalMissingHtml "bp_external_status_badge_summary bp_external_status_missing" &&
     hasSubstr externalAxiomHtml "bp_code_decl_status_axiom" &&
-    hasSubstr externalRenderFailHtml "bp_external_render_warning_badge" &&
+    !hasSubstr externalRenderFailHtml "bp_code_render_warning_badge" &&
+    !hasSubstr externalRenderFailHtml "bp_render_warning_badge" &&
     hasSubstr externalRenderFailHtml "synthetic render failure"
 
 end Verso.VersoBlueprintTests.BlueprintCodeRenderMatrix
