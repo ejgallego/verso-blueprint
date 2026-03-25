@@ -34,7 +34,16 @@ theorem sameModuleRenderThm : True := by
         let out := html.asString
         out.contains "class=\"hover-info\"" && !out.contains "data-verso-hover="
       | none => false
-    pure (natAddHasPayload && natAddHasLocalHover && prod?.isSome && sameDef?.isSome && sameThm?.isSome && missing?.isNone)
+    let externalWrapperHtmlOk :=
+      match natAdd?, sameDef?, sameThm? with
+      | some natAdd, some sameDef, some sameThm =>
+        let badWide := "<pre class=\"bp_external_decl_signature signature hl lean block\"><span class=\"keyword token\">def</span> <div class=\"wide-only\">"
+        let badTheorem := "<pre class=\"bp_external_decl_signature signature hl lean block\"><span class=\"keyword token\">theorem</span> <div class=\"wide-only\">"
+        !natAdd.asString.contains badWide &&
+        !sameDef.asString.contains badWide &&
+        !sameThm.asString.contains badTheorem
+      | _, _, _ => false
+    pure (natAddHasPayload && natAddHasLocalHover && externalWrapperHtmlOk && prod?.isSome && sameDef?.isSome && sameThm?.isSome && missing?.isNone)
 
 /-- info: true -/
 #guard_msgs in

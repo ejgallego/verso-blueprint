@@ -71,8 +71,23 @@ where
 private def highlightedToHtml (h : SubVerso.Highlighting.Highlighted) : DocGenHtml :=
   runHighlightedHtml (h.toHtml (g := Verso.Genre.Manual))
 
-private def signatureToHtml (sig : Verso.Genre.Manual.Signature) : DocGenHtml :=
-  runHighlightedHtml sig.toHtml
+private def renderExternalDeclSignatureVariant
+    (keywordText : String) (signature : SubVerso.Highlighting.Highlighted) : DocGenHtml :=
+  open Verso.Output.Html in
+  {{
+    <pre class="bp_external_decl_signature signature hl lean block">
+      <span class="keyword token">{{.text true keywordText}}</span> " " {{highlightedToHtml signature}}
+    </pre>
+  }}
+
+private def signatureToHtml (keywordText : String) (sig : Verso.Genre.Manual.Signature) : DocGenHtml :=
+  open Verso.Output.Html in
+  {{
+    <div class="bp_external_decl_signature_wrap">
+      <div class="wide-only">{{renderExternalDeclSignatureVariant keywordText sig.wide}}</div>
+      <div class="narrow-only">{{renderExternalDeclSignatureVariant keywordText sig.narrow}}</div>
+    </div>
+  }}
 
 private def plainDocstringHtml (docs? : Option String) : DocGenHtml :=
   open Verso.Output.Html in
@@ -100,9 +115,7 @@ private def renderExternalDeclWrapper
   open Verso.Output.Html in
   {{
     <div class={{s!"declaration decl {kindClass}"}} data-decl={{decl.toString}} data-kind={{keywordText}}>
-      <pre class="bp_external_decl_signature signature hl lean block">
-        <span class="keyword token">{{.text true keywordText}}</span> " " {{signature}}
-      </pre>
+      {{signature}}
       <div class="bp_external_decl_body">{{body}}</div>
     </div>
   }}
@@ -227,7 +240,7 @@ private def renderDeclHtmlDocstringFromInfoE
 
   let kindClass := kindClassOfDeclType declType
   let keywordText := kindClassOfDeclType declType
-  let signatureHtml := signatureToHtml signature
+  let signatureHtml := signatureToHtml keywordText signature
 
   let body : DocGenHtml :=
     if sections.isEmpty then
