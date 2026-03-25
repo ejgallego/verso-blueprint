@@ -412,6 +412,10 @@ That page uses dependency data, metadata, and Lean status to present:
 - next ready work and project triage information
 - grouped rollups by parent, owner, and tags
 
+Maintainer-oriented diagnostics such as external declaration render failures are
+available through an explicit summary debug option so they do not appear in the
+default end-user view.
+
 ### Bibliography page
 
 `blueprint_bibliography` renders the bibliography entries
@@ -515,6 +519,10 @@ Current options:
   - default: `""` (disabled)
   - builds source links for external declarations using `{path}`, `{relpath}`,
     `{module}`, `{line}`, and `{column}`
+- `verso.blueprint.summary.debugDiagnostics`
+  - default: `false`
+  - adds maintainer diagnostics such as external declaration render failures to
+    `blueprint_summary`
 - `verso.blueprint.graph.defaultDirection`
   - default: `TB`
   - sets the fallback graph direction for `blueprint_graph` when
