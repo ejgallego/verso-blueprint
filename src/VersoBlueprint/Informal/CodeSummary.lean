@@ -142,6 +142,29 @@ private def renderSummaryPreviewBody (sections : Array SummaryTooltipSection) : 
     </div>
   }}
 
+private def renderExternalRenderFailureItems (failures : Array ExternalRenderFailure)
+    (hrefOf : Name → Option String) : Array Output.Html :=
+  open Verso.Output.Html in
+  failures.map fun failure =>
+    let href :=
+      if failure.decl.present then
+        match hrefOf failure.decl.canonical with
+        | some href => some href
+        | none => hrefOf failure.decl.written
+      else
+        hrefOf failure.decl.written
+    let declNode :=
+      let txt := {{<code>{{.text true s!"{failure.decl.written}"}}</code>}}
+      match href with
+      | some href =>
+        Informal.LeanCodeLink.renderResolved
+          failure.decl.canonical txt "" (some href)
+          (previewTitle := s!"{failure.decl.canonical}")
+      | none => txt
+    codeHoverListItem {{
+      <span>{{declNode}}": " {{.text true failure.message}}</span>
+    }}
+
 private def inlineDeclSummaryItems (definedDefs definedTheorems : Array CodeDeclData)
     (hrefOf : Name → Option String) : Array DeclSummaryItem :=
   let defs := definedDefs.map fun decl =>
@@ -215,13 +238,26 @@ private def renderSummaryPreview (_label : Data.Label) (cdata : ComputedData)
   let items := summaryPreviewItems cdata hrefOf
   let sectionTitle :=
     if items.isEmpty then "Lean status" else "Associated Lean declarations"
-  renderSummaryPreviewBody #[
-    {
-      title := sectionTitle
-      items
-      emptyText := summaryPreviewEmptyText cdata
-    }
-  ]
+  let sections := #[{
+    title := sectionTitle
+    items
+    emptyText := summaryPreviewEmptyText cdata
+  }]
+  let failures :=
+    match cdata.source with
+    | some (.external decls) => externalRenderFailures decls
+    | _ => #[]
+  if failures.isEmpty then
+    renderSummaryPreviewBody sections
+  else
+    let failureSection := codeHoverSection "Render diagnostics" (renderExternalRenderFailureItems failures hrefOf)
+    open Verso.Output.Html in
+    {{
+      <div class="bp_code_summary_preview_content">
+        {{.seq (sections.map summaryTooltipSection)}}
+        {{failureSection}}
+      </div>
+    }}
 
 private inductive CodeEntryVisual where
   | absent
@@ -255,13 +291,39 @@ private def codeEntryVisual (hasSource : Bool) (statusMark : BlockStatusMark) : 
     | .missing => .missing
     | .axiomLike => .axiom
 
-private def renderCodeEntryNode (href : Option String) (title : String) (visual : CodeEntryVisual) : Output.Html :=
+private structure ExternalRenderHealth where
+  failureCount : Nat := 0
+deriving Inhabited
+
+private def ExternalRenderHealth.hasFailures (health : ExternalRenderHealth) : Bool :=
+  health.failureCount > 0
+
+private def ExternalRenderHealth.summaryText (health : ExternalRenderHealth) : String :=
+  externalRenderFailureSummaryText health.failureCount
+
+private def externalRenderHealth (decls : Array Data.ExternalRef) : ExternalRenderHealth :=
+  { failureCount := externalRenderFailureCount decls }
+
+private def appendRenderHealthSummary (title : String) (health : ExternalRenderHealth) : String :=
+  appendExternalRenderFailureSummary title health.failureCount
+
+private def renderRenderHealthBadge (health : ExternalRenderHealth)
+    (className : String := "bp_render_warning_badge") : Output.Html :=
+  open Verso.Output.Html in
+  if !health.hasFailures then
+    .empty
+  else
+    {{<span class={{className}} title={{health.summaryText}}>"!"</span>}}
+
+private def renderCodeEntryNode (href : Option String) (title : String) (visual : CodeEntryVisual)
+    (renderHealth : ExternalRenderHealth := {}) : Output.Html :=
   open Verso.Output.Html in
   let linkClass := s!"bp_code_link bp_code_link_status bp_code_link_status_{visual.classSuffix}" ++
     (if visual == .absent then " bp_code_link_empty" else "")
   let body : Output.Html := {{
     <span class="bp_code_status_symbol">{{.text true visual.symbol}}</span>
     <span class="bp_code_link_label">"L∃∀N"</span>
+    {{renderRenderHealthBadge renderHealth "bp_render_warning_badge bp_code_render_warning_badge"}}
   }}
   match href with
   | some href =>
@@ -299,9 +361,10 @@ private def renderCodeSummaryPreview (previewTitle : String) (trigger : Output.H
   }}
 
 private def renderCodeEntryWrap (href : Option String) (title previewTitle : String)
-    (previewBody : Output.Html) (visual : CodeEntryVisual) : Output.Html :=
+    (previewBody : Output.Html) (visual : CodeEntryVisual)
+    (renderHealth : ExternalRenderHealth := {}) : Output.Html :=
   renderCodeSummaryPreview previewTitle
-    (renderCodeEntryNode href title visual)
+    (renderCodeEntryNode href title visual renderHealth)
     previewBody
     (focusable := href.isNone)
     (ariaLabel? := if href.isNone then some title else none)
@@ -530,16 +593,23 @@ private def renderExternalPanelIndicator (decls : Array Data.ExternalRef)
     (label : Data.Label) (hrefOf : Name → Option String) : PanelIndicatorParts :=
   open Verso.Output.Html in
   let health := Informal.Graph.codeHealthOfBlockSource .definition {} (some (.external decls))
+  let renderHealth := externalRenderHealth decls
   let previewBody := renderSummaryPreview label { source := some (.external decls) } hrefOf
   let (iconClass, iconText, iconTitle) := externalIndicatorStatus health
   let badgeText := externalIndicatorText decls health
+  let summaryTitle :=
+    appendRenderHealthSummary
+      (externalCodeEntryTitle health.presentDecls health.totalDecls health.missingDecls health.anyGapCount)
+      renderHealth
+  let badgeTitle :=
+    appendRenderHealthSummary iconTitle renderHealth
   let badge : Output.Html := {{
-    <span class={{s!"bp_external_status_badge bp_external_status_badge_summary {iconClass}"}} title={{iconTitle}}>
+    <span class={{s!"bp_external_status_badge bp_external_status_badge_summary {iconClass}"}} title={{badgeTitle}}>
       <span class={{s!"bp_external_status_icon {iconClass}"}}>{{.text true iconText}}</span>
       <span class="bp_external_status_badge_text">{{.text true badgeText}}</span>
+      {{renderRenderHealthBadge renderHealth "bp_render_warning_badge bp_external_render_warning_badge"}}
     </span>
   }}
-  let summaryTitle := externalCodeEntryTitle health.presentDecls health.totalDecls health.missingDecls health.anyGapCount
   {
     summaryTitle
     indicator := wrapPanelIndicator label summaryTitle badge previewBody
@@ -584,12 +654,17 @@ def renderParts (data : BlockData) (cdata : ComputedData) (hrefOf : Name → Opt
     let previewTitle := s!"{data.label}"
     if !externalDecls.isEmpty then
       let health := Informal.Graph.codeHealthOfBlockSource statementKind {} cdata.source
-      let codeEntryTitle := externalCodeEntryTitle health.presentDecls health.totalDecls health.missingDecls health.anyGapCount
+      let renderHealth := externalRenderHealth externalDecls
+      let codeEntryTitle :=
+        appendRenderHealthSummary
+          (externalCodeEntryTitle health.presentDecls health.totalDecls health.missingDecls health.anyGapCount)
+          renderHealth
       let statusMark := statusMarkFromCodeSource cdata.source
       {
         statusMark := some statusMark
         codeEntry := renderCodeEntryWrap cdata.codeHref codeEntryTitle previewTitle codeEntryPreviewBody
           (codeEntryVisual true statusMark)
+          renderHealth
       }
     else
       let inlineData? := cdata.source.bind BlockCodeData.inlineData?

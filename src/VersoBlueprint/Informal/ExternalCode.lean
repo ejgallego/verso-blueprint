@@ -143,6 +143,8 @@ private def externalDeclGapStatusText? (item : LinkedExternalDecl) : Option Stri
 private def externalDeclStatusClass (item : LinkedExternalDecl) : String :=
   if !item.decl.present then
     "bp_external_decl_missing"
+  else if (externalRenderFailure? item.decl).isSome then
+    "bp_external_decl_error"
   else if externalDeclHasGap item.decl then
     "bp_external_decl_sorry"
   else
@@ -151,6 +153,8 @@ private def externalDeclStatusClass (item : LinkedExternalDecl) : String :=
 private def externalDeclPanelStatusText (item : LinkedExternalDecl) : String :=
   if !item.decl.present then
     "missing declaration"
+  else if (externalRenderFailure? item.decl).isSome then
+    "render failed"
   else
     (externalDeclGapStatusText? item).getD "complete"
 
@@ -245,6 +249,13 @@ private def externalDeclRowData (item : LinkedExternalDecl) : ExternalDeclRowDat
       liAttrs := #[("class", "bp_external_decl_item")] ++ item.anchorAttrs
       head := externalDeclHead item statusTxt
       body := missingExternalDeclBody
+    }
+  else if (externalRenderFailure? item.decl).isSome then
+    {
+      liAttrs := #[("class", "bp_external_decl_item")] ++ item.anchorAttrs
+      head := externalDeclHead item statusTxt
+      body := externalDeclRendered item
+      footer := externalDeclRenderedMeta item statusTxt
     }
   else
     {

@@ -31,6 +31,14 @@ private def proofGapExternalRef (name : Lean.Name) : Data.ExternalRef :=
       provedStatus := .containsSorry #[{ location := .proof, refs? := some 1 }]
   }
 
+private def renderFailedExternalRef (name : Lean.Name) : Data.ExternalRef :=
+  {
+    (Data.ExternalRef.ofName name) with
+      present := true
+      kind := .theorem
+      render := .error (.exception name "synthetic render failure")
+  }
+
 /-- info: true -/
 #guard_msgs in
 #eval!
@@ -143,5 +151,49 @@ private def proofGapExternalRef (name : Lean.Name) : Data.ExternalRef :=
   hasSubstr html "Ext.external.missing" &&
   hasSubstr html ">[sorry in proof]</span>" &&
   hasSubstr html ">[missing declaration]</span>"
+
+/-- info: true -/
+#guard_msgs in
+#eval!
+  let decls := #[renderFailedExternalRef `Ext.external.render_fail]
+  let headingData : BlockData := {
+    kind := .statement .theorem
+    codeData := some (.external decls)
+    label := `status.external.render_fail
+    count := 1
+  }
+  let cdata : CodeSummary.ComputedData := {
+    source := headingData.codeData
+  }
+  let rendered := CodeSummary.renderParts headingData cdata (fun _ => none)
+  let panelParts := CodeSummary.renderPanelIndicator `status.external.render_fail cdata (fun _ => none)
+  match rendered.statusMark with
+  | some mark =>
+    mark.status == ProvedStatus.proved &&
+    hasSubstr rendered.codeEntry.asString "bp_code_link_status_proved" &&
+    hasSubstr rendered.codeEntry.asString "bp_code_render_warning_badge" &&
+    hasSubstr rendered.codeEntry.asString "render failed for 1 declaration" &&
+    hasSubstr rendered.codeEntry.asString "Render diagnostics" &&
+    hasSubstr rendered.codeEntry.asString "synthetic render failure" &&
+    hasSubstr panelParts.indicator.asString "bp_external_render_warning_badge" &&
+    hasSubstr panelParts.indicator.asString "synthetic render failure" &&
+    hasSubstr panelParts.summaryTitle "render failed for 1 declaration"
+  | none => false
+
+/-- info: true -/
+#guard_msgs in
+#eval!
+  let decls := #[renderFailedExternalRef `Ext.external.panel_render_fail]
+  let parts := ExternalCode.renderParts
+    { caption := "Code for theorem", number? := some "1" }
+    "Lean declarations (all present: 1/1)"
+    .empty
+    decls
+    (fun _ => none)
+  let html := parts.externalCodePanel.asString
+  hasSubstr html "Ext.external.panel_render_fail" &&
+    hasSubstr html "bp_external_decl_error" &&
+    hasSubstr html "render failed" &&
+    hasSubstr html "Render failed: Ext.external.panel_render_fail: synthetic render failure"
 
 end Verso.VersoBlueprintTests.BlueprintExternalHeadingStatus
