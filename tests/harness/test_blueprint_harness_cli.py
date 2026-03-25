@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import redirect_stdout
+import io
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -26,6 +28,11 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         parser = reference_harness_mod.build_parser()
         with self.assertRaises(SystemExit):
             parser.parse_args(["sync", "--example", "noperthedron"])
+
+    def test_reference_status_does_not_accept_example_alias(self) -> None:
+        parser = reference_harness_mod.build_parser()
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["status", "--example", "noperthedron"])
 
     def test_reference_generate_parses_allow_unsafe_root_main(self) -> None:
         parser = reference_harness_mod.build_parser()
@@ -86,6 +93,44 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         self.assertTrue(args.push)
         self.assertFalse(args.skip_build)
         self.assertFalse(args.generate)
+
+    def test_parse_blueprint_manifest_pin_reads_committed_rev(self) -> None:
+        text = """
+        {
+          "packages": [
+            {
+              "name": "VersoBlueprint",
+              "type": "git",
+              "url": "https://github.com/ejgallego/verso-blueprint.git",
+              "inputRev": "main",
+              "rev": "deadbeef"
+            }
+          ]
+        }
+        """
+
+        pin = reference_harness_mod.parse_blueprint_manifest_pin(text, source_path="lake-manifest.json")
+
+        self.assertIsNotNone(pin)
+        self.assertEqual(pin.source_path, "lake-manifest.json")
+        self.assertEqual(pin.input_ref, "main")
+        self.assertEqual(pin.resolved_ref, "deadbeef")
+
+    def test_parse_blueprint_lakefile_pin_handles_split_ref(self) -> None:
+        text = """
+        import Lake
+        open Lake DSL
+
+        require VersoBlueprint from git "https://github.com/ejgallego/verso-blueprint.git" @
+          "7e15d20e6a03859de535a359bca3760c039858b2"
+        """
+
+        pin = reference_harness_mod.parse_blueprint_lakefile_pin(text, source_path="lakefile.lean")
+
+        self.assertIsNotNone(pin)
+        self.assertEqual(pin.source_path, "lakefile.lean")
+        self.assertEqual(pin.input_ref, "7e15d20e6a03859de535a359bca3760c039858b2")
+        self.assertEqual(pin.resolved_ref, "7e15d20e6a03859de535a359bca3760c039858b2")
 
     def test_create_worktree_uses_preferred_main_ref_by_default(self) -> None:
         layout = SimpleNamespace(repo_root=Path("/tmp/repo"))
@@ -719,6 +764,80 @@ class BlueprintHarnessCliTests(unittest.TestCase):
         self.assertEqual(seen["layout"], layout)
         self.assertTrue(seen["allow_unsafe"])
         self.assertEqual(seen["command_name"], "sync")
+
+    def test_reference_status_prints_catalog_and_blueprint_drift(self) -> None:
+        project = HarnessProject(
+            project_id="noperthedron",
+            source_kind="git_checkout",
+            project_root=".",
+            build_target=None,
+            generator=None,
+            repository="https://github.com/example/noperthedron.git",
+            ref="abc123",
+            prepare_command=None,
+            build_command=("lake", "build"),
+            generate_command=("lake", "exe", "blueprint-gen"),
+            site_subdir="html-multi",
+            panel_regression_script=None,
+            browser_tests_path=None,
+            description=None,
+        )
+        args = argparse.Namespace(manifest=None, project=None)
+        layout = SimpleNamespace(package_root=Path("/tmp/package"), repo_root=Path("/tmp/repo"))
+        status = reference_harness_mod.ReferenceProjectStatus(
+            project=project,
+            catalog_ref="abc123",
+            project_upstream_ref="origin/main",
+            project_relationship="behind",
+            project_ahead=0,
+            project_behind=12,
+            blueprint_pin=reference_harness_mod.BlueprintDependencyPin(
+                source_path="lake-manifest.json",
+                input_ref="main",
+                resolved_ref="deadbeef",
+            ),
+            blueprint_relationship="behind",
+            blueprint_ahead=0,
+            blueprint_behind=5,
+        )
+        originals = {
+            "detect_harness_layout": reference_harness_mod.detect_harness_layout,
+            "resolve_manifest_path": reference_harness_mod.resolve_manifest_path,
+            "load_project_catalog": reference_harness_mod.load_project_catalog,
+            "selected_projects": reference_harness_mod.selected_projects,
+            "main_sync_status": reference_harness_mod.main_sync_status,
+            "collect_reference_project_status": reference_harness_mod.collect_reference_project_status,
+        }
+        out = io.StringIO()
+        try:
+            reference_harness_mod.detect_harness_layout = lambda _start=None: layout
+            reference_harness_mod.resolve_manifest_path = lambda _path_text, _package_root: Path("/tmp/projects.json")
+            reference_harness_mod.load_project_catalog = lambda _manifest_path: [project]
+            reference_harness_mod.selected_projects = lambda _catalog, _values: [project]
+            reference_harness_mod.main_sync_status = lambda _repo_root: harness_mod.RefSyncStatus(
+                local_ref="main",
+                upstream_ref="origin/main",
+                local_oid="111",
+                upstream_oid="111",
+                relationship="in_sync",
+            )
+            reference_harness_mod.collect_reference_project_status = lambda _layout, _project: status
+
+            with redirect_stdout(out):
+                self.assertEqual(reference_harness_mod.command_status(args), 0)
+        finally:
+            for name, value in originals.items():
+                setattr(reference_harness_mod, name, value)
+
+        output = out.getvalue()
+        self.assertIn("project_manifest=/tmp/projects.json", output)
+        self.assertIn("main_relationship=in_sync", output)
+        self.assertIn("noperthedron\tsource=git:https://github.com/example/noperthedron.git@abc123", output)
+        self.assertIn("catalog_status=behind", output)
+        self.assertIn("catalog_behind=12", output)
+        self.assertIn("blueprint_pin_source=lake-manifest.json", output)
+        self.assertIn("blueprint_resolved_ref=deadbeef", output)
+        self.assertIn("blueprint_status=behind", output)
 
 
 if __name__ == "__main__":

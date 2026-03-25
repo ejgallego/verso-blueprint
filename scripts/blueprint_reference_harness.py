@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from pathlib import Path
+import json
+from pathlib import Path, PurePosixPath
+import re
 import shutil
 import subprocess
 import sys
 
-from scripts.blueprint_harness import current_branch_name, main_sync_status, worktree_is_clean
+from scripts.blueprint_harness import current_branch_name, main_sync_status, ref_oid, ref_sync_status, worktree_is_clean
 from scripts.blueprint_harness_cli import (
     add_allow_local_build_argument,
     add_allow_unsafe_root_main_argument,
@@ -20,16 +22,20 @@ from scripts.blueprint_harness_paths import detect_harness_layout, resolve_outpu
 from scripts.blueprint_harness_projects import HarnessProject, load_projects_manifest, resolve_manifest_path
 from scripts.blueprint_harness_references import (
     bump_reference_project,
+    OFFICIAL_BLUEPRINT_URL_PATTERNS,
+    clone_git_project,
     generate_in_repo_command_project,
     generate_git_project,
     output_dir_for,
     prepare_reference_edit_checkout,
+    ref_is_commit_hash,
+    reference_cache_checkout_dir,
     reference_prune_plan,
     site_dir_for,
     sync_reference_blueprints,
 )
 from scripts.blueprint_harness_utils import format_command, lean_low_priority_command, run
-from scripts.blueprint_harness_worktrees import git_worktrees
+from scripts.blueprint_harness_worktrees import git_worktrees, rev_list_counts
 
 
 @dataclass(frozen=True)
@@ -38,12 +44,267 @@ class StepFailure:
     detail: str
 
 
+@dataclass(frozen=True)
+class BlueprintDependencyPin:
+    source_path: str
+    input_ref: str | None
+    resolved_ref: str | None
+
+
+@dataclass(frozen=True)
+class ReferenceProjectStatus:
+    project: HarnessProject
+    catalog_ref: str | None
+    project_upstream_ref: str | None
+    project_relationship: str | None
+    project_ahead: int | None
+    project_behind: int | None
+    blueprint_pin: BlueprintDependencyPin | None
+    blueprint_relationship: str | None
+    blueprint_ahead: int | None
+    blueprint_behind: int | None
+    skipped: str | None = None
+    error: str | None = None
+
+
+BLUEPRINT_REQUIRE_PATTERN = re.compile(
+    r'require\s+VersoBlueprint\s+from\s+git\s+"(?P<url>[^"]+)"(?:\s*@\s*"(?P<ref>[^"]+)")?',
+    re.MULTILINE | re.DOTALL,
+)
+
+
 def run_capturing_failure(step: str, command: list[str], *, cwd: Path) -> StepFailure | None:
     try:
         run(command, cwd=cwd)
         return None
     except subprocess.CalledProcessError as err:
         return StepFailure(step=step, detail=f"exit code {err.returncode}: {format_command(command)}")
+
+
+def text_or_blank(value: object | None) -> str:
+    return "" if value is None else str(value)
+
+
+def official_blueprint_source(url: str) -> bool:
+    return any(re.fullmatch(pattern, url) for pattern in OFFICIAL_BLUEPRINT_URL_PATTERNS)
+
+
+def project_git_path(project: HarnessProject, filename: str) -> str:
+    if project.project_root in {"", "."}:
+        return filename
+    return str(PurePosixPath(project.project_root) / filename)
+
+
+def git_show_text(checkout_root: Path, ref: str, path: str) -> str | None:
+    result = subprocess.run(
+        ["git", "show", f"{ref}:{path}"],
+        cwd=checkout_root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def parse_blueprint_manifest_pin(text: str, *, source_path: str) -> BlueprintDependencyPin | None:
+    data = json.loads(text)
+    packages = data.get("packages")
+    if not isinstance(packages, list):
+        return None
+
+    for package in packages:
+        if not isinstance(package, dict) or package.get("name") != "VersoBlueprint":
+            continue
+        if package.get("type") != "git":
+            continue
+        url = package.get("url")
+        if not isinstance(url, str) or not official_blueprint_source(url):
+            continue
+        input_ref = package.get("inputRev")
+        resolved_ref = package.get("rev")
+        return BlueprintDependencyPin(
+            source_path=source_path,
+            input_ref=input_ref if isinstance(input_ref, str) else None,
+            resolved_ref=resolved_ref if isinstance(resolved_ref, str) else None,
+        )
+    return None
+
+
+def parse_blueprint_lakefile_pin(text: str, *, source_path: str) -> BlueprintDependencyPin | None:
+    for match in BLUEPRINT_REQUIRE_PATTERN.finditer(text):
+        url = match.group("url")
+        if not official_blueprint_source(url):
+            continue
+        return BlueprintDependencyPin(
+            source_path=source_path,
+            input_ref=match.group("ref"),
+            resolved_ref=match.group("ref"),
+        )
+    return None
+
+
+def blueprint_pin_at_project_ref(checkout_root: Path, project: HarnessProject, project_ref: str) -> BlueprintDependencyPin | None:
+    manifest_path = project_git_path(project, "lake-manifest.json")
+    manifest_text = git_show_text(checkout_root, project_ref, manifest_path)
+    if manifest_text is not None:
+        pin = parse_blueprint_manifest_pin(manifest_text, source_path=manifest_path)
+        if pin is not None:
+            return pin
+
+    lakefile_path = project_git_path(project, "lakefile.lean")
+    lakefile_text = git_show_text(checkout_root, project_ref, lakefile_path)
+    if lakefile_text is None:
+        return None
+    return parse_blueprint_lakefile_pin(lakefile_text, source_path=lakefile_path)
+
+
+def git_is_shallow(checkout_root: Path) -> bool:
+    result = subprocess.run(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        cwd=checkout_root,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    return result.stdout.strip() == "true"
+
+
+def refresh_reference_status_checkout(checkout_root: Path, project: HarnessProject) -> None:
+    if git_is_shallow(checkout_root):
+        subprocess.run(
+            ["git", "fetch", "--quiet", "--unshallow", "origin"],
+            cwd=checkout_root,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+    else:
+        subprocess.run(
+            ["git", "fetch", "--quiet", "--prune", "origin"],
+            cwd=checkout_root,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+    if project.ref is not None and ref_is_commit_hash(project.ref):
+        subprocess.run(
+            ["git", "fetch", "--quiet", "origin", project.ref],
+            cwd=checkout_root,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+
+
+def ensure_reference_status_checkout(layout, project: HarnessProject) -> Path:
+    checkout_root = reference_cache_checkout_dir(layout, project)
+    checkout_root.parent.mkdir(parents=True, exist_ok=True)
+    if not checkout_root.exists():
+        clone_git_project(project, checkout_root, cwd=layout.package_root, shallow=False)
+    refresh_reference_status_checkout(checkout_root, project)
+    return checkout_root
+
+
+def reference_project_upstream_ref(checkout_root: Path) -> str | None:
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"],
+        cwd=checkout_root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    upstream = result.stdout.strip()
+    if upstream:
+        return upstream
+    for candidate in ("origin/main", "origin/master"):
+        if ref_oid(checkout_root, candidate) is not None:
+            return candidate
+    return None
+
+
+def project_catalog_ref(checkout_root: Path, project: HarnessProject) -> str | None:
+    ref = project.ref or "main"
+    if ref_is_commit_hash(ref):
+        return ref
+    remote_ref = f"origin/{ref}"
+    if ref_oid(checkout_root, remote_ref) is not None:
+        return remote_ref
+    if ref_oid(checkout_root, ref) is not None:
+        return ref
+    return None
+
+
+def compare_refs(repo_root: Path, ref: str | None, base_ref: str | None) -> tuple[str | None, int | None, int | None]:
+    if ref is None or base_ref is None:
+        return None, None, None
+    status = ref_sync_status(repo_root, ref, base_ref)
+    ahead, behind = rev_list_counts(repo_root, ref, base_ref)
+    return status.relationship, ahead, behind
+
+
+def collect_reference_project_status(layout, project: HarnessProject) -> ReferenceProjectStatus:
+    if not project.git_checkout:
+        return ReferenceProjectStatus(
+            project=project,
+            catalog_ref=None,
+            project_upstream_ref=None,
+            project_relationship=None,
+            project_ahead=None,
+            project_behind=None,
+            blueprint_pin=None,
+            blueprint_relationship=None,
+            blueprint_ahead=None,
+            blueprint_behind=None,
+            skipped="in_repo_example",
+        )
+
+    checkout_root = ensure_reference_status_checkout(layout, project)
+    upstream_ref = reference_project_upstream_ref(checkout_root)
+    catalog_ref = project_catalog_ref(checkout_root, project)
+    project_relationship, project_ahead, project_behind = compare_refs(checkout_root, catalog_ref, upstream_ref)
+    blueprint_pin = blueprint_pin_at_project_ref(checkout_root, project, catalog_ref) if catalog_ref is not None else None
+    blueprint_ref = None
+    if blueprint_pin is not None:
+        blueprint_ref = blueprint_pin.resolved_ref or blueprint_pin.input_ref
+    blueprint_relationship, blueprint_ahead, blueprint_behind = compare_refs(layout.repo_root, blueprint_ref, "main")
+
+    return ReferenceProjectStatus(
+        project=project,
+        catalog_ref=catalog_ref,
+        project_upstream_ref=upstream_ref,
+        project_relationship=project_relationship,
+        project_ahead=project_ahead,
+        project_behind=project_behind,
+        blueprint_pin=blueprint_pin,
+        blueprint_relationship=blueprint_relationship,
+        blueprint_ahead=blueprint_ahead,
+        blueprint_behind=blueprint_behind,
+    )
+
+
+def print_reference_project_status(status: ReferenceProjectStatus) -> None:
+    project = status.project
+    source = f"in_repo:{project.project_root}" if project.in_repo_example else f"git:{project.repository}@{project.ref}"
+    fields = [
+        project.project_id,
+        f"source={source}",
+        f"catalog_ref={text_or_blank(status.catalog_ref)}",
+        f"project_upstream_ref={text_or_blank(status.project_upstream_ref)}",
+        f"catalog_status={text_or_blank(status.project_relationship)}",
+        f"catalog_ahead={text_or_blank(status.project_ahead)}",
+        f"catalog_behind={text_or_blank(status.project_behind)}",
+        f"blueprint_pin_source={text_or_blank(status.blueprint_pin.source_path if status.blueprint_pin is not None else None)}",
+        f"blueprint_input_ref={text_or_blank(status.blueprint_pin.input_ref if status.blueprint_pin is not None else None)}",
+        f"blueprint_resolved_ref={text_or_blank(status.blueprint_pin.resolved_ref if status.blueprint_pin is not None else None)}",
+        f"blueprint_status={text_or_blank(status.blueprint_relationship)}",
+        f"blueprint_ahead={text_or_blank(status.blueprint_ahead)}",
+        f"blueprint_behind={text_or_blank(status.blueprint_behind)}",
+        f"skip={text_or_blank(status.skipped)}",
+        f"error={text_or_blank(status.error)}",
+    ]
+    print("\t".join(fields))
 
 
 def selected_projects(catalog: list[HarnessProject], values: list[str] | None) -> list[HarnessProject]:
@@ -409,6 +670,39 @@ def command_projects(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_status(args: argparse.Namespace) -> int:
+    layout = detect_harness_layout(Path(__file__))
+    manifest_path = resolve_manifest_path(args.manifest, layout.package_root)
+    projects = selected_projects(load_project_catalog(manifest_path), args.project)
+    main_status = main_sync_status(layout.repo_root)
+    print(f"project_manifest={manifest_path}")
+    print("verso_blueprint_ref=main")
+    print(f"preferred_main_ref={main_status.upstream_ref}")
+    print(f"main_relationship={main_status.relationship}")
+    print(f"main_oid={main_status.local_oid or ''}")
+    print(f"{main_status.upstream_ref}_oid={main_status.upstream_oid or ''}")
+
+    for project in projects:
+        try:
+            status = collect_reference_project_status(layout, project)
+        except (subprocess.CalledProcessError, json.JSONDecodeError, OSError, ValueError) as err:
+            status = ReferenceProjectStatus(
+                project=project,
+                catalog_ref=None,
+                project_upstream_ref=None,
+                project_relationship=None,
+                project_ahead=None,
+                project_behind=None,
+                blueprint_pin=None,
+                blueprint_relationship=None,
+                blueprint_ahead=None,
+                blueprint_behind=None,
+                error=str(err),
+            )
+        print_reference_project_status(status)
+    return 0
+
+
 def command_reference_sync(args: argparse.Namespace) -> int:
     layout = detect_harness_layout(Path(__file__))
     require_safe_root_main(layout, allow_unsafe=args.allow_unsafe_root_main, command_name="sync")
@@ -601,6 +895,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_manifest_argument(projects)
     projects.set_defaults(func=command_projects)
+
+    status = subparsers.add_parser(
+        "status",
+        help="Report reference-project catalog drift and committed `VersoBlueprint` pin drift.",
+    )
+    add_manifest_argument(status)
+    add_project_selection_argument(
+        status,
+        help_text="Restrict status output to the selected project. Repeat to select more.",
+        include_example_alias=False,
+    )
+    status.set_defaults(func=command_status)
 
     sync = subparsers.add_parser(
         "sync",

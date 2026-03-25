@@ -221,6 +221,7 @@ with:
 ```bash
 ./scripts/generate-test-blueprints.sh
 python3 -m scripts.blueprint_reference_harness projects
+python3 -m scripts.blueprint_reference_harness status
 python3 -m scripts.blueprint_harness paths
 ```
 

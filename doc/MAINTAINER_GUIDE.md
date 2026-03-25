@@ -42,6 +42,7 @@ python3 -m scripts.blueprint_harness --help
 python3 -m scripts.blueprint_reference_harness generate
 python3 -m scripts.blueprint_reference_harness validate
 python3 -m scripts.blueprint_reference_harness projects
+python3 -m scripts.blueprint_reference_harness status
 python3 -m scripts.blueprint_reference_harness edit <project>
 python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --ref <ref>
 python3 -m scripts.blueprint_reference_harness sync
@@ -212,8 +213,13 @@ To inspect the active catalog:
 
 ```bash
 python3 -m scripts.blueprint_reference_harness projects
+python3 -m scripts.blueprint_reference_harness status
 python3 -m scripts.blueprint_test_blueprints list-json
 ```
+
+`status` compares each external catalog pin against that project's upstream
+default branch and also compares the project's committed `VersoBlueprint` pin
+against this repository's current `main`.
 
 To warm the shared reference blueprint cache and prepare local clones for the
 current checkout:
