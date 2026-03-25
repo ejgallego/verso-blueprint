@@ -4,9 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Emilio J. Gallego Arias
 -/
 
-import VersoBlueprint.DocGenNameRender
+import VersoBlueprint.ExternalRefSnapshot
 
 namespace Verso.VersoBlueprintTests.DocGenNameRender
+
+open Lean
+
+def sameModuleRenderDef : Nat := 0
+
+theorem sameModuleRenderThm : True := by
+  trivial
 
 /-- info: true -/
 #guard_msgs in
@@ -14,6 +21,8 @@ namespace Verso.VersoBlueprintTests.DocGenNameRender
   show Lean.CoreM Bool from do
     let natAdd? ← (Informal.renderDeclHtmlNodeDirect? `Nat.add).run'
     let prod? ← (Informal.renderDeclHtmlNodeDirect? `Prod).run'
+    let sameDef? ← (Informal.renderDeclHtmlNodeDirect? `Verso.VersoBlueprintTests.DocGenNameRender.sameModuleRenderDef).run'
+    let sameThm? ← (Informal.renderDeclHtmlNodeDirect? `Verso.VersoBlueprintTests.DocGenNameRender.sameModuleRenderThm).run'
     let missing? ← (Informal.renderDeclHtmlNodeDirect? `No.Such.Declaration).run'
     let natAddHasPayload :=
       match natAdd? with
@@ -25,6 +34,31 @@ namespace Verso.VersoBlueprintTests.DocGenNameRender
         let out := html.asString
         out.contains "class=\"hover-info\"" && !out.contains "data-verso-hover="
       | none => false
-    pure (natAddHasPayload && natAddHasLocalHover && prod?.isSome && missing?.isNone)
+    pure (natAddHasPayload && natAddHasLocalHover && prod?.isSome && sameDef?.isSome && sameThm?.isSome && missing?.isNone)
+
+/-- info: true -/
+#guard_msgs in
+#eval
+  show Lean.CoreM Bool from do
+    let opts ← Lean.getOptions
+    let sameDef ← Informal.externalRefSnapshotAtCurrentDir opts
+      (Informal.Data.ExternalRef.ofName `Verso.VersoBlueprintTests.DocGenNameRender.sameModuleRenderDef)
+    let importedDef ← Informal.externalRefSnapshotAtCurrentDir opts
+      (Informal.Data.ExternalRef.ofName `Nat.add)
+    let importedThm ← Informal.externalRefSnapshotAtCurrentDir opts
+      ({ (Informal.Data.ExternalRef.ofName `Nat.add_assoc) with kind := .theorem })
+    let missing ← Informal.externalRefSnapshotAtCurrentDir opts
+      (Informal.Data.ExternalRef.ofName `No.Such.Declaration)
+    pure <|
+      sameDef.present &&
+      sameDef.render.isOk &&
+      importedDef.present &&
+      importedDef.render.isOk &&
+      importedThm.present &&
+      importedThm.render.isOk &&
+      !missing.present &&
+      (match missing.render with
+      | .error _ => true
+      | .ok _ => false)
 
 end Verso.VersoBlueprintTests.DocGenNameRender

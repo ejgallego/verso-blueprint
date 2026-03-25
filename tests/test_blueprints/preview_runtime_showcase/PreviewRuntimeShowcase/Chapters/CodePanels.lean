@@ -23,15 +23,23 @@ end PreviewRuntimeShowcase.CodePanelDecls
 #doc (Manual) "Code Panels" =>
 
 :::definition "panel_external_definition" (lean := "PreviewRuntimeShowcase.CodePanelDecls.previewExternalDefinition")
-External definition panel sample.
+In-module external definition panel sample.
 :::
 
 :::theorem "panel_external_theorem" (lean := "PreviewRuntimeShowcase.CodePanelDecls.previewExternalTheorem")
-External theorem panel sample.
+In-module external theorem panel sample.
 :::
 
 :::theorem "panel_external_warning" (lean := "PreviewRuntimeShowcase.CodePanelDecls.previewExternalSorry")
-External theorem panel with a sorry-backed declaration.
+In-module external theorem panel with a sorry-backed declaration.
+:::
+
+:::definition "panel_external_imported_definition" (lean := "Nat.add")
+Out-of-module external definition panel sample.
+:::
+
+:::theorem "panel_external_imported_theorem" (lean := "Nat.add_assoc")
+Out-of-module external theorem panel sample.
 :::
 
 :::definition "panel_external_missing" (lean := "PreviewRuntimeShowcase.CodePanelDecls.previewExternalMissing")

@@ -35,10 +35,6 @@ def DocGenRenderError.message : DocGenRenderError → String
   | .moduleUnavailable decl => s!"module unavailable for {decl}"
   | .exception decl message => s!"{decl}: {message}"
 
-private def moduleNameForDecl? (env : Environment) (decl : Name) : Option Name := do
-  let moduleIdx ← env.getModuleIdxFor? decl
-  env.header.moduleNames[moduleIdx.toNat]?
-
 private def runHighlightedHtml
     (html : Verso.Code.HighlightHtmlM Verso.Genre.Manual DocGenHtml) : DocGenHtml :=
   let ctx : Verso.Code.HighlightHtmlM.Context Verso.Genre.Manual := {
@@ -167,7 +163,7 @@ private def renderParentsSection
     }}
 
 private def renderDeclHtmlDocstringFromInfoE
-    (_moduleName : Name) (decl : Name) (_cinfo : ConstantInfo) : MetaM DocGenRender :=
+    (decl : Name) (_cinfo : ConstantInfo) : MetaM DocGenRender :=
   open Verso.Output.Html in do
   let env ← getEnv
   let declType ←
@@ -245,9 +241,9 @@ Render one declaration directly from known declaration facts.
 Errors represent rendering failures only; declaration lookup is handled by callers.
 -/
 def renderDeclHtmlDirectFromInfoE
-    (moduleName : Name) (decl : Name) (cinfo : ConstantInfo) : MetaM DocGenRender := do
+    (decl : Name) (cinfo : ConstantInfo) : MetaM DocGenRender := do
   try
-    renderDeclHtmlDocstringFromInfoE moduleName decl cinfo
+    renderDeclHtmlDocstringFromInfoE decl cinfo
   catch ex =>
     return .error (.exception decl (← ex.toMessageData.toString))
 
@@ -256,8 +252,8 @@ String compatibility wrapper over `renderDeclHtmlDirectFromInfoE`.
 Core external-rendering dataflow should use typed HTML payloads.
 -/
 def renderDeclHtmlStringDirectFromInfoE
-    (moduleName : Name) (decl : Name) (cinfo : ConstantInfo) : MetaM (Except DocGenRenderError String) := do
-  return (← renderDeclHtmlDirectFromInfoE moduleName decl cinfo).map (·.asString)
+    (decl : Name) (cinfo : ConstantInfo) : MetaM (Except DocGenRenderError String) := do
+  return (← renderDeclHtmlDirectFromInfoE decl cinfo).map (·.asString)
 
 /-- Render one declaration directly from the in-memory `Environment` (no database, no source parsing). -/
 def renderDeclHtmlNodeDirect? (decl : Name) : MetaM (Option DocGenHtml) := do
@@ -266,9 +262,7 @@ def renderDeclHtmlNodeDirect? (decl : Name) : MetaM (Option DocGenHtml) := do
     let env ← getEnv
     let some cinfo := env.find? decl
       | return none
-    let some moduleName := moduleNameForDecl? env decl
-      | return none
-    match ← renderDeclHtmlDirectFromInfoE moduleName decl cinfo with
+    match ← renderDeclHtmlDirectFromInfoE decl cinfo with
     | .ok html => return some html
     | .error err =>
       logError m!"External declaration rendering failed for {decl}: {err.message}"

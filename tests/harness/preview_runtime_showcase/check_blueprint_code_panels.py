@@ -75,11 +75,13 @@ def main() -> int:
         fail("stale external renderer switcher still present")
     if "bp_code_expand_hint" in code_panels:
         fail("stale expand hint markup still present")
+    if "bp_external_decl_render_error" in code_panels or "Render failed:" in code_panels:
+        fail("unexpected external declaration render failure remains in showcase")
 
     panel_re = re.compile(r'<details class="bp_code_block bp_code_panel"[^>]*>.*?</details>', re.S)
     external_panels = [p for p in panel_re.findall(code_panels) if "bp_external_status_badge_summary" in p]
-    if len(external_panels) < 5:
-        fail("expected at least five external code panels in local showcase")
+    if len(external_panels) < 7:
+        fail("expected at least seven external code panels in local showcase")
 
     for i, panel in enumerate(external_panels, start=1):
         if "bp_code_progress" in panel:
@@ -100,6 +102,14 @@ def main() -> int:
         fail("missing missing-declaration panel body")
     if "bp_external_decl_missing" not in code_panels:
         fail("missing missing-declaration row styling")
+    if "PreviewRuntimeShowcase.CodePanelDecls.previewExternalDefinition" not in code_panels:
+        fail("missing in-module external definition showcase declaration")
+    if "PreviewRuntimeShowcase.CodePanelDecls.previewExternalTheorem" not in code_panels:
+        fail("missing in-module external theorem showcase declaration")
+    if "Nat.add" not in code_panels:
+        fail("missing out-of-module external definition showcase declaration")
+    if "Nat.add_assoc" not in code_panels:
+        fail("missing out-of-module external theorem showcase declaration")
 
     literate_panels = [p for p in panel_re.findall(code_panels) if "data-bp-proof-fold=" in p]
     if len(literate_panels) < 3:
