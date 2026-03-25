@@ -24,7 +24,7 @@ def main (args : List String) : IO UInt32 := do
   | slug :: rest =>
     match findCuratedTestBlueprint? slug with
     | some doc =>
-      Informal.PreviewManifest.manualMainWithSharedPreviewManifest
+      Informal.PreviewManifest.blueprintMainWithSharedPreviewManifest
         doc.doc.toPart
         rest
         manualImpls

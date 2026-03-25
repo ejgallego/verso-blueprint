@@ -474,11 +474,16 @@ open Verso Doc
 open Verso.Genre Manual
 
 def main (args : List String) : IO UInt32 :=
-  Informal.PreviewManifest.manualMainWithSharedPreviewManifest
+  Informal.PreviewManifest.blueprintMainWithSharedPreviewManifest
     (%doc ProjectTemplate.Blueprint)
     args
     (extensionImpls := by exact extension_impls%)
 ```
+
+This Blueprint-provided main wrapper also injects the frontend assets required
+by Blueprint-specific rendered surfaces such as external Lean declaration
+panels, so downstream projects do not need to remember those dependencies
+manually.
 
 Typical usage:
 
