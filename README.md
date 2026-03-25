@@ -7,6 +7,7 @@ A Blueprint project combines:
 
 - informal mathematical exposition
 - links to local Lean code or existing Lean declarations
+- optional raw TeX source attachments on labeled nodes
 - automatic tracking of formalization progress by analyzing the associated Lean
   code and declarations, including incomplete declarations such as `sorry`
 - rendered overview pages such as dependency graphs and progress summaries
@@ -43,7 +44,8 @@ For the broader rendered artifact index, including local test fixtures, see the
 
 Every Blueprint node is identified by a label such as `addition_spec` or
 `addition_right_identity`. Those labels drive cross-references, graph nodes,
-summary entries, code associations, and metadata export.
+summary entries, code associations, TeX-source associations, and metadata
+export.
 
 When roles such as `{uses "foo"}[]` or citations have an empty payload,
 Blueprint can automatically render text such as `Theorem N`.
@@ -96,6 +98,22 @@ Blueprint supports inline math such as ``$`n + 0 = n` `` and display math such a
 ``$$`\sum_{i=0}^{n} i = \frac{n(n+1)}{2}` ``. It also supports TeX preludes via
 `tex_prelude` and best-effort KaTeX linting during elaboration. KaTeX is the
 renderer used by the generated HTML.
+
+Blueprint nodes can also carry raw TeX source through a labeled `tex` code
+block:
+
+````md
+:::theorem "addition_right_identity"
+For every natural number $`n`, $`n + 0 = n`.
+:::
+
+```tex "addition_right_identity"
+\forall n,\; n + 0 = n
+```
+````
+
+Today this stores the raw TeX source on the labeled node and renders as a plain
+code block.
 
 ### Rendering to HTML
 

@@ -50,6 +50,7 @@ These identifiers are used by:
 
 - `{uses "addition_spec"}[]` references
 - labeled inline Lean code blocks
+- labeled `tex` code blocks carrying raw TeX source
 - `@[blueprint "label"]` on compiled Lean declarations
 - summary and graph nodes
 - preview lookup and exported metadata
@@ -292,6 +293,26 @@ After that, Blueprint math can use the macro in rendered pages:
 ```md
 We write $`a \NatAdd b` for addition on natural numbers.
 ```
+
+Blueprint nodes can also store raw TeX source through a labeled `tex` code
+block:
+
+````md
+:::theorem "addition_right_identity"
+For every natural number $`n`, $`n + 0 = n`.
+:::
+
+```tex "addition_right_identity"
+\forall n,\; n + 0 = n
+```
+````
+
+Current behavior:
+
+- the `tex` block label is parsed like labeled `lean` blocks
+- the block stores the raw TeX source on the associated Blueprint node
+- the block still renders as an ordinary code block; it does not yet have
+  special TeX-source rendering semantics of its own
 
 Blueprint also supports best-effort KaTeX linting during elaboration. KaTeX is
 the renderer used by the generated HTML, so this helps catch math problems
