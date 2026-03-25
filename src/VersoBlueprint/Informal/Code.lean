@@ -192,7 +192,7 @@ def rocq : CodeBlockExpanderOf Unit
 private def texImpl : CodeBlockExpanderOf TexConfig
   | cfg, contents => do
     Environment.registerTexSource cfg.label { raw := contents.getString }
-    ``(Block.code $contents)
+    ``(Block.concat #[])
 
 @[code_block]
 def tex : CodeBlockExpanderOf TexConfig

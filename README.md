@@ -7,7 +7,7 @@ A Blueprint project combines:
 
 - informal mathematical exposition
 - links to local Lean code or existing Lean declarations
-- optional raw TeX source attachments on labeled nodes
+- optional raw TeX source attachments on labeled nodes to help port existing TeX
 - automatic tracking of formalization progress by analyzing the associated Lean
   code and declarations, including incomplete declarations such as `sorry`
 - rendered overview pages such as dependency graphs and progress summaries
@@ -99,8 +99,8 @@ Blueprint supports inline math such as ``$`n + 0 = n` `` and display math such a
 `tex_prelude` and best-effort KaTeX linting during elaboration. KaTeX is the
 renderer used by the generated HTML.
 
-Blueprint nodes can also carry raw TeX source through a labeled `tex` code
-block:
+Blueprint nodes can also carry raw general-TeX source through a labeled `tex`
+code block:
 
 ````md
 :::theorem "addition_right_identity"
@@ -108,12 +108,15 @@ For every natural number $`n`, $`n + 0 = n`.
 :::
 
 ```tex "addition_right_identity"
-\forall n,\; n + 0 = n
+\begin{theorem}\label{thm:addition-right-identity}
+For every natural number $n$, adding zero on the right leaves it unchanged.
+\end{theorem}
 ```
 ````
 
-Today this stores the raw TeX source on the labeled node and renders as a plain
-code block.
+Today this raw TeX attachment is primarily a porting aid for existing TeX
+sources. It is stored on the labeled node and is not rendered into the output
+site. Other uses may be possible later.
 
 ### Rendering to HTML
 
