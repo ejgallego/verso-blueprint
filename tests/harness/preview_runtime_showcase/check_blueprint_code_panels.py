@@ -49,12 +49,24 @@ def main() -> int:
         fail("missing external summary badge for complete external declarations")
     if "bp_external_status_badge_summary bp_external_status_sorry" not in code_panels:
         fail("missing external warning summary badge for sorry-backed declarations")
+    if "bp_external_status_badge_summary bp_external_status_missing" not in code_panels:
+        fail("missing external summary badge for missing external declarations")
     if "External Lean for " in code_panels:
         fail("stale external panel caption still present")
     if "Code for Definition" not in code_panels:
         fail("definition code panel caption missing")
     if "Code for Theorem" not in code_panels:
         fail("theorem code panel caption missing")
+    if "bp_code_link_status_proved" not in code_panels:
+        fail("missing proved code-status chip")
+    if "bp_code_link_status_warning" not in code_panels:
+        fail("missing warning code-status chip")
+    if "bp_code_link_status_axiom" not in code_panels:
+        fail("missing axiom code-status chip")
+    if "bp_code_link_status_missing" not in code_panels:
+        fail("missing missing-declaration code-status chip")
+    if "bp_code_link_status_absent" not in code_panels:
+        fail("missing absent-code code-status chip")
     if 'bp_external_status_badge_text">1 theorem<' not in code_panels:
         fail("missing theorem-specific external summary text")
     if 'bp_external_status_badge_text">1 definition<' not in code_panels:
@@ -66,8 +78,8 @@ def main() -> int:
 
     panel_re = re.compile(r'<details class="bp_code_block bp_code_panel"[^>]*>.*?</details>', re.S)
     external_panels = [p for p in panel_re.findall(code_panels) if "bp_external_status_badge_summary" in p]
-    if len(external_panels) < 3:
-        fail("expected at least three external code panels in local showcase")
+    if len(external_panels) < 5:
+        fail("expected at least five external code panels in local showcase")
 
     for i, panel in enumerate(external_panels, start=1):
         if "bp_code_progress" in panel:
@@ -79,21 +91,31 @@ def main() -> int:
         if "data-bp-external-renderer" in panel:
             fail(f"external panel #{i} still includes renderer mode attributes")
         if "bp_external_decl_rendered" not in panel:
-            fail(f"external panel #{i} missing rendered external declaration body")
-        if "bp_external_decl_stmt" not in panel:
-            fail(f"external panel #{i} missing external declaration statement block")
+            if "bp_external_decl_missing" not in panel:
+                fail(f"external panel #{i} missing rendered or missing-declaration body")
+        if "bp_external_decl_stmt" not in panel and "bp_external_decl_rendered" not in panel:
+            fail(f"external panel #{i} missing external declaration content")
+
+    if "declaration not found" not in code_panels:
+        fail("missing missing-declaration panel body")
+    if "bp_external_decl_missing" not in code_panels:
+        fail("missing missing-declaration row styling")
 
     literate_panels = [p for p in panel_re.findall(code_panels) if "data-bp-proof-fold=" in p]
-    if not literate_panels:
-        fail("no literate code panels found in local showcase")
+    if len(literate_panels) < 3:
+        fail("expected at least three literate code panels in local showcase")
 
     for i, panel in enumerate(literate_panels, start=1):
         if "bp_code_summary_indicator" not in panel:
             fail(f"literate panel #{i} missing summary indicator wrapper")
-        if "bp_code_progress" not in panel:
-            fail(f"literate panel #{i} missing progress bar")
-        if "panelInlineOk" not in panel or "panelInlineSorry" not in panel:
-            fail(f"literate panel #{i} missing expected local declarations")
+    if "panelInlineOnlyOk" not in code_panels:
+        fail("missing inline proved showcase declaration")
+    if "panelInlineOnlySorry" not in code_panels:
+        fail("missing inline warning showcase declaration")
+    if "panelInlineAxiom" not in code_panels:
+        fail("missing inline axiom showcase declaration")
+    if "panelInlineOk" not in code_panels or "panelInlineSorry" not in code_panels:
+        fail("missing mixed inline progress showcase declarations")
 
     print(
         "[blueprint-panel-regression] OK:",
