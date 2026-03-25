@@ -41,7 +41,7 @@ jobs:
           git push --force-with-lease origin "$sync_branch"
           echo "sync_needed=true" >> "$GITHUB_OUTPUT"
       - name: Create or close sync PR
-        if: always()
+        if: steps.sync.outcome == 'success'
         uses: actions/github-script@v7
         env:
           TARGET_BRANCH: lean-v4.28.0
