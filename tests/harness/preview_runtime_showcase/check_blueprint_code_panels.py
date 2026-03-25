@@ -77,6 +77,12 @@ def main() -> int:
         fail("stale expand hint markup still present")
     if "bp_external_decl_render_error" in code_panels or "Render failed:" in code_panels:
         fail("unexpected external declaration render failure remains in showcase")
+    if re.search(
+        r'<pre class="bp_external_decl_signature signature hl lean block"><span class="keyword token">[^<]+</span> <div class="wide-only">',
+        code_panels,
+        re.S,
+    ):
+        fail("external declaration signature still nests wide-only markup inside <pre>")
 
     panel_re = re.compile(r'<details class="bp_code_block bp_code_panel"[^>]*>.*?</details>', re.S)
     external_panels = [p for p in panel_re.findall(code_panels) if "bp_external_status_badge_summary" in p]
