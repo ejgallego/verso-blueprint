@@ -139,6 +139,46 @@ review without running the full validation stack. This path:
   slugs are provided
 - lets you narrow only the test-blueprint side by passing one or more slugs
 
+## Rendering Validation
+
+When a patch touches code panels, summary status wiring, or preview-facing code
+render output, validate in layers instead of jumping straight to the heaviest
+browser path.
+
+Recommended order:
+
+1. Lean and string-shape tests:
+
+   ```bash
+   scripts/lean-low-priority lake test
+   ```
+
+   This catches most regressions in status logic, summary HTML generation, and
+   focused render-matrix tests without generating sites.
+
+2. Regenerate the smallest real showcase that exercises code panels:
+
+   ```bash
+   ./scripts/generate-test-blueprints.sh preview_runtime_showcase
+   ```
+
+   This validates the real Verso render path and writes the output under
+   `_out/.../test-blueprints/preview_runtime_showcase/`.
+
+3. Run the static showcase regression check:
+
+   ```bash
+   python3 tests/harness/preview_runtime_showcase/check_blueprint_code_panels.py \
+     --site-dir _out/test-blueprints/preview_runtime_showcase/html-multi
+   ```
+
+   In a linked worktree, use the worktree-specific output root instead, for
+   example `_out/<worktree>/test-blueprints/preview_runtime_showcase/html-multi`.
+
+Only move on to the browser pytest layer when the change actually affects the
+shared browser runtime or interaction behavior. Pure Lean-side render/status
+changes should usually be covered by the three steps above.
+
 ### Validate the Test Blueprints
 
 ```bash

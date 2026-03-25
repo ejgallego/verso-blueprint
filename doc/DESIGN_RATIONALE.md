@@ -121,6 +121,82 @@ External Lean declarations are handled in stages.
 The goal is to avoid a world where local rendering, global status, and preview
 surfaces each re-resolve external declarations differently.
 
+## Code Rendering Path Map
+
+The "code rendering path" is not one pipeline; it is a small family of related
+paths that share data and status helpers.
+
+### Inline Lean attached to an informal block
+
+This is the path for a rendered informal statement with a nearby Blueprint Lean
+code block:
+
+1. `Informal/Code.lean` elaborates the Lean block and records
+   `InlineCodeData`.
+2. `Informal/Block.lean` resolves block-level code source precedence during
+   HTML rendering, preferring inline code over any external-code hint.
+3. `Informal/CodeSummary.lean` computes the heading badge, summary hover body,
+   and code-panel indicator from that resolved source.
+4. `Informal/Block/Common.lean` provides the shared panel/header helpers used
+   by both inline and external code panels.
+
+This path owns semantic Lean completeness only. It does not currently carry a
+separate "render health" channel because the code panel body is the original
+rendered Lean block.
+
+### External `(lean := "...")` references
+
+This is the path for an informal block that points at a Lean-owned declaration:
+
+1. `Informal/ExternalCode.lean` parses and resolves the directive names.
+2. `ExternalRefSnapshot.lean` enriches each resolved declaration with:
+   presence, proved status, provenance, source link, and direct declaration
+   render result.
+3. `DocGenNameRender.lean` produces the direct external declaration HTML used by
+   that snapshot.
+4. `Informal/Block.lean` and `Informal/ExternalCode.lean` render the local
+   external declaration panel from the enriched snapshot.
+5. `Informal/CodeSummary.lean` renders the heading badge and panel indicator
+   from the same external declaration snapshot.
+6. `Commands/Summary.lean` and `Graph.lean` read the same snapshot-derived
+   status for global reporting.
+
+This path deliberately separates:
+
+- semantic status:
+  declaration present / missing / sorry-backed / axiom-like
+- render health:
+  whether the direct external declaration HTML render succeeded
+
+Semantic status should not be downgraded by a renderer bug. Instead, renderer
+problems surface as diagnostics alongside the semantic status.
+
+### Shared preview and manifest path
+
+Preview rendering has a second path that reuses the stored Manual blocks rather
+than the local page body:
+
+1. `PreviewSource.lean` and `PreviewCache.lean` store statement/proof preview
+   identities and blocks during traversal.
+2. `PreviewManifest.lean` renders the shared preview manifest consumed by the
+   generated site.
+3. `Commands/Common.lean` owns the browser-side preview runtime:
+   manifest loading, template lookup, hydration, math rendering, and anchored
+   panel behavior.
+4. Feature-owned JS such as `Commands/Summary.lean` summary preview wiring or
+   `Informal/Block/Assets.lean` code-summary preview wiring binds the generic
+   runtime to concrete surfaces.
+
+### Current diagnostic policy
+
+The current policy is:
+
+- semantic completion remains driven by `ProvedStatus`
+- external render failures surface as local UI warnings
+- optional summary diagnostics can expose those failures for maintainers
+- coverage buckets and completion counts remain semantic rather than
+  renderer-health-based
+
 ## Ownership Boundaries
 
 Two naming domains must stay distinct:
