@@ -209,6 +209,27 @@ span[class$="_thmlabel"]::after {
   color: inherit;
 }
 
+.bp_render_warning_badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  padding: 0 0.22rem;
+  background: var(--bp-color-accent-info);
+  color: var(--bp-color-surface);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+}
+
+.bp_code_render_warning_badge {
+  margin-left: 0.26rem;
+}
+
 .bp_code_summary_preview_root {
   position: relative;
   display: inline-flex;
@@ -797,6 +818,10 @@ span[class$="_thmlabel"]::after {
 
 .bp_external_status_badge_summary {
   padding-right: 0.58rem;
+}
+
+.bp_external_render_warning_badge {
+  margin-left: 0.08rem;
 }
 
 .bp_external_status_badge_text {

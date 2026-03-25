@@ -44,6 +44,36 @@ def renderErrorMessage? : Data.ExternalDeclRender → Option String
   | .ok _ => none
   | .error error => some error.message
 
+structure ExternalRenderFailure where
+  decl : Data.ExternalRef
+  message : String
+deriving Repr, Inhabited
+
+def externalRenderFailure? (decl : Data.ExternalRef) : Option ExternalRenderFailure := do
+  if !decl.present then
+    none
+  else
+    let message ← renderErrorMessage? decl.render
+    some { decl, message }
+
+def externalRenderFailures (decls : Array Data.ExternalRef) : Array ExternalRenderFailure :=
+  decls.filterMap externalRenderFailure?
+
+def externalRenderFailureCount (decls : Array Data.ExternalRef) : Nat :=
+  (externalRenderFailures decls).size
+
+def externalRenderFailureSummaryText (count : Nat) : String :=
+  if count == 1 then
+    "render failed for 1 declaration"
+  else
+    s!"render failed for {count} declarations"
+
+def appendExternalRenderFailureSummary (title : String) (count : Nat) : String :=
+  if count == 0 then
+    title
+  else
+    s!"{title}; {externalRenderFailureSummaryText count}"
+
 structure CodeDeclData where
   name : Name
   commandIndex : Nat := 0
