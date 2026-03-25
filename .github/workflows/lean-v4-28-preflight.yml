@@ -1,0 +1,29 @@
+name: Lean v4.28.0 Preflight
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  merge-into-compat:
+    name: Merge Into lean-v4.28.0
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record PR merge ref
+        id: merge_ref
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Fetch compatibility branch
+        run: git fetch origin lean-v4.28.0
+      - name: Dry-run merge into lean-v4.28.0
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B preflight-lean-v4.28.0 origin/lean-v4.28.0
+          git merge --no-commit --no-ff "${{ steps.merge_ref.outputs.sha }}"

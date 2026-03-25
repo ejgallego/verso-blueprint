@@ -471,6 +471,8 @@ python3 -m scripts.blueprint_reference_harness bump-verso-blueprint --project ve
 The repository includes these GitHub Actions workflows:
 
 - `.github/workflows/ci.yml`
+- `.github/workflows/lean-v4-28-preflight.yml`
+- `.github/workflows/lean-v4-28-sync.yml`
 - `.github/workflows/reference-blueprints.yml`
 - `.github/workflows/reference-blueprints-deploy.yml`
 
@@ -484,6 +486,19 @@ pull requests and pushes to `main`:
 On pull requests it also runs `Project Template Fresh Repo`, which materializes
 the in-repo template as a fresh standalone repository and smoke-tests the
 template-owned CI path.
+
+`lean-v4-28-preflight.yml` runs on pull requests to `main` and dry-runs the
+repository's synthetic PR merge ref into `lean-v4.28.0`. Use this if you want
+early warning that a `main` PR will later need manual conflict resolution on
+the compatibility branch. If you want this to gate `main`, mark the check
+`Lean v4.28.0 Preflight / Merge Into lean-v4.28.0` as required in GitHub
+branch protection.
+
+`lean-v4-28-sync.yml` runs after pushes to `main` and refreshes a bot-managed
+branch `sync-main-to-lean-v4.28.0`. When `main` is ahead, it opens or updates a
+sync PR into `lean-v4.28.0`; when the compatibility branch already contains
+`main`, it closes any stale sync PR. If the merge fails, the workflow itself is
+the signal that the compatibility branch now needs a manual forward-merge.
 
 `reference-blueprints.yml` is the shared build workflow. On pull requests,
 pushes to `main`, and manual dispatch, it:

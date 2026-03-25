@@ -1,0 +1,104 @@
+name: Sync Lean v4.28.0 Branch
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  open-sync-pr:
+    name: Open Sync PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Prepare sync branch
+        id: sync
+        run: |
+          target_branch="lean-v4.28.0"
+          sync_branch="sync-main-to-lean-v4.28.0"
+          git fetch origin main "$target_branch"
+          git checkout -B "$sync_branch" "origin/$target_branch"
+          echo "sync_branch=$sync_branch" >> "$GITHUB_OUTPUT"
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "sync_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git merge --no-ff --no-edit origin/main; then
+            echo "main no longer merges cleanly into ${target_branch}" >&2
+            exit 1
+          fi
+          git push --force-with-lease origin "$sync_branch"
+          echo "sync_needed=true" >> "$GITHUB_OUTPUT"
+      - name: Create or close sync PR
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          TARGET_BRANCH: lean-v4.28.0
+          SYNC_BRANCH: ${{ steps.sync.outputs.sync_branch || 'sync-main-to-lean-v4.28.0' }}
+          SYNC_NEEDED: ${{ steps.sync.outputs.sync_needed || 'false' }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const base = process.env.TARGET_BRANCH;
+            const syncBranch = process.env.SYNC_BRANCH;
+            const head = `${owner}:${syncBranch}`;
+            const title = `chore(sync): merge main into ${base}`;
+            const body = [
+              'Automated sync PR opened after a push to `main`.',
+              '',
+              '- source: `main`',
+              `- target: \`${base}\``,
+              '- branch: `sync-main-to-lean-v4.28.0`',
+              '- behavior: refresh this PR after each successful push to `main`'
+            ].join('\n');
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head,
+              base
+            });
+
+            if (process.env.SYNC_NEEDED === 'true') {
+              if (prs.length === 0) {
+                await github.rest.pulls.create({
+                  owner,
+                  repo,
+                  title,
+                  head: syncBranch,
+                  base,
+                  body
+                });
+              } else {
+                await github.rest.pulls.update({
+                  owner,
+                  repo,
+                  pull_number: prs[0].number,
+                  title,
+                  body
+                });
+              }
+              return;
+            }
+
+            for (const pr of prs) {
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: pr.number,
+                state: 'closed'
+              });
+            }
