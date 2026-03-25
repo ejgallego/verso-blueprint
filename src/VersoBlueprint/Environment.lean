@@ -282,6 +282,15 @@ def registerCode (label : Label) (code : Syntax)
       | none => state.localData
     return { state with data, localData }
 
+def registerTexSource (label : Label) (texSource : TexSource) : m Unit := do
+  modifyM fun state => do
+    let data ← state.data.registerTexSource label texSource
+    let localData :=
+      match data.get? label with
+      | some node => state.localData.insert label node
+      | none => state.localData
+    return { state with data, localData }
+
 def getNode? (label : Label) : m (Option Node) := do
   return (informalExt.getState (← getEnv)).data.get? label
 

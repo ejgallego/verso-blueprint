@@ -21,4 +21,5 @@ import VersoBlueprintTests.BlueprintPreviewSource
 import VersoBlueprintTests.BlueprintPreviewWiring
 import VersoBlueprintTests.BlueprintSummaryLinks
 import VersoBlueprintTests.BlueprintSummaryStatus
+import VersoBlueprintTests.BlueprintTexSource
 import VersoBlueprintTests.BlueprintTexMacros

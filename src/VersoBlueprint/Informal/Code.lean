@@ -126,6 +126,25 @@ instance : FromArgs CodeConfig m where
 
 end
 
+structure TexConfig where
+  label : Data.Label
+  labelSyntax : Syntax := Syntax.missing
+
+section
+variable [Monad m] [MonadError m]
+
+def TexConfig.parse : ArgParse m TexConfig :=
+  (fun (labelArg : Verso.ArgParse.WithSyntax String) =>
+    {
+      label := LabelNameParsing.parse labelArg.val
+      labelSyntax := labelArg.syntax
+    }) <$> .positional `label (.withSyntax .string)
+
+instance : FromArgs TexConfig m where
+  fromArgs := TexConfig.parse
+
+end
+
 /-- Interpreting Embedded Lean Code blocks -/
 private def leanImpl : CodeBlockExpanderOf CodeConfig
   | cfg, contents => do
@@ -169,5 +188,15 @@ private def rocqImpl : CodeBlockExpanderOf Unit
 def rocq : CodeBlockExpanderOf Unit
   | cfg, contents => do
     Profile.withDocElab "code_block" "rocq" <| rocqImpl cfg contents
+
+private def texImpl : CodeBlockExpanderOf TexConfig
+  | cfg, contents => do
+    Environment.registerTexSource cfg.label { raw := contents.getString }
+    ``(Block.code $contents)
+
+@[code_block]
+def tex : CodeBlockExpanderOf TexConfig
+  | cfg, contents => do
+    Profile.withDocElab "code_block" "tex" <| texImpl cfg contents
 
 end Informal

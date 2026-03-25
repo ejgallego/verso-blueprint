@@ -174,6 +174,11 @@ structure Code where
   definedTheorems : Array LiterateThm := #[]
 deriving Repr, Inhabited
 
+/-- Raw TeX source associated with a blueprint label. -/
+structure TexSource where
+  raw : String
+deriving Repr, Inhabited, DecidableEq, ToJson, FromJson
+
 inductive ExternalOrigin where
   | directiveLean
   | blueprintAttr
@@ -343,6 +348,7 @@ structure Node where
   statement : Option InformalData := none -- Informal Object statement
   proof : Option InformalData := none -- Informal Object proof
   code : Option CodeRef := none -- Informal Object associated code status
+  texSource : Option TexSource := none -- Raw TeX source associated with this informal object
   parent : Option Parent := none -- Optional parent group for summaries/graphs
   priority : Option String := none -- Optional author-provided triage hint
   owner : Option AuthorId := none
@@ -455,6 +461,18 @@ private def mergeTags (current incoming : Array String) : Array String :=
   incoming.foldl (init := current) fun acc tag =>
     if acc.contains tag then acc else acc.push tag
 
+private def mergeTexSource (label : Label) (current : Option TexSource) (incoming : TexSource)
+    : m (Option TexSource) := do
+  match current with
+  | none => return some incoming
+  | some currentTex =>
+    if currentTex = incoming then
+      logWarning m!"Label {label} repeats the same associated TeX source; keeping the existing source"
+      return some currentTex
+    else
+      logError m!"Label {label} already has an associated TeX source"
+      return some currentTex
+
 def Data.registerCodeRef (data : Data) (label : Label) (codeRef : CodeRef) : m Data := do
   match data.get? label with
   | none =>
@@ -540,5 +558,14 @@ def Data.registerCode (data : Data) (label : Label) (code : Syntax)
   | some node =>
     let code ← mergeCodeRef label node.code literate
     return data.insert label { node with code }
+
+/-- Register raw TeX source for an informal object label. -/
+def Data.registerTexSource (data : Data) (label : Label) (texSource : TexSource) : m Data := do
+  match data.get? label with
+  | none =>
+    return data.insert label { texSource := some texSource }
+  | some node =>
+    let texSource ← mergeTexSource label node.texSource texSource
+    return data.insert label { node with texSource }
 
 end
